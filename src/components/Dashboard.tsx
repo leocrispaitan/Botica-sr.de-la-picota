@@ -257,6 +257,37 @@ export default function Dashboard({ onLogout }: { onLogout?: () => void }) {
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const profileBtnRef = useRef<HTMLButtonElement>(null);
   const logoutBtnRef = useRef<HTMLButtonElement>(null);
+  const logoutConfirmRef = useRef<HTMLDivElement>(null);
+  const [logoutConfirmPos, setLogoutConfirmPos] = useState({ bottom: 0, left: 0 });
+
+  // Update logout confirm position when it opens
+  useEffect(() => {
+    if (showLogoutConfirm && logoutBtnRef.current) {
+      const rect = logoutBtnRef.current.getBoundingClientRect();
+      setLogoutConfirmPos({
+        bottom: window.innerHeight - rect.bottom,
+        left: rect.right + 12,
+      });
+    }
+  }, [showLogoutConfirm]);
+
+  // Close logout confirmation when clicking outside
+  useEffect(() => {
+    if (!showLogoutConfirm) return;
+    const handler = (e: MouseEvent) => {
+      if (logoutAnimating) return;
+      if (
+        logoutConfirmRef.current &&
+        !logoutConfirmRef.current.contains(e.target as Node) &&
+        logoutBtnRef.current &&
+        !logoutBtnRef.current.contains(e.target as Node)
+      ) {
+        setShowLogoutConfirm(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showLogoutConfirm, logoutAnimating]);
 
   const toggleProfileMenu = () => {
     if (!profileMenuOpen && profileBtnRef.current) {
@@ -687,7 +718,7 @@ export default function Dashboard({ onLogout }: { onLogout?: () => void }) {
 
         {/* Sidebar Footer — Premium Logout */}
         <div className={`border-t transition-all duration-300 ${sidebarCollapsed ? "p-3 flex justify-center" : "p-4"}`}
-          style={{ borderColor: t.border, background: t.footerBg }}
+          style={{ borderColor: t.border, background: t.footerBg, position: "relative" }}
         >
           {/* Keyframes for logout button */}
           <style>{`
@@ -731,7 +762,8 @@ export default function Dashboard({ onLogout }: { onLogout?: () => void }) {
           {/* Collapsed mode: icon-only logout */}
           {sidebarCollapsed ? (
             <button
-              onClick={() => setShowLogoutConfirm(true)}
+              ref={logoutBtnRef}
+              onClick={() => setShowLogoutConfirm(!showLogoutConfirm)}
               title="Cerrar sesión"
               style={{
                 width: "44px",
@@ -772,7 +804,7 @@ export default function Dashboard({ onLogout }: { onLogout?: () => void }) {
             /* Expanded mode: full premium logout button */
             <button
               ref={logoutBtnRef}
-              onClick={() => setShowLogoutConfirm(true)}
+              onClick={() => setShowLogoutConfirm(!showLogoutConfirm)}
               style={{
                 width: "100%",
                 position: "relative",
@@ -888,189 +920,171 @@ export default function Dashboard({ onLogout }: { onLogout?: () => void }) {
           )}
         </div>
 
-        {/* ═══ Logout Confirmation Modal ═══ */}
+        {/* ═══ Logout Confirmation Popover ═══ */}
         {showLogoutConfirm && (
           <div
+            ref={logoutConfirmRef}
             style={{
-              position: "fixed",
-              inset: 0,
+              position: sidebarCollapsed ? "fixed" : "absolute",
+              bottom: sidebarCollapsed ? `${logoutConfirmPos.bottom}px` : "100%",
+              left: sidebarCollapsed ? `${logoutConfirmPos.left}px` : "16px",
+              right: sidebarCollapsed ? "auto" : "16px",
+              width: sidebarCollapsed ? "280px" : "auto",
+              marginBottom: sidebarCollapsed ? "0" : "12px",
               zIndex: 9999,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              animation: "confirmBackdrop 0.25s ease both",
+              borderRadius: "20px",
+              padding: "20px",
+              background: isDark
+                ? "linear-gradient(145deg, rgba(33,33,48,0.98), rgba(21,20,31,0.98))"
+                : "linear-gradient(145deg, rgba(255,255,255,0.98), rgba(248,250,252,0.98))",
+              border: `1px solid ${isDark ? "rgba(46,46,66,0.5)" : "rgba(226,232,240,0.8)"}`,
+              boxShadow: isDark
+                ? "0 20px 48px -8px rgba(0,0,0,0.55), 0 8px 16px -4px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.03)"
+                : "0 20px 48px -8px rgba(0,0,0,0.10), 0 8px 16px -4px rgba(0,0,0,0.06), 0 0 0 1px rgba(255,255,255,0.6)",
+              backdropFilter: "blur(20px)",
+              WebkitBackdropFilter: "blur(20px)",
+              animation: "confirmFadeIn 0.25s cubic-bezier(.22,1,.36,1) both",
+              textAlign: "center",
             }}
           >
-            {/* Backdrop */}
-            <div
-              onClick={() => !logoutAnimating && setShowLogoutConfirm(false)}
-              style={{
-                position: "absolute",
-                inset: 0,
-                background: isDark ? "rgba(0,0,0,0.65)" : "rgba(0,0,0,0.35)",
-                backdropFilter: "blur(8px)",
-                WebkitBackdropFilter: "blur(8px)",
-              }}
-            />
-
-            {/* Modal Card */}
+            {/* Warning Icon with animated ring */}
             <div
               style={{
-                position: "relative",
-                width: "380px",
-                maxWidth: "90vw",
-                borderRadius: "24px",
-                padding: "32px",
+                width: "48px",
+                height: "48px",
+                borderRadius: "50%",
+                margin: "0 auto 12px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
                 background: isDark
-                  ? "linear-gradient(145deg, rgba(33,33,48,0.98), rgba(21,20,31,0.98))"
-                  : "linear-gradient(145deg, rgba(255,255,255,0.98), rgba(248,250,252,0.98))",
-                border: `1px solid ${isDark ? "rgba(46,46,66,0.5)" : "rgba(226,232,240,0.8)"}`,
-                boxShadow: isDark
-                  ? "0 32px 64px -12px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04)"
-                  : "0 32px 64px -12px rgba(0,0,0,0.15), 0 0 0 1px rgba(255,255,255,0.6)",
-                animation: "confirmFadeIn 0.3s cubic-bezier(.22,1,.36,1) both",
-                textAlign: "center",
+                  ? "linear-gradient(135deg, rgba(239,68,68,0.15), rgba(239,68,68,0.06))"
+                  : "linear-gradient(135deg, rgba(239,68,68,0.10), rgba(239,68,68,0.04))",
+                animation: logoutAnimating ? "logoutSpinOut 0.6s ease forwards" : "logoutPulseRing 2s infinite",
               }}
             >
-              {/* Warning Icon with animated ring */}
-              <div
+              <LogOut size={20} style={{ color: "#ef4444" }} />
+            </div>
+
+            <h3
+              style={{
+                fontSize: "16px",
+                fontWeight: 700,
+                color: isDark ? "#ffffff" : "#1e293b",
+                marginBottom: "6px",
+                fontFamily: "'Cairo', sans-serif",
+              }}
+            >
+              ¿Cerrar sesión?
+            </h3>
+            <p
+              style={{
+                fontSize: "12px",
+                color: isDark ? "#969ba0" : "#64748b",
+                lineHeight: 1.5,
+                marginBottom: "18px",
+                fontFamily: "'Cairo', sans-serif",
+              }}
+            >
+              Tu sesión actual se cerrará y volverás a la pantalla de inicio de sesión.
+            </p>
+
+            {/* Action Buttons */}
+            <div style={{ display: "flex", gap: "8px" }}>
+              {/* Cancel */}
+              <button
+                onClick={() => setShowLogoutConfirm(false)}
+                disabled={logoutAnimating}
                 style={{
-                  width: "72px",
-                  height: "72px",
-                  borderRadius: "50%",
-                  margin: "0 auto 20px",
+                  flex: 1,
+                  padding: "10px",
+                  borderRadius: "10px",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  fontFamily: "'Cairo', sans-serif",
+                  cursor: logoutAnimating ? "not-allowed" : "pointer",
+                  border: `1px solid ${isDark ? "rgba(46,46,66,0.6)" : "rgba(226,232,240,0.9)"}`,
+                  background: isDark ? "rgba(33,33,48,0.8)" : "rgba(248,250,252,0.9)",
+                  color: isDark ? "#ffffff" : "#1e293b",
+                  transition: "all 0.25s ease",
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.background = isDark ? "rgba(46,46,66,0.6)" : "rgba(226,232,240,0.6)";
+                  (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-1px)";
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.background = isDark ? "rgba(33,33,48,0.8)" : "rgba(248,250,252,0.9)";
+                  (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
+                }}
+              >
+                Cancelar
+              </button>
+
+              {/* Confirm Logout */}
+              <button
+                onClick={() => {
+                  setLogoutAnimating(true);
+                  setTimeout(() => {
+                    setShowLogoutConfirm(false);
+                    setLogoutAnimating(false);
+                    if (onLogout) onLogout();
+                  }, 700);
+                }}
+                disabled={logoutAnimating}
+                style={{
+                  flex: 1,
+                  padding: "10px",
+                  borderRadius: "10px",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  fontFamily: "'Cairo', sans-serif",
+                  cursor: logoutAnimating ? "not-allowed" : "pointer",
+                  border: "none",
+                  background: logoutAnimating
+                    ? "linear-gradient(135deg, #22c55e, #16a34a)"
+                    : "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)",
+                  color: "#ffffff",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  background: isDark
-                    ? "linear-gradient(135deg, rgba(239,68,68,0.15), rgba(239,68,68,0.06))"
-                    : "linear-gradient(135deg, rgba(239,68,68,0.10), rgba(239,68,68,0.04))",
-                  animation: logoutAnimating ? "logoutSpinOut 0.6s ease forwards" : "logoutPulseRing 2s infinite",
+                  gap: "6px",
+                  transition: "all 0.35s cubic-bezier(0.34,1.56,0.64,1)",
+                  boxShadow: logoutAnimating
+                    ? "0 6px 16px -4px rgba(34,197,94,0.5)"
+                    : "0 6px 16px -4px rgba(239,68,68,0.4)",
+                }}
+                onMouseEnter={(e) => {
+                  if (!logoutAnimating) {
+                    (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)";
+                    (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 8px 24px -4px rgba(239,68,68,0.5)";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
+                  (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 6px 16px -4px rgba(239,68,68,0.4)";
                 }}
               >
-                <LogOut size={28} style={{ color: "#ef4444" }} />
-              </div>
-
-              <h3
-                style={{
-                  fontSize: "20px",
-                  fontWeight: 700,
-                  color: isDark ? "#ffffff" : "#1e293b",
-                  marginBottom: "8px",
-                  fontFamily: "'Cairo', sans-serif",
-                }}
-              >
-                ¿Cerrar sesión?
-              </h3>
-              <p
-                style={{
-                  fontSize: "14px",
-                  color: isDark ? "#969ba0" : "#64748b",
-                  lineHeight: 1.6,
-                  marginBottom: "28px",
-                  fontFamily: "'Cairo', sans-serif",
-                }}
-              >
-                Tu sesión actual se cerrará y volverás a la pantalla de inicio de sesión.
-              </p>
-
-              {/* Action Buttons */}
-              <div style={{ display: "flex", gap: "12px" }}>
-                {/* Cancel */}
-                <button
-                  onClick={() => setShowLogoutConfirm(false)}
-                  disabled={logoutAnimating}
-                  style={{
-                    flex: 1,
-                    padding: "14px",
-                    borderRadius: "14px",
-                    fontSize: "14px",
-                    fontWeight: 600,
-                    fontFamily: "'Cairo', sans-serif",
-                    cursor: logoutAnimating ? "not-allowed" : "pointer",
-                    border: `1px solid ${isDark ? "rgba(46,46,66,0.6)" : "rgba(226,232,240,0.9)"}`,
-                    background: isDark ? "rgba(33,33,48,0.8)" : "rgba(248,250,252,0.9)",
-                    color: isDark ? "#ffffff" : "#1e293b",
-                    transition: "all 0.25s ease",
-                  }}
-                  onMouseEnter={(e) => {
-                    (e.currentTarget as HTMLButtonElement).style.background = isDark ? "rgba(46,46,66,0.6)" : "rgba(226,232,240,0.6)";
-                    (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-1px)";
-                  }}
-                  onMouseLeave={(e) => {
-                    (e.currentTarget as HTMLButtonElement).style.background = isDark ? "rgba(33,33,48,0.8)" : "rgba(248,250,252,0.9)";
-                    (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
-                  }}
-                >
-                  Cancelar
-                </button>
-
-                {/* Confirm Logout */}
-                <button
-                  onClick={() => {
-                    setLogoutAnimating(true);
-                    setTimeout(() => {
-                      setShowLogoutConfirm(false);
-                      setLogoutAnimating(false);
-                      if (onLogout) onLogout();
-                    }, 700);
-                  }}
-                  disabled={logoutAnimating}
-                  style={{
-                    flex: 1,
-                    padding: "14px",
-                    borderRadius: "14px",
-                    fontSize: "14px",
-                    fontWeight: 600,
-                    fontFamily: "'Cairo', sans-serif",
-                    cursor: logoutAnimating ? "not-allowed" : "pointer",
-                    border: "none",
-                    background: logoutAnimating
-                      ? "linear-gradient(135deg, #22c55e, #16a34a)"
-                      : "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)",
-                    color: "#ffffff",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: "8px",
-                    transition: "all 0.35s cubic-bezier(0.34,1.56,0.64,1)",
-                    boxShadow: logoutAnimating
-                      ? "0 8px 24px -6px rgba(34,197,94,0.5)"
-                      : "0 8px 24px -6px rgba(239,68,68,0.4)",
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!logoutAnimating) {
-                      (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)";
-                      (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 12px 32px -6px rgba(239,68,68,0.5)";
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
-                    (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 8px 24px -6px rgba(239,68,68,0.4)";
-                  }}
-                >
-                  {logoutAnimating ? (
-                    <>
-                      <span
-                        style={{
-                          width: "16px",
-                          height: "16px",
-                          border: "2.5px solid rgba(255,255,255,0.3)",
-                          borderTopColor: "#fff",
-                          borderRadius: "50%",
-                          animation: "spinLoader 0.6s linear infinite",
-                        }}
-                      />
-                      Cerrando...
-                    </>
-                  ) : (
-                    <>
-                      <LogOut size={16} />
-                      Sí, cerrar
-                    </>
-                  )}
-                </button>
-              </div>
+                {logoutAnimating ? (
+                  <>
+                    <span
+                      style={{
+                        width: "12px",
+                        height: "12px",
+                        border: "2px solid rgba(255,255,255,0.3)",
+                        borderTopColor: "#fff",
+                        borderRadius: "50%",
+                        animation: "spinLoader 0.6s linear infinite",
+                      }}
+                    />
+                    Cerrando...
+                  </>
+                ) : (
+                  <>
+                    <LogOut size={12} />
+                    Sí, cerrar
+                  </>
+                )}
+              </button>
             </div>
           </div>
         )}
