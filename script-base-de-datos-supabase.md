@@ -1,5 +1,13 @@
 -- =====================================================================
 --  botica control / farmacia picota — script para supabase
+
+--  Backend: Node.js + Express + TypeScript
+--  Frontend: React + TypeScript + Vite
+--  Base de datos: supabase
+--  despliegue:
+-- frontend: Vercel
+-- backend:  render
+-- nube bd:  supabase
 -- =====================================================================
 
 
