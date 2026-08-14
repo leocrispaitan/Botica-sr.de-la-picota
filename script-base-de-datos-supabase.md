@@ -23,20 +23,108 @@ create table rol (
 );
 
 -- =====================================================================
--- 2. tabla usuario
+-- 2. tabla usuario (personal: admin/vendedor/almacenero)
 -- =====================================================================
+-- CAMBIO IMPORTANTE: Integración con Supabase Auth
+-- 
+-- Esta tabla ya NO guarda contraseñas. La autenticación la maneja 100% Supabase Auth.
+-- 
+-- Campos clave:
+--   - id_auth: UUID que enlaza con auth.users(id) de Supabase Auth
+--   - email: Copiado de auth.users para consultas rápidas (sincronizado por trigger)
+--   - dni: Documento de identidad del personal (obligatorio en Perú)
+--   - nombre_usuario: Identificador interno/visualización (ya no se usa para login)
+--   - foto_perfil_url: URL de avatar (Supabase Storage, UI Avatars, etc.)
+--
+-- Flujo de autenticación:
+--   1. Usuario hace login con email/password → Supabase Auth valida
+--   2. Supabase devuelve JWT con id_auth (UUID)
+--   3. Backend busca en esta tabla por id_auth para obtener rol y permisos
+--
 create table usuario (
     id_usuario serial primary key,
-    nombre_usuario varchar(50) not null unique,
+    id_auth uuid unique not null,  -- ⭐ Enlace con auth.users(id)
+    email varchar(100) not null unique,  -- Copiado de auth.users
+    dni varchar(8) not null unique check (length(dni) = 8),  -- ⭐ DNI obligatorio (Perú)
+    nombre_usuario varchar(50) not null unique,  -- Identificador interno
     nombre_completo varchar(150) not null,
     id_rol int not null,
-    password_hash varchar(255) not null,
+    foto_perfil_url varchar(500),
+    telefono varchar(20),
     ultimo_acceso timestamp,
     estado_logico boolean not null default true,
     fecha_registro timestamp not null default current_timestamp,
+    
     constraint fk_usuario_rol foreign key (id_rol)
-        references rol(id_rol) on update cascade on delete restrict
+        references rol(id_rol) on update cascade on delete restrict,
+    constraint fk_usuario_auth foreign key (id_auth)
+        references auth.users(id) on update cascade on delete cascade
 );
+
+-- =====================================================================
+-- 2.1. trigger: crear perfil automático cuando se registra en auth
+-- =====================================================================
+-- Este trigger se ejecuta automáticamente cuando creas un usuario en Supabase Auth.
+-- Lee los metadatos (raw_user_meta_data) y crea la fila correspondiente en la tabla usuario.
+--
+-- IMPORTANTE: Al crear el usuario en Auth, debes enviar estos campos en raw_user_meta_data:
+-- {
+--   "dni": "12345678",
+--   "nombre_usuario": "admin.jperez",
+--   "nombre_completo": "Juan Pérez Gómez",
+--   "id_rol": 1,
+--   "telefono": "987654321" (opcional)
+-- }
+--
+create or replace function fn_crear_perfil_usuario()
+returns trigger as $$
+begin
+    insert into public.usuario (
+        id_auth,
+        email,
+        dni,
+        nombre_usuario,
+        nombre_completo,
+        id_rol,
+        telefono,
+        foto_perfil_url
+    ) values (
+        new.id,
+        new.email,
+        new.raw_user_meta_data->>'dni',
+        new.raw_user_meta_data->>'nombre_usuario',
+        new.raw_user_meta_data->>'nombre_completo',
+        (new.raw_user_meta_data->>'id_rol')::int,
+        new.raw_user_meta_data->>'telefono',
+        -- Generar avatar automático con UI Avatars si no se proporciona
+        coalesce(
+            new.raw_user_meta_data->>'foto_perfil_url',
+            'https://ui-avatars.com/api/?name=' || 
+            replace(new.raw_user_meta_data->>'nombre_completo', ' ', '+') || 
+            '&background=random&color=fff&size=200'
+        )
+    );
+    return new;
+end;
+$$ language plpgsql security definer;
+
+-- Crear el trigger en la tabla auth.users
+create trigger trg_crear_perfil_usuario
+after insert on auth.users
+for each row execute function fn_crear_perfil_usuario();
+
+-- =====================================================================
+-- 2.2. función para actualizar ultimo_acceso
+-- =====================================================================
+-- Llama esta función desde tu backend cada vez que un usuario hace login exitoso
+create or replace function fn_actualizar_ultimo_acceso(user_id uuid)
+returns void as $$
+begin
+    update usuario
+    set ultimo_acceso = current_timestamp
+    where id_auth = user_id;
+end;
+$$ language plpgsql;
 
 -- =====================================================================
 -- 3. tabla cliente
@@ -315,6 +403,11 @@ for each row execute function fn_valida_venta_factura();
 -- =====================================================================
 -- índices
 -- =====================================================================
+create index idx_usuario_id_auth          on usuario(id_auth);
+create index idx_usuario_email            on usuario(email);
+create index idx_usuario_dni              on usuario(dni);
+create index idx_usuario_rol              on usuario(id_rol);
+create index idx_usuario_nombre           on usuario(nombre_usuario);
 create index idx_producto_categoria       on producto(id_categoria);
 create index idx_producto_proveedor       on producto(id_proveedor);
 create index idx_producto_nombre_generico on producto(nombre_generico);
@@ -407,12 +500,139 @@ insert into rol (nombre_rol, descripcion) values
     ('ALMACENERO', 'Gestiona inventario, lotes y movimientos de stock');
 
 -- 2. usuario (uno por cada rol)
--- nota: password_hash son valores de ejemplo (placeholder). en producción
--- usa hashes reales generados por tu backend (bcrypt/argon2), nunca texto plano.
-insert into usuario (nombre_usuario, nombre_completo, id_rol, password_hash, ultimo_acceso) values
-    ('admin.jperez', 'Juan Pérez Gómez', 1, '$2b$10$examplehashADMINISTRATIVO001', current_timestamp),
-    ('vend.mlopez', 'María López Ruiz', 2, '$2b$10$examplehashVENDEDOR002', current_timestamp),
-    ('alm.rsilva', 'Roberto Silva Vargas', 3, '$2b$10$examplehashALMACENERO003', current_timestamp);
+-- ⚠️ IMPORTANTE: Los usuarios YA NO se insertan directamente en esta tabla.
+-- 
+-- Ahora se crean a través de Supabase Auth y el trigger automáticamente
+-- crea la fila en la tabla usuario.
+--
+-- Para crear usuarios, tienes 3 opciones:
+--
+-- OPCIÓN 1: Desde el Dashboard de Supabase (más fácil para testing)
+--   1. Ir a Authentication → Users → Add User
+--   2. Llenar email y password
+--   3. En "User Metadata" agregar JSON:
+--      {
+--        "dni": "12345678",
+--        "nombre_usuario": "admin.jperez",
+--        "nombre_completo": "Juan Pérez Gómez",
+--        "id_rol": 1,
+--        "telefono": "987654321"
+--      }
+--   4. El trigger creará automáticamente la fila en la tabla usuario
+--
+-- OPCIÓN 2: Desde tu backend con Admin API (recomendado para producción)
+--   Ver ejemplo en el archivo GUIA-SUPABASE-AUTH.md
+--
+-- OPCIÓN 3: Solo para desarrollo/testing - Insertar manualmente después de crear en Auth
+--   (NO recomendado, mejor usar las opciones anteriores)
+--
+-- Para TESTING RÁPIDO, puedes ejecutar este script temporal:
+-- (Copia y pega en el SQL Editor de Supabase DESPUÉS de ejecutar el script principal)
+
+/*
+-- ============ SCRIPT TEMPORAL PARA CREAR USUARIOS DE PRUEBA ============
+-- Solo para desarrollo/testing. En producción usa la Admin API.
+
+-- 1. Administrador
+INSERT INTO auth.users (
+    instance_id,
+    id,
+    aud,
+    role,
+    email,
+    encrypted_password,
+    email_confirmed_at,
+    raw_user_meta_data,
+    created_at,
+    updated_at
+) VALUES (
+    '00000000-0000-0000-0000-000000000000',
+    gen_random_uuid(),
+    'authenticated',
+    'authenticated',
+    'admin@botica.com',
+    crypt('admin123', gen_salt('bf')),  -- Password: admin123
+    now(),
+    jsonb_build_object(
+        'dni', '12345678',
+        'nombre_usuario', 'admin.jperez',
+        'nombre_completo', 'Juan Pérez Gómez',
+        'id_rol', 1,
+        'telefono', '987654321'
+    ),
+    now(),
+    now()
+);
+
+-- 2. Vendedor
+INSERT INTO auth.users (
+    instance_id,
+    id,
+    aud,
+    role,
+    email,
+    encrypted_password,
+    email_confirmed_at,
+    raw_user_meta_data,
+    created_at,
+    updated_at
+) VALUES (
+    '00000000-0000-0000-0000-000000000000',
+    gen_random_uuid(),
+    'authenticated',
+    'authenticated',
+    'vendedor@botica.com',
+    crypt('vendedor123', gen_salt('bf')),  -- Password: vendedor123
+    now(),
+    jsonb_build_object(
+        'dni', '87654321',
+        'nombre_usuario', 'vend.mlopez',
+        'nombre_completo', 'María López Ruiz',
+        'id_rol', 2,
+        'telefono', '976543210'
+    ),
+    now(),
+    now()
+);
+
+-- 3. Almacenero
+INSERT INTO auth.users (
+    instance_id,
+    id,
+    aud,
+    role,
+    email,
+    encrypted_password,
+    email_confirmed_at,
+    raw_user_meta_data,
+    created_at,
+    updated_at
+) VALUES (
+    '00000000-0000-0000-0000-000000000000',
+    gen_random_uuid(),
+    'authenticated',
+    'authenticated',
+    'almacenero@botica.com',
+    crypt('almacenero123', gen_salt('bf')),  -- Password: almacenero123
+    now(),
+    jsonb_build_object(
+        'dni', '11223344',
+        'nombre_usuario', 'alm.rsilva',
+        'nombre_completo', 'Roberto Silva Vargas',
+        'id_rol', 3,
+        'telefono', '965432109'
+    ),
+    now(),
+    now()
+);
+
+-- El trigger creará automáticamente las filas en la tabla usuario
+
+-- ============ CREDENCIALES DE ACCESO ============
+-- Email: admin@botica.com      | Password: admin123      | Rol: ADMINISTRATIVO
+-- Email: vendedor@botica.com   | Password: vendedor123   | Rol: VENDEDOR
+-- Email: almacenero@botica.com | Password: almacenero123 | Rol: ALMACENERO
+*/
 
 -- 3. cliente (uno con dni, uno con ruc para poder emitir factura)
 insert into cliente (tipo_documento, numero_documento, nombre_razon_social, telefono, email, direccion) values
@@ -484,28 +704,52 @@ insert into inventario_lote (id_producto, numero_lote, fecha_vencimiento, costo_
     (2, 'LOTE-B002', '2026-11-20', 11.00, 30, 'Estante B2');
 
 -- 11. venta (una boleta sin cliente, una factura con cliente ruc)
--- ambas registradas por el usuario con rol vendedor (id_usuario = 2)
+-- ⚠️ NOTA: Para insertar ventas de ejemplo, primero debes crear los usuarios en Supabase Auth
+-- Luego obtén el id_usuario correcto de la tabla usuario y reemplaza los valores aquí
+-- Por ahora, estos INSERT están comentados hasta que crees los usuarios
+
+-- Ejemplo de cómo obtener los id_usuario después de crear usuarios en Auth:
+-- SELECT id_usuario, nombre_usuario, email FROM usuario;
+
+/*
 insert into venta (id_cliente, id_usuario, id_metodo_pago, tipo_comprobante, total_pagar, monto_pagado, estado_venta) values
-    (null, 2, 1, 'BOLETA', 25.00, 30.00, 'PAGADA'),
-    (2, 2, 4, 'FACTURA', 54.00, 54.00, 'PAGADA');
+    (null, [ID_USUARIO_VENDEDOR], 1, 'BOLETA', 25.00, 30.00, 'PAGADA'),
+    (2, [ID_USUARIO_VENDEDOR], 4, 'FACTURA', 54.00, 54.00, 'PAGADA');
+*/
 
 -- 12. detalle_venta
+-- ⚠️ NOTA: Comentado hasta que crees las ventas con id_usuario válidos
+
+/*
 insert into detalle_venta (id_venta, id_producto, cantidad, precio_unitario_venta) values
     (1, 1, 2, 12.50),
     (2, 2, 3, 18.00);
+*/
 
 -- 13. detalle_venta_lote
+-- ⚠️ NOTA: Comentado hasta que crees las ventas con id_usuario válidos
+
+/*
 insert into detalle_venta_lote (id_detalle_venta, id_inventario, cantidad) values
     (1, 1, 2),
     (2, 2, 3);
+*/
 
 -- 14. movimiento
--- compra registrada por el almacenero (id_usuario = 3), venta por el vendedor (id_usuario = 2)
+-- ⚠️ NOTA: Comentado hasta que crees los usuarios con id_usuario válidos
+
+/*
+-- compra registrada por el almacenero, venta por el vendedor
 insert into movimiento (tipo_movimiento, id_usuario, motivo_ajuste) values
-    ('COMPRA', 3, 'Ingreso inicial de mercadería'),
-    ('VENTA', 2, null);
+    ('COMPRA', [ID_USUARIO_ALMACENERO], 'Ingreso inicial de mercadería'),
+    ('VENTA', [ID_USUARIO_VENDEDOR], null);
+*/
 
 -- 15. detalle_movimiento
+-- ⚠️ NOTA: Comentado hasta que crees los movimientos con id_usuario válidos
+
+/*
 insert into detalle_movimiento (id_movimiento, id_producto, id_inventario, cantidad, costo_unitario) values
     (1, 1, 1, 50, 7.00),
     (2, 2, 2, 3, 11.00);
+*/

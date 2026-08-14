@@ -12,6 +12,7 @@ import {
   Package,
   AlertTriangle,
 } from "lucide-react";
+import authService from "../services/authService";
 
 /* ─── Premium Light Theme ─────────────────────────── */
 const theme = {
@@ -93,6 +94,7 @@ export default function Login({ onLoginSuccess }: { onLoginSuccess?: () => void 
     "idle" | "loading" | "success" | "error"
   >("idle");
   const [shake, setShake] = useState(false);
+  const [apiError, setApiError] = useState("");
   const formRef = useRef<HTMLFormElement>(null);
 
   /* ─── Validation ─────────────────────────────────────────────────────── */
@@ -102,10 +104,11 @@ export default function Login({ onLoginSuccess }: { onLoginSuccess?: () => void 
   const clearErrors = useCallback(() => {
     setEmailError("");
     setPasswordError("");
+    setApiError("");
   }, []);
 
   /* ─── Submit ─────────────────────────────────────────────────────────── */
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     let valid = true;
     clearErrors();
@@ -127,14 +130,26 @@ export default function Login({ onLoginSuccess }: { onLoginSuccess?: () => void 
 
     setStatus("loading");
 
-    // Simulate auth
-    setTimeout(() => {
-      setStatus("success");
+    try {
+      const response = await authService.login({ email, password });
+
+      if (response.success) {
+        setStatus("success");
+        setTimeout(() => {
+          setStatus("idle");
+          if (onLoginSuccess) onLoginSuccess();
+        }, 1500);
+      }
+    } catch (error: any) {
+      setStatus("error");
+      const errorMessage = error.response?.data?.message || "Error al iniciar sesión. Verifica tus credenciales.";
+      setApiError(errorMessage);
+      setShake(true);
       setTimeout(() => {
+        setShake(false);
         setStatus("idle");
-        if (onLoginSuccess) onLoginSuccess();
-      }, 2800);
-    }, 1800);
+      }, 400);
+    }
   };
 
   return (
@@ -414,6 +429,34 @@ export default function Login({ onLoginSuccess }: { onLoginSuccess?: () => void 
                     "fadeSlideUp 0.5s cubic-bezier(.22,1,.36,1) 0.25s both",
                 }}
               >
+                {/* API Error Message */}
+                {apiError && (
+                  <div
+                    style={{
+                      marginBottom: "20px",
+                      background: theme.dangerSoft,
+                      border: `1px solid ${theme.danger}`,
+                      borderRadius: "12px",
+                      padding: "14px 16px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "12px",
+                      animation: "fadeSlideUp 0.35s ease both",
+                    }}
+                  >
+                    <AlertTriangle size={18} color={theme.danger} />
+                    <span
+                      style={{
+                        fontSize: "13px",
+                        color: theme.danger,
+                        fontWeight: 500,
+                      }}
+                    >
+                      {apiError}
+                    </span>
+                  </div>
+                )}
+
                 {/* Email Field */}
                 <div style={{ marginBottom: "20px" }}>
                   <label
