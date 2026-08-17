@@ -1,4 +1,4 @@
-# Dompet Dashboard
+# Dompet Dashboard frontend
 
 Réplica en código (React + TypeScript + Vite + Tailwind CSS v4) del diseño de Figma:
 "Codia AI Web2Figma: Import Web to Editable Figma (Comunidad)".
