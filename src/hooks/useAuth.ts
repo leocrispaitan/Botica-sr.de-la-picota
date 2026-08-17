@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import authService, { User } from '../services/authService';
+import authService, { type User } from '../services/authService';
 
 /**
  * Hook personalizado para gestionar autenticación

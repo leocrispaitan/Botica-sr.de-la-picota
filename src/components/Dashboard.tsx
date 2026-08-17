@@ -2,18 +2,13 @@ import { useState, useRef, useEffect } from "react";
 import {
   LayoutDashboard,
   TrendingUp,
-  Puzzle,
-  FileText,
-  Table2,
-  Copy,
   Mail,
   MessageSquare,
   Bell,
   Search,
   ChevronRight,
-  CheckCircle,
+  ChevronDown,
   XCircle,
-  FileUp,
   MoreVertical,
   Download,
   Menu,
@@ -27,7 +22,21 @@ import {
   DollarSign,
   BarChart2,
   Users,
+  Warehouse,
+  Truck,
+  FileBarChart,
+  Tags,
+  Building2,
+  Pill,
+  FlaskConical,
+  Boxes,
+  ListChecks,
+  TrendingDown,
+  ClipboardList,
+  Shield,
 } from "lucide-react";
+import { useAuth } from "../hooks/useAuth";
+import UsersManagement from "./UsersManagement";
 
 import {
   imgCanvas,
@@ -245,9 +254,13 @@ function getTheme(isDark: boolean) {
 }
 
 export default function Dashboard({ onLogout }: { onLogout?: () => void }) {
+  // ═══ Autenticación ═══
+  const { user, logout: authLogout } = useAuth();
+  
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [activeMenu, setActiveMenu] = useState("Dashboard");
+  const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
   const [isDark, setIsDark] = useState(true);
   const [logoutHover, setLogoutHover] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -259,6 +272,124 @@ export default function Dashboard({ onLogout }: { onLogout?: () => void }) {
   const logoutBtnRef = useRef<HTMLButtonElement>(null);
   const logoutConfirmRef = useRef<HTMLDivElement>(null);
   const [logoutConfirmPos, setLogoutConfirmPos] = useState({ bottom: 0, left: 0 });
+  
+  // ═══ Flyout Menu States ═══
+  const [hoveredMenuItem, setHoveredMenuItem] = useState<string | null>(null);
+  const [flyoutMenuPos, setFlyoutMenuPos] = useState({ top: 0, left: 0 });
+  const flyoutMenuRef = useRef<HTMLDivElement>(null);
+  const menuItemRefs = useRef<{ [key: string]: HTMLButtonElement | null }>({});
+  const closeTimeoutRef = useRef<number | null>(null);
+
+  // ═══ Datos del usuario autenticado ═══
+  const userName = user?.nombre_completo || "Usuario";
+  const userEmail = user?.email || "usuario@botica.com";
+  const userPhoto = user?.foto_perfil_url || imgRectangle;
+  const userRole = user?.rol?.nombre_rol || "USUARIO";
+  
+  // ═══ Colores del badge según rol ═══
+  const getRoleBadgeColors = (role: string) => {
+    const roleUpper = role.toUpperCase();
+    if (roleUpper.includes('ADMIN')) {
+      return {
+        bg: isDark ? 'rgba(139, 92, 246, 0.12)' : 'rgba(139, 92, 246, 0.08)',
+        text: '#a78bfa',
+        border: isDark ? 'rgba(139, 92, 246, 0.3)' : 'rgba(139, 92, 246, 0.25)',
+        icon: '👑'
+      };
+    }
+    if (roleUpper.includes('VENDEDOR')) {
+      return {
+        bg: isDark ? 'rgba(34, 197, 94, 0.12)' : 'rgba(34, 197, 94, 0.08)',
+        text: '#4ade80',
+        border: isDark ? 'rgba(34, 197, 94, 0.3)' : 'rgba(34, 197, 94, 0.25)',
+        icon: '💼'
+      };
+    }
+    if (roleUpper.includes('ALMACEN')) {
+      return {
+        bg: isDark ? 'rgba(249, 115, 22, 0.12)' : 'rgba(249, 115, 22, 0.08)',
+        text: '#fb923c',
+        border: isDark ? 'rgba(249, 115, 22, 0.3)' : 'rgba(249, 115, 22, 0.25)',
+        icon: '📦'
+      };
+    }
+    return {
+      bg: isDark ? 'rgba(91, 207, 197, 0.12)' : 'rgba(91, 207, 197, 0.08)',
+      text: '#5bcfc5',
+      border: isDark ? 'rgba(91, 207, 197, 0.3)' : 'rgba(91, 207, 197, 0.25)',
+      icon: '👤'
+    };
+  };
+
+  const roleBadge = getRoleBadgeColors(userRole);
+
+  // ═══ Funciones para manejar el flyout menu ═══
+  const openFlyoutMenu = (menuName: string, rect: DOMRect) => {
+    // Cancelar cualquier timeout de cierre pendiente
+    if (closeTimeoutRef.current !== null) {
+      window.clearTimeout(closeTimeoutRef.current);
+      closeTimeoutRef.current = null;
+    }
+    
+    setFlyoutMenuPos({
+      top: rect.top,
+      left: rect.right + 8,
+    });
+    setHoveredMenuItem(menuName);
+  };
+
+  const closeFlyoutMenu = () => {
+    // Cerrar inmediatamente sin delay
+    setHoveredMenuItem(null);
+    if (closeTimeoutRef.current !== null) {
+      window.clearTimeout(closeTimeoutRef.current);
+      closeTimeoutRef.current = null;
+    }
+  };
+
+  const scheduleCloseFlyout = () => {
+    // Programar cierre con delay más largo
+    if (closeTimeoutRef.current !== null) {
+      window.clearTimeout(closeTimeoutRef.current);
+    }
+    
+    closeTimeoutRef.current = window.setTimeout(() => {
+      setHoveredMenuItem(null);
+    }, 200); // 200ms delay
+  };
+
+  const cancelCloseFlyout = () => {
+    // Cancelar el cierre programado
+    if (closeTimeoutRef.current !== null) {
+      window.clearTimeout(closeTimeoutRef.current);
+      closeTimeoutRef.current = null;
+    }
+  };
+
+  // Limpiar timeout al desmontar
+  useEffect(() => {
+    return () => {
+      if (closeTimeoutRef.current !== null) {
+        window.clearTimeout(closeTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // ═══ Función para manejar logout ═══
+  const handleLogout = async () => {
+    setLogoutAnimating(true);
+    try {
+      await authLogout();
+      setTimeout(() => {
+        setShowLogoutConfirm(false);
+        setLogoutAnimating(false);
+        if (onLogout) onLogout();
+      }, 700);
+    } catch (error) {
+      console.error('Error al cerrar sesión:', error);
+      setLogoutAnimating(false);
+    }
+  };
 
   // Update logout confirm position when it opens
   useEffect(() => {
@@ -339,17 +470,80 @@ export default function Dashboard({ onLogout }: { onLogout?: () => void }) {
   };
 
   const menuItems = [
-    { name: "Dashboard", icon: LayoutDashboard },
-    { name: "Productos", icon: Package },
-    { name: "Compras", icon: ShoppingBag },
-    { name: "Ventas", icon: DollarSign },
-    { name: "Reportes", icon: BarChart2 },
-    { name: "Usuarios", icon: Users },
-    { name: "Widget", icon: Puzzle },
-    { name: "Forms", icon: FileText },
-    { name: "Table", icon: Table2 },
-    { name: "Pages", icon: Copy },
+    { 
+      name: "Dashboard", 
+      icon: LayoutDashboard,
+      path: "Dashboard"
+    },
+    { 
+      name: "Inventario", 
+      icon: Warehouse,
+      submenu: [
+        { name: "Productos", icon: Package, path: "Productos" },
+        { name: "Categorías", icon: Tags, path: "Categorias" },
+        { name: "Lotes", icon: Boxes, path: "Lotes" },
+        { name: "Stock Crítico", icon: TrendingDown, path: "StockCritico" },
+      ]
+    },
+    { 
+      name: "Compras", 
+      icon: ShoppingBag,
+      submenu: [
+        { name: "Nueva Compra", icon: ShoppingBag, path: "NuevaCompra" },
+        { name: "Historial", icon: ClipboardList, path: "HistorialCompras" },
+        { name: "Proveedores", icon: Truck, path: "Proveedores" },
+      ]
+    },
+    { 
+      name: "Ventas", 
+      icon: DollarSign,
+      submenu: [
+        { name: "Nueva Venta", icon: DollarSign, path: "NuevaVenta" },
+        { name: "Historial", icon: FileBarChart, path: "HistorialVentas" },
+        { name: "Clientes", icon: Users, path: "Clientes" },
+      ]
+    },
+    { 
+      name: "Catálogos", 
+      icon: ListChecks,
+      submenu: [
+        { name: "Formas Farm.", icon: Pill, path: "FormasFarmaceuticas" },
+        { name: "Vías Admin.", icon: FlaskConical, path: "ViasAdministracion" },
+        { name: "Laboratorios", icon: Building2, path: "Laboratorios" },
+        { name: "Métodos Pago", icon: DollarSign, path: "MetodosPago" },
+      ]
+    },
+    { 
+      name: "Reportes", 
+      icon: BarChart2,
+      submenu: [
+        { name: "Ventas", icon: TrendingUp, path: "ReportesVentas" },
+        { name: "Inventario", icon: Package, path: "ReportesInventario" },
+        { name: "Movimientos", icon: FileBarChart, path: "ReportesMovimientos" },
+      ]
+    },
+    { 
+      name: "Usuarios", 
+      icon: Users,
+      path: "Usuarios"
+    },
+    { 
+      name: "Configuración", 
+      icon: Settings,
+      submenu: [
+        { name: "General", icon: Settings, path: "ConfigGeneral" },
+        { name: "Roles", icon: Shield, path: "ConfigRoles" },
+      ]
+    },
   ];
+
+  const toggleSubmenu = (menuName: string) => {
+    if (expandedMenus.includes(menuName)) {
+      setExpandedMenus(expandedMenus.filter(m => m !== menuName));
+    } else {
+      setExpandedMenus([...expandedMenus, menuName]);
+    }
+  };
 
   return (
     <div
@@ -437,6 +631,7 @@ export default function Dashboard({ onLogout }: { onLogout?: () => void }) {
                 cursor: "pointer",
                 outline: "none",
                 transition: "all 0.3s cubic-bezier(0.34,1.56,0.64,1)",
+                position: "relative",
               }}
               onMouseEnter={(e) => {
                 if (!profileMenuOpen && !sidebarCollapsed) {
@@ -457,8 +652,8 @@ export default function Dashboard({ onLogout }: { onLogout?: () => void }) {
             >
               <div className="relative flex-shrink-0">
                 <img
-                  src={imgRectangle}
-                  alt="Jefferson"
+                  src={userPhoto}
+                  alt={userName}
                   className="w-10 h-10 rounded-full object-cover transition-all duration-300"
                   style={{
                     border: profileMenuOpen ? `2px solid ${t.accent}` : `1px solid ${t.border}`,
@@ -472,9 +667,64 @@ export default function Dashboard({ onLogout }: { onLogout?: () => void }) {
               </div>
               {!sidebarCollapsed && (
                 <>
+                  {/* Keyframes para el efecto de scroll del nombre */}
+                  <style>{`
+                    @keyframes scrollName {
+                      0%, 20% { transform: translateX(0); }
+                      80%, 100% { transform: translateX(calc(-100% + var(--visible-width))); }
+                    }
+                    .name-scroll-container {
+                      position: relative;
+                      overflow: hidden;
+                      width: 100%;
+                    }
+                    .name-scroll-text {
+                      display: inline-block;
+                      white-space: nowrap;
+                      animation: scrollName 8s ease-in-out infinite;
+                      padding-right: 20px;
+                    }
+                    .name-scroll-container:hover .name-scroll-text {
+                      animation-play-state: running;
+                    }
+                  `}</style>
+                  
                   <div className="flex-1 min-w-0 text-left">
-                    <p className="font-semibold text-[15px] leading-tight truncate" style={{ color: t.textPrimary }}>Hola, Jefferson Manco</p>
-                    <p className="font-normal text-[12px] truncate mt-0.5" style={{ color: t.textSecondary }}>jefferson@boticadmin.pe</p>
+                    {/* Nombre con efecto de scroll */}
+                    <div className="name-scroll-container" style={{ '--visible-width': '140px' } as React.CSSProperties}>
+                      <p className="name-scroll-text font-semibold text-[15px] leading-tight" style={{ color: t.textPrimary }}>
+                        Hola, {userName}
+                      </p>
+                    </div>
+                    
+                    {/* Email */}
+                    <p className="font-normal text-[12px] truncate mt-0.5" style={{ color: t.textSecondary }}>
+                      {userEmail}
+                    </p>
+                    
+                    {/* Badge de rol - debajo del email */}
+                    <div style={{ marginTop: '6px' }}>
+                      <span
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          fontSize: '9px',
+                          fontWeight: 700,
+                          letterSpacing: '0.05em',
+                          textTransform: 'uppercase',
+                          padding: '3px 7px',
+                          borderRadius: '6px',
+                          background: roleBadge.bg,
+                          color: roleBadge.text,
+                          border: `1px solid ${roleBadge.border}`,
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        <span style={{ fontSize: '10px' }}>{roleBadge.icon}</span>
+                        {userRole.replace('ADMINISTRATIVO', 'ADMIN').substring(0, 10)}
+                      </span>
+                    </div>
                   </div>
                   {/* Chevron indicator */}
                   <ChevronRight
@@ -519,31 +769,103 @@ export default function Dashboard({ onLogout }: { onLogout?: () => void }) {
                 {/* User mini-card header inside dropdown */}
                 <div
                   style={{
-                    padding: "12px 14px",
+                    padding: "14px 16px",
                     borderBottom: `1px solid ${isDark ? "rgba(46,46,66,0.4)" : "rgba(220,222,235,0.6)"}`,
                     marginBottom: "4px",
                     display: "flex",
                     alignItems: "center",
-                    gap: "10px",
+                    gap: "12px",
                     animation: "profileMenuItemFade 0.3s ease 0.05s both",
                   }}
                 >
                   <img
-                    src={imgRectangle}
-                    alt="Jefferson"
+                    src={userPhoto}
+                    alt={userName}
                     style={{
-                      width: "34px",
-                      height: "34px",
+                      width: "40px",
+                      height: "40px",
                       borderRadius: "50%",
                       objectFit: "cover",
                       border: `2px solid ${t.accent}`,
+                      flexShrink: 0,
                     }}
                   />
                   <div style={{ minWidth: 0, flex: 1 }}>
-                    <p style={{ fontSize: "13px", fontWeight: 600, color: t.textPrimary, lineHeight: 1.3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                      Jefferson Manco
-                    </p>
-                    <p style={{ fontSize: "11px", color: t.accent, lineHeight: 1.3 }}>En línea</p>
+                    {/* Nombre con scroll */}
+                    <div style={{ 
+                      position: 'relative',
+                      overflow: 'hidden',
+                      marginBottom: '6px',
+                    }}>
+                      <p style={{ 
+                        fontSize: "13px", 
+                        fontWeight: 600, 
+                        color: t.textPrimary, 
+                        lineHeight: 1.3,
+                        whiteSpace: "nowrap",
+                        display: "inline-block",
+                        animation: userName.length > 20 ? "scrollName 8s ease-in-out infinite" : "none",
+                        paddingRight: userName.length > 20 ? "20px" : "0",
+                      }}>
+                        {userName}
+                      </p>
+                    </div>
+                    
+                    {/* Email y estado en línea */}
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
+                      <span style={{ 
+                        fontSize: "11px", 
+                        color: t.textSecondary,
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        flex: 1,
+                      }}>
+                        {userEmail}
+                      </span>
+                      <span style={{ 
+                        fontSize: "10px", 
+                        color: t.accent, 
+                        lineHeight: 1.3,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
+                        flexShrink: 0,
+                      }}>
+                        <span style={{
+                          width: "6px",
+                          height: "6px",
+                          borderRadius: "50%",
+                          background: "#68e365",
+                          boxShadow: "0 0 0 2px rgba(104, 227, 101, 0.2)",
+                        }} />
+                        En línea
+                      </span>
+                    </div>
+                    
+                    {/* Badge de rol - ahora debajo */}
+                    <div>
+                      <span
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          fontSize: '9px',
+                          fontWeight: 700,
+                          letterSpacing: '0.05em',
+                          textTransform: 'uppercase',
+                          padding: '3px 8px',
+                          borderRadius: '6px',
+                          background: roleBadge.bg,
+                          color: roleBadge.text,
+                          border: `1px solid ${roleBadge.border}`,
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        <span style={{ fontSize: '10px' }}>{roleBadge.icon}</span>
+                        {userRole}
+                      </span>
+                    </div>
                   </div>
                 </div>
 
@@ -662,55 +984,369 @@ export default function Dashboard({ onLogout }: { onLogout?: () => void }) {
           <nav className="space-y-1">
             {menuItems.map((item) => {
               const Icon = item.icon;
-              const isActive = activeMenu === item.name;
+              const hasSubmenu = 'submenu' in item && item.submenu && item.submenu.length > 0;
+              const isExpanded = expandedMenus.includes(item.name);
+              // Marcar como activo si es la sección actual O si alguna subsección está activa
+              const isActive = activeMenu === ('path' in item ? item.path : item.name) || 
+                               (hasSubmenu && item.submenu?.some(sub => sub.path === activeMenu));
+              
               return (
-                <button
-                  key={item.name}
-                  onClick={() => {
-                    setActiveMenu(item.name);
-                    if (window.innerWidth < 1024) setSidebarOpen(false);
-                  }}
-                  className={`w-full flex items-center transition-all duration-200 group ${sidebarCollapsed
-                    ? "px-0 justify-center h-12 rounded-xl"
-                    : "px-4 py-3.5 justify-between rounded-xl"
+                <div key={item.name}>
+                  {/* Main Menu Item */}
+                  <button
+                    ref={(el) => {
+                      if (hasSubmenu) {
+                        menuItemRefs.current[item.name] = el;
+                      }
+                    }}
+                    onClick={() => {
+                      if (hasSubmenu) {
+                        // En modo colapsado, solo mostrar flyout sin cambiar activeMenu
+                        if (sidebarCollapsed) {
+                          // El click no hace nada, solo el hover
+                          return;
+                        }
+                        // En modo expandido, comportamiento normal
+                        setActiveMenu(item.name);
+                        toggleSubmenu(item.name);
+                        if (!isExpanded) {
+                          setExpandedMenus([...expandedMenus, item.name]);
+                        }
+                      } else {
+                        const menuPath = 'path' in item ? item.path || item.name : item.name;
+                        setActiveMenu(menuPath);
+                        if (window.innerWidth < 1024) setSidebarOpen(false);
+                      }
+                    }}
+                    onMouseEnter={(e) => {
+                      // Mostrar flyout menu si el sidebar está colapsado y tiene submenu
+                      if (sidebarCollapsed && hasSubmenu) {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        openFlyoutMenu(item.name, rect);
+                      }
+                      
+                      if (!isActive) {
+                        (e.currentTarget as HTMLButtonElement).style.background = t.hoverBg;
+                        (e.currentTarget as HTMLButtonElement).style.color = t.textPrimary;
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      // Programar cierre del flyout
+                      if (sidebarCollapsed && hasSubmenu) {
+                        scheduleCloseFlyout();
+                      }
+                      
+                      if (!isActive) {
+                        (e.currentTarget as HTMLButtonElement).style.background = "transparent";
+                        (e.currentTarget as HTMLButtonElement).style.color = t.inactiveItemText;
+                      }
+                    }}
+                    className={`w-full flex items-center transition-all duration-200 group ${
+                      sidebarCollapsed
+                        ? "px-0 justify-center h-12 rounded-xl"
+                        : "px-4 py-3.5 justify-between rounded-xl"
                     }`}
-                  style={{
-                    background: isActive ? t.activeItemBg : "transparent",
-                    color: isActive ? t.activeItemText : t.inactiveItemText,
-                    fontWeight: isActive ? 600 : 400,
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isActive) {
-                      (e.currentTarget as HTMLButtonElement).style.background = t.hoverBg;
-                      (e.currentTarget as HTMLButtonElement).style.color = t.textPrimary;
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isActive) {
-                      (e.currentTarget as HTMLButtonElement).style.background = "transparent";
-                      (e.currentTarget as HTMLButtonElement).style.color = t.inactiveItemText;
-                    }
-                  }}
-                >
-                  {sidebarCollapsed ? (
-                    <Icon
-                      size={20}
-                      className="transition-colors flex-shrink-0"
-                    />
-                  ) : (
-                    <>
-                      <div className="flex items-center gap-3.5 min-w-0">
+                    style={{
+                      background: isActive ? t.activeItemBg : "transparent",
+                      color: isActive ? t.activeItemText : t.inactiveItemText,
+                      fontWeight: isActive ? 600 : 400,
+                    }}
+                  >
+                    {sidebarCollapsed ? (
+                      <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
                         <Icon size={20} className="transition-colors flex-shrink-0" />
-                        <span className="text-[15px] truncate">{item.name}</span>
+                        {/* Tooltip con el nombre cuando está colapsado */}
+                        {!hasSubmenu && (
+                          <span
+                            style={{
+                              position: "absolute",
+                              left: "calc(100% + 12px)",
+                              whiteSpace: "nowrap",
+                              padding: "6px 12px",
+                              borderRadius: "8px",
+                              fontSize: "12px",
+                              fontWeight: 500,
+                              background: isDark
+                                ? "linear-gradient(145deg, rgba(33,33,48,0.97), rgba(21,20,31,0.97))"
+                                : "linear-gradient(145deg, rgba(255,255,255,0.98), rgba(248,250,252,0.98))",
+                              border: `1px solid ${isDark ? "rgba(46,46,66,0.5)" : "rgba(220,222,235,0.8)"}`,
+                              boxShadow: isDark
+                                ? "0 8px 16px -4px rgba(0,0,0,0.4)"
+                                : "0 8px 16px -4px rgba(0,0,0,0.1)",
+                              color: t.textPrimary,
+                              opacity: 0,
+                              pointerEvents: "none",
+                              transform: "translateX(-8px)",
+                              transition: "all 0.2s ease",
+                              zIndex: 10000,
+                            }}
+                            className="group-hover:opacity-100 group-hover:translate-x-0"
+                          >
+                            {item.name}
+                          </span>
+                        )}
                       </div>
-                      <ChevronRight
-                        size={14}
-                        className={`transition-transform duration-200 flex-shrink-0 ${isActive ? "rotate-90" : ""}`}
-                        style={{ color: isActive ? t.activeItemText : `${t.textSecondary}80` }}
+                    ) : (
+                      <>
+                        <div className="flex items-center gap-3.5 min-w-0">
+                          <Icon size={20} className="transition-colors flex-shrink-0" />
+                          <span className="text-[15px] truncate">{item.name}</span>
+                        </div>
+                        {hasSubmenu ? (
+                          <ChevronDown
+                            size={14}
+                            className={`transition-transform duration-200 flex-shrink-0 ${
+                              isExpanded ? "rotate-180" : ""
+                            }`}
+                            style={{ color: isActive ? t.activeItemText : `${t.textSecondary}80` }}
+                          />
+                        ) : (
+                          <ChevronRight
+                            size={14}
+                            className="transition-transform duration-200 flex-shrink-0"
+                            style={{ color: isActive ? t.activeItemText : `${t.textSecondary}80` }}
+                          />
+                        )}
+                      </>
+                    )}
+                  </button>
+
+                  {/* Submenu Items */}
+                  {hasSubmenu && isExpanded && !sidebarCollapsed && (
+                    <div
+                      className="relative mt-2 mb-2 space-y-0.5"
+                      style={{
+                        animation: "slideDown 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                        paddingLeft: "24px",
+                      }}
+                    >
+                      <style>{`
+                        @keyframes slideDown {
+                          from {
+                            opacity: 0;
+                            transform: translateY(-8px);
+                            max-height: 0;
+                          }
+                          to {
+                            opacity: 1;
+                            transform: translateY(0);
+                            max-height: 500px;
+                          }
+                        }
+                        @keyframes pulseGlow {
+                          0%, 100% {
+                            box-shadow: 0 0 0 0 ${t.accent}40;
+                          }
+                          50% {
+                            box-shadow: 0 0 10px 2px ${t.accent}30;
+                          }
+                        }
+                        @keyframes slideInRight {
+                          from {
+                            opacity: 0;
+                            transform: translateX(-4px);
+                          }
+                          to {
+                            opacity: 1;
+                            transform: translateX(0);
+                          }
+                        }
+                      `}</style>
+                      
+                      {/* Vertical Timeline Line - Mejorada */}
+                      <div
+                        style={{
+                          position: "absolute",
+                          left: "18px",
+                          top: "8px",
+                          bottom: "8px",
+                          width: "2px",
+                          background: isDark 
+                            ? `linear-gradient(180deg, ${t.accent}50 0%, ${t.accent}30 50%, ${t.accent}15 100%)`
+                            : `linear-gradient(180deg, ${t.accent}40 0%, ${t.accent}25 50%, ${t.accent}10 100%)`,
+                          borderRadius: "2px",
+                          zIndex: 0,
+                          boxShadow: `0 0 8px ${t.accent}20`,
+                        }}
                       />
-                    </>
+
+                      {item.submenu?.map((subItem, idx) => {
+                        const SubIcon = subItem.icon;
+                        const isSubActive = activeMenu === subItem.path;
+                        
+                        return (
+                          <div 
+                            key={subItem.path} 
+                            style={{ 
+                              position: "relative", 
+                              zIndex: 1,
+                              animation: `slideInRight 0.3s ease ${idx * 0.05}s both`,
+                            }}
+                          >
+                            <button
+                              onClick={() => {
+                                setActiveMenu(subItem.path);
+                                if (window.innerWidth < 1024) setSidebarOpen(false);
+                              }}
+                              className="w-full flex items-center py-2.5 px-3 rounded-xl transition-all duration-300 group relative"
+                              style={{
+                                background: isSubActive 
+                                  ? isDark
+                                    ? `linear-gradient(90deg, ${t.accent}15 0%, ${t.accent}08 100%)`
+                                    : `linear-gradient(90deg, ${t.accent}12 0%, ${t.accent}06 100%)`
+                                  : "transparent",
+                                color: isSubActive ? t.accent : t.inactiveItemText,
+                                fontWeight: isSubActive ? 600 : 400,
+                                marginLeft: "8px",
+                                transform: isSubActive ? "translateX(2px)" : "translateX(0)",
+                                border: isSubActive 
+                                  ? `1px solid ${t.accent}20` 
+                                  : "1px solid transparent",
+                              }}
+                              onMouseEnter={(e) => {
+                                if (!isSubActive) {
+                                  (e.currentTarget as HTMLButtonElement).style.background = isDark
+                                    ? `linear-gradient(90deg, ${t.accent}08 0%, ${t.accent}04 100%)`
+                                    : `linear-gradient(90deg, ${t.accent}06 0%, ${t.accent}03 100%)`;
+                                  (e.currentTarget as HTMLButtonElement).style.color = t.textPrimary;
+                                  (e.currentTarget as HTMLButtonElement).style.transform = "translateX(4px)";
+                                  (e.currentTarget as HTMLButtonElement).style.border = `1px solid ${t.accent}15`;
+                                }
+                              }}
+                              onMouseLeave={(e) => {
+                                if (!isSubActive) {
+                                  (e.currentTarget as HTMLButtonElement).style.background = "transparent";
+                                  (e.currentTarget as HTMLButtonElement).style.color = t.inactiveItemText;
+                                  (e.currentTarget as HTMLButtonElement).style.transform = "translateX(0)";
+                                  (e.currentTarget as HTMLButtonElement).style.border = "1px solid transparent";
+                                }
+                              }}
+                            >
+                              {/* Connection Branch - Mejorada al lado derecho de la línea */}
+                              <div
+                                style={{
+                                  position: "absolute",
+                                  left: "-8px",
+                                  top: "50%",
+                                  width: "12px",
+                                  height: "2px",
+                                  background: isSubActive 
+                                    ? t.accent
+                                    : isDark ? `${t.accent}35` : `${t.accent}30`,
+                                  transform: "translateY(-50%)",
+                                  borderRadius: "0 2px 2px 0",
+                                  transition: "all 0.3s ease",
+                                  boxShadow: isSubActive ? `0 0 8px ${t.accent}60` : "none",
+                                }}
+                              />
+
+                              {/* Timeline Node - Mejorado */}
+                              <div
+                                style={{
+                                  position: "absolute",
+                                  left: "-13px",
+                                  top: "50%",
+                                  transform: "translateY(-50%)",
+                                  width: isSubActive ? "12px" : "8px",
+                                  height: isSubActive ? "12px" : "8px",
+                                  borderRadius: "50%",
+                                  background: isSubActive 
+                                    ? t.accent 
+                                    : isDark ? `${t.accent}30` : `${t.accent}25`,
+                                  border: isSubActive 
+                                    ? `2px solid ${isDark ? t.accent : t.accent}` 
+                                    : `2px solid ${isDark ? `${t.accent}20` : `${t.accent}15`}`,
+                                  boxShadow: isSubActive 
+                                    ? `0 0 12px ${t.accent}80, 0 0 4px ${t.accent}, inset 0 0 4px ${t.accent}40` 
+                                    : "none",
+                                  transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                                  animation: isSubActive ? "pulseGlow 2s infinite" : "none",
+                                  zIndex: 2,
+                                }}
+                              >
+                                {/* Inner glow for active state */}
+                                {isSubActive && (
+                                  <div
+                                    style={{
+                                      position: "absolute",
+                                      inset: "2px",
+                                      borderRadius: "50%",
+                                      background: `radial-gradient(circle, ${t.accent} 0%, transparent 70%)`,
+                                    }}
+                                  />
+                                )}
+                              </div>
+
+                              {/* Icon Container - Mejorado */}
+                              <div
+                                style={{
+                                  width: "36px",
+                                  height: "36px",
+                                  borderRadius: "11px",
+                                  background: isSubActive
+                                    ? isDark
+                                      ? `linear-gradient(135deg, ${t.accent}20 0%, ${t.accent}12 100%)`
+                                      : `linear-gradient(135deg, ${t.accent}15 0%, ${t.accent}08 100%)`
+                                    : isDark 
+                                      ? "rgba(255,255,255,0.04)" 
+                                      : "rgba(0,0,0,0.03)",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  marginRight: "12px",
+                                  flexShrink: 0,
+                                  transition: "all 0.3s ease",
+                                  border: isSubActive 
+                                    ? `1px solid ${t.accent}30` 
+                                    : isDark
+                                      ? "1px solid rgba(255,255,255,0.02)"
+                                      : "1px solid rgba(0,0,0,0.02)",
+                                  boxShadow: isSubActive 
+                                    ? `0 2px 8px ${t.accent}15, inset 0 1px 0 rgba(255,255,255,0.1)` 
+                                    : "none",
+                                }}
+                              >
+                                <SubIcon 
+                                  size={17} 
+                                  style={{ 
+                                    transition: "all 0.3s ease",
+                                    strokeWidth: isSubActive ? 2.5 : 2,
+                                  }} 
+                                />
+                              </div>
+
+                              {/* Label - Mejorado */}
+                              <span 
+                                className="text-[14px] truncate flex-1"
+                                style={{
+                                  letterSpacing: isSubActive ? "0.01em" : "0",
+                                  transition: "all 0.3s ease",
+                                }}
+                              >
+                                {subItem.name}
+                              </span>
+
+                              {/* Active Indicator - Mejorado */}
+                              {isSubActive && (
+                                <div
+                                  style={{
+                                    width: "4px",
+                                    height: "20px",
+                                    background: `linear-gradient(180deg, ${t.accent} 0%, ${t.accent}70 100%)`,
+                                    borderRadius: "4px 0 0 4px",
+                                    marginLeft: "8px",
+                                    boxShadow: `-3px 0 12px ${t.accent}40`,
+                                    animation: "pulseGlow 2s infinite",
+                                  }}
+                                />
+                              )}
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
                   )}
-                </button>
+                </div>
               );
             })}
           </nav>
@@ -1021,14 +1657,7 @@ export default function Dashboard({ onLogout }: { onLogout?: () => void }) {
 
                 {/* Confirm Logout */}
                 <button
-                  onClick={() => {
-                    setLogoutAnimating(true);
-                    setTimeout(() => {
-                      setShowLogoutConfirm(false);
-                      setLogoutAnimating(false);
-                      if (onLogout) onLogout();
-                  }, 700);
-                  }}
+                  onClick={handleLogout}
                   disabled={logoutAnimating}
                   style={{
                     flex: 1,
@@ -1089,6 +1718,226 @@ export default function Dashboard({ onLogout }: { onLogout?: () => void }) {
           )}
         </div>
       </aside>
+
+      {/* ═══ Flyout Menu - Mostrar submenu cuando el sidebar está colapsado ═══ */}
+      {sidebarCollapsed && hoveredMenuItem && (
+        <>
+          {/* Área invisible de puente entre el botón y el flyout */}
+          <div
+            style={{
+              position: "fixed",
+              top: `${flyoutMenuPos.top - 10}px`,
+              left: `${flyoutMenuPos.left - 20}px`,
+              width: "30px",
+              height: `${Math.min(400, window.innerHeight - flyoutMenuPos.top - 20)}px`,
+              zIndex: 9998,
+              pointerEvents: "auto",
+            }}
+            onMouseEnter={() => {
+              cancelCloseFlyout();
+            }}
+            onMouseLeave={() => {
+              scheduleCloseFlyout();
+            }}
+          />
+          
+          <div
+            ref={flyoutMenuRef}
+            onMouseEnter={() => {
+              // Cancelar el cierre programado cuando el mouse entra al flyout
+              cancelCloseFlyout();
+            }}
+            onMouseLeave={() => {
+              // Cerrar inmediatamente cuando el mouse sale del flyout
+              closeFlyoutMenu();
+            }}
+            style={{
+              position: "fixed",
+              top: `${flyoutMenuPos.top}px`,
+              left: `${flyoutMenuPos.left}px`,
+              zIndex: 9999,
+              minWidth: "240px",
+              maxWidth: "280px",
+              borderRadius: "18px",
+              padding: "8px",
+              background: isDark
+                ? "linear-gradient(145deg, rgba(33,33,48,0.97), rgba(21,20,31,0.97))"
+                : "linear-gradient(145deg, rgba(255,255,255,0.98), rgba(248,250,252,0.98))",
+              border: `1px solid ${isDark ? "rgba(46,46,66,0.5)" : "rgba(220,222,235,0.8)"}`,
+              boxShadow: isDark
+                ? "0 20px 48px -8px rgba(0,0,0,0.55), 0 8px 16px -4px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.03)"
+                : "0 20px 48px -8px rgba(0,0,0,0.10), 0 8px 16px -4px rgba(0,0,0,0.06), 0 0 0 1px rgba(255,255,255,0.6)",
+              backdropFilter: "blur(20px)",
+              WebkitBackdropFilter: "blur(20px)",
+              animation: "flyoutSlideIn 0.2s cubic-bezier(.22,1,.36,1) both",
+              pointerEvents: "auto",
+            }}
+          >
+          <style>{`
+            @keyframes flyoutSlideIn {
+              from { 
+                opacity: 0; 
+                transform: translateX(-8px) scale(0.96); 
+              }
+              to { 
+                opacity: 1; 
+                transform: translateX(0) scale(1); 
+              }
+            }
+            @keyframes flyoutItemFade {
+              from { 
+                opacity: 0; 
+                transform: translateX(-6px); 
+              }
+              to { 
+                opacity: 1; 
+                transform: translateX(0); 
+              }
+            }
+          `}</style>
+
+          {/* Header con el nombre del menú */}
+          <div
+            style={{
+              padding: "12px 14px",
+              borderBottom: `1px solid ${isDark ? "rgba(46,46,66,0.4)" : "rgba(220,222,235,0.6)"}`,
+              marginBottom: "6px",
+            }}
+          >
+            <p
+              style={{
+                fontSize: "13px",
+                fontWeight: 700,
+                color: t.accent,
+                textTransform: "uppercase",
+                letterSpacing: "0.05em",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+              }}
+            >
+              {(() => {
+                const currentItem = menuItems.find(item => item.name === hoveredMenuItem);
+                if (currentItem) {
+                  const Icon = currentItem.icon;
+                  return (
+                    <>
+                      <Icon size={16} />
+                      {currentItem.name}
+                    </>
+                  );
+                }
+                return null;
+              })()}
+            </p>
+          </div>
+
+          {/* Submenu items */}
+          {(() => {
+            const currentItem = menuItems.find(item => item.name === hoveredMenuItem);
+            if (currentItem && 'submenu' in currentItem && currentItem.submenu) {
+              return currentItem.submenu.map((subItem, idx) => {
+                const SubIcon = subItem.icon;
+                const isSubActive = activeMenu === subItem.path;
+                
+                return (
+                  <button
+                    key={subItem.path}
+                    onClick={() => {
+                      setActiveMenu(subItem.path);
+                      closeFlyoutMenu(); // Cerrar inmediatamente al hacer click
+                      if (window.innerWidth < 1024) setSidebarOpen(false);
+                    }}
+                    style={{
+                      width: "100%",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "12px",
+                      padding: "10px 14px",
+                      borderRadius: "12px",
+                      border: "none",
+                      background: isSubActive 
+                        ? (isDark ? "rgba(91,207,197,0.12)" : "rgba(91,207,197,0.08)")
+                        : "transparent",
+                      cursor: "pointer",
+                      fontFamily: "'Cairo', sans-serif",
+                      transition: "all 0.2s ease",
+                      animation: `flyoutItemFade 0.3s ease ${idx * 0.05}s both`,
+                      marginBottom: idx < (currentItem.submenu!.length - 1) ? "2px" : "0",
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isSubActive) {
+                        (e.currentTarget as HTMLButtonElement).style.background = isDark
+                          ? "rgba(91,207,197,0.06)"
+                          : "rgba(91,207,197,0.04)";
+                        (e.currentTarget as HTMLButtonElement).style.transform = "translateX(4px)";
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isSubActive) {
+                        (e.currentTarget as HTMLButtonElement).style.background = "transparent";
+                        (e.currentTarget as HTMLButtonElement).style.transform = "translateX(0)";
+                      }
+                    }}
+                  >
+                    {/* Icon Container */}
+                    <span
+                      style={{
+                        width: "36px",
+                        height: "36px",
+                        borderRadius: "11px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        background: isSubActive
+                          ? (isDark ? `linear-gradient(135deg, ${t.accent}20 0%, ${t.accent}12 100%)` : `linear-gradient(135deg, ${t.accent}15 0%, ${t.accent}08 100%)`)
+                          : (isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)"),
+                        color: isSubActive ? t.accent : t.textSecondary,
+                        flexShrink: 0,
+                        transition: "all 0.2s ease",
+                        border: isSubActive 
+                          ? `1px solid ${t.accent}30` 
+                          : (isDark ? "1px solid rgba(255,255,255,0.02)" : "1px solid rgba(0,0,0,0.02)"),
+                      }}
+                    >
+                      <SubIcon size={17} />
+                    </span>
+                    
+                    {/* Label */}
+                    <span
+                      style={{
+                        fontSize: "14px",
+                        fontWeight: isSubActive ? 600 : 400,
+                        color: isSubActive ? t.accent : t.textPrimary,
+                        flex: 1,
+                        textAlign: "left",
+                      }}
+                    >
+                      {subItem.name}
+                    </span>
+
+                    {/* Active indicator */}
+                    {isSubActive && (
+                      <div
+                        style={{
+                          width: "6px",
+                          height: "6px",
+                          borderRadius: "50%",
+                          background: t.accent,
+                          boxShadow: `0 0 8px ${t.accent}60`,
+                          flexShrink: 0,
+                        }}
+                      />
+                    )}
+                  </button>
+                );
+              });
+            }
+            return null;
+          })()}
+        </div>
+        </>
+      )}
 
       {/* Main Page Area */}
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
@@ -1173,52 +2022,317 @@ export default function Dashboard({ onLogout }: { onLogout?: () => void }) {
         </header>
 
         {/* Scrollable Dashboard View */}
-        <main className="flex-1 p-6 space-y-6 overflow-y-auto" style={{ background: t.mainBg, transition: "background 0.4s ease" }}>
-
-          {/* 4 Summary Cards Grid */}
+        <main className="flex-1 overflow-y-auto" style={{ background: t.mainBg, transition: "background 0.4s ease" }}>
+          
+          {/* Render content based on activeMenu */}
+          {activeMenu === "Usuarios" ? (
+            <UsersManagement isDark={isDark} />
+          ) : (
+            <div className="p-6 space-y-6">
+              {/* 4 Summary Cards Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
 
-            {/* Card 1 */}
-            <div className="bg-[#4d3422]/90 bg-gradient-to-br from-[#533a28] to-[#392518] border border-[#ffb74d]/10 rounded-[24px] p-6 flex items-center justify-between hover:scale-[1.02] transition-transform duration-300">
-              <div>
-                <p className="text-white text-[28px] font-semibold leading-tight">2478</p>
-                <p className="text-[#ffa755] text-[14px] mt-1 font-medium">Productos en Stock</p>
-              </div>
-              <div className="bg-[#ffa755]/15 p-3 rounded-2xl text-[#ffa755]">
-                <FileText size={24} />
+            {/* Card 1 - Productos en Stock - Orange Gradient */}
+            <div 
+              style={{ 
+                background: "linear-gradient(135deg, #f97316 0%, #fb923c 40%, #ea580c 100%)",
+                borderRadius: "24px", 
+                padding: "24px",
+                position: "relative",
+                overflow: "hidden",
+                boxShadow: "0 8px 24px rgba(249, 115, 22, 0.25)",
+                border: "1px solid rgba(255, 255, 255, 0.1)",
+                transition: "transform 0.3s ease",
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLDivElement).style.transform = "translateY(-4px)";
+                (e.currentTarget as HTMLDivElement).style.boxShadow = "0 12px 32px rgba(249, 115, 22, 0.35)";
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)";
+                (e.currentTarget as HTMLDivElement).style.boxShadow = "0 8px 24px rgba(249, 115, 22, 0.25)";
+              }}
+            >
+              {/* Decorative circles */}
+              <div style={{ 
+                position: "absolute", 
+                top: "-40px", 
+                right: "-40px", 
+                width: "160px", 
+                height: "160px", 
+                borderRadius: "50%", 
+                background: "rgba(255, 255, 255, 0.05)",
+                border: "1px solid rgba(255, 255, 255, 0.1)",
+              }} />
+              <div style={{ 
+                position: "absolute", 
+                bottom: "-20px", 
+                left: "-20px", 
+                width: "100px", 
+                height: "100px", 
+                borderRadius: "50%", 
+                background: "rgba(255, 255, 255, 0.03)",
+              }} />
+              
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", position: "relative", zIndex: 1 }}>
+                <div>
+                  <p style={{ fontSize: "11px", fontWeight: 600, color: "rgba(255,255,255,0.7)", marginBottom: "8px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    Productos en Stock
+                  </p>
+                  <p style={{ fontSize: "36px", fontWeight: 700, color: "#ffffff", marginBottom: "8px", lineHeight: 1 }}>
+                    2478
+                  </p>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    <span style={{ fontSize: "12px", fontWeight: 700, color: "#fed7aa" }}>
+                      +15.3%
+                    </span>
+                    <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.6)" }}>
+                      vs mes anterior
+                    </span>
+                  </div>
+                </div>
+                <div style={{ 
+                  width: "56px", 
+                  height: "56px", 
+                  borderRadius: "16px", 
+                  background: "rgba(255,255,255,0.15)",
+                  backdropFilter: "blur(10px)",
+                  display: "flex", 
+                  alignItems: "center", 
+                  justifyContent: "center",
+                  border: "1px solid rgba(255,255,255,0.2)",
+                  boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                }}>
+                  <Package size={28} color="#ffffff" strokeWidth={2.5} />
+                </div>
               </div>
             </div>
 
-            {/* Card 2 */}
-            <div className="bg-[#1a3b2b]/90 bg-gradient-to-br from-[#1e4431] to-[#122b1f] border border-[#81c784]/10 rounded-[24px] p-6 flex items-center justify-between hover:scale-[1.02] transition-transform duration-300">
-              <div>
-                <p className="text-white text-[28px] font-semibold leading-tight">983</p>
-                <p className="text-[#68e365] text-[14px] mt-1 font-medium">Ventas de Hoy</p>
-              </div>
-              <div className="bg-[#68e365]/15 p-3 rounded-2xl text-[#68e365]">
-                <CheckCircle size={24} />
+            {/* Card 2 - Ventas de Hoy - Green Gradient */}
+            <div 
+              style={{ 
+                background: "linear-gradient(135deg, #10b981 0%, #34d399 40%, #059669 100%)",
+                borderRadius: "24px", 
+                padding: "24px",
+                position: "relative",
+                overflow: "hidden",
+                boxShadow: "0 8px 24px rgba(16, 185, 129, 0.25)",
+                border: "1px solid rgba(255, 255, 255, 0.1)",
+                transition: "transform 0.3s ease",
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLDivElement).style.transform = "translateY(-4px)";
+                (e.currentTarget as HTMLDivElement).style.boxShadow = "0 12px 32px rgba(16, 185, 129, 0.35)";
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)";
+                (e.currentTarget as HTMLDivElement).style.boxShadow = "0 8px 24px rgba(16, 185, 129, 0.25)";
+              }}
+            >
+              {/* Decorative circles */}
+              <div style={{ 
+                position: "absolute", 
+                top: "-40px", 
+                right: "-40px", 
+                width: "160px", 
+                height: "160px", 
+                borderRadius: "50%", 
+                background: "rgba(255, 255, 255, 0.05)",
+                border: "1px solid rgba(255, 255, 255, 0.1)",
+              }} />
+              <div style={{ 
+                position: "absolute", 
+                bottom: "-20px", 
+                left: "-20px", 
+                width: "100px", 
+                height: "100px", 
+                borderRadius: "50%", 
+                background: "rgba(255, 255, 255, 0.03)",
+              }} />
+              
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", position: "relative", zIndex: 1 }}>
+                <div>
+                  <p style={{ fontSize: "11px", fontWeight: 600, color: "rgba(255,255,255,0.7)", marginBottom: "8px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    Ventas de Hoy
+                  </p>
+                  <p style={{ fontSize: "36px", fontWeight: 700, color: "#ffffff", marginBottom: "8px", lineHeight: 1 }}>
+                    983
+                  </p>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    <span style={{ fontSize: "12px", fontWeight: 700, color: "#d1fae5" }}>
+                      +22.8%
+                    </span>
+                    <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.6)" }}>
+                      vs ayer
+                    </span>
+                  </div>
+                </div>
+                <div style={{ 
+                  width: "56px", 
+                  height: "56px", 
+                  borderRadius: "16px", 
+                  background: "rgba(255,255,255,0.15)",
+                  backdropFilter: "blur(10px)",
+                  display: "flex", 
+                  alignItems: "center", 
+                  justifyContent: "center",
+                  border: "1px solid rgba(255,255,255,0.2)",
+                  boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                }}>
+                  <ShoppingBag size={28} color="#ffffff" strokeWidth={2.5} />
+                </div>
               </div>
             </div>
 
-            {/* Card 3 */}
-            <div className="bg-[#311b4d]/90 bg-gradient-to-br from-[#3b215c] to-[#221235] border border-[#ba68c8]/10 rounded-[24px] p-6 flex items-center justify-between hover:scale-[1.02] transition-transform duration-300">
-              <div>
-                <p className="text-white text-[28px] font-semibold leading-tight">1256</p>
-                <p className="text-[#f72b50] text-[14px] mt-1 font-medium">Stock Crítico</p>
-              </div>
-              <div className="bg-[#f72b50]/15 p-3 rounded-2xl text-[#f72b50]">
-                <XCircle size={24} />
+            {/* Card 3 - Stock Crítico - Red Gradient */}
+            <div 
+              style={{ 
+                background: "linear-gradient(135deg, #ef4444 0%, #f87171 40%, #dc2626 100%)",
+                borderRadius: "24px", 
+                padding: "24px",
+                position: "relative",
+                overflow: "hidden",
+                boxShadow: "0 8px 24px rgba(239, 68, 68, 0.25)",
+                border: "1px solid rgba(255, 255, 255, 0.1)",
+                transition: "transform 0.3s ease",
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLDivElement).style.transform = "translateY(-4px)";
+                (e.currentTarget as HTMLDivElement).style.boxShadow = "0 12px 32px rgba(239, 68, 68, 0.35)";
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)";
+                (e.currentTarget as HTMLDivElement).style.boxShadow = "0 8px 24px rgba(239, 68, 68, 0.25)";
+              }}
+            >
+              {/* Decorative circles */}
+              <div style={{ 
+                position: "absolute", 
+                top: "-40px", 
+                right: "-40px", 
+                width: "160px", 
+                height: "160px", 
+                borderRadius: "50%", 
+                background: "rgba(255, 255, 255, 0.05)",
+                border: "1px solid rgba(255, 255, 255, 0.1)",
+              }} />
+              <div style={{ 
+                position: "absolute", 
+                bottom: "-20px", 
+                left: "-20px", 
+                width: "100px", 
+                height: "100px", 
+                borderRadius: "50%", 
+                background: "rgba(255, 255, 255, 0.03)",
+              }} />
+              
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", position: "relative", zIndex: 1 }}>
+                <div>
+                  <p style={{ fontSize: "11px", fontWeight: 600, color: "rgba(255,255,255,0.7)", marginBottom: "8px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    Stock Crítico
+                  </p>
+                  <p style={{ fontSize: "36px", fontWeight: 700, color: "#ffffff", marginBottom: "8px", lineHeight: 1 }}>
+                    1256
+                  </p>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    <span style={{ fontSize: "12px", fontWeight: 700, color: "#fecaca" }}>
+                      ¡Alerta!
+                    </span>
+                    <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.6)" }}>
+                      Reabastecer
+                    </span>
+                  </div>
+                </div>
+                <div style={{ 
+                  width: "56px", 
+                  height: "56px", 
+                  borderRadius: "16px", 
+                  background: "rgba(255,255,255,0.15)",
+                  backdropFilter: "blur(10px)",
+                  display: "flex", 
+                  alignItems: "center", 
+                  justifyContent: "center",
+                  border: "1px solid rgba(255,255,255,0.2)",
+                  boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                }}>
+                  <XCircle size={28} color="#ffffff" strokeWidth={2.5} />
+                </div>
               </div>
             </div>
 
-            {/* Card 4 */}
-            <div className="bg-[#182c47]/90 bg-gradient-to-br from-[#1f3759] to-[#101f33] border border-[#64b5f6]/10 rounded-[24px] p-6 flex items-center justify-between hover:scale-[1.02] transition-transform duration-300">
-              <div>
-                <p className="text-white text-[28px] font-semibold leading-tight">$2652</p>
-                <p className="text-[#5bcfc5] text-[14px] mt-1 font-medium">Ingresos de Mes</p>
-              </div>
-              <div className="bg-[#5bcfc5]/15 p-3 rounded-2xl text-[#5bcfc5]">
-                <FileUp size={24} />
+            {/* Card 4 - Ingresos de Mes - Blue/Teal Gradient */}
+            <div 
+              style={{ 
+                background: "linear-gradient(135deg, #06b6d4 0%, #22d3ee 40%, #0891b2 100%)",
+                borderRadius: "24px", 
+                padding: "24px",
+                position: "relative",
+                overflow: "hidden",
+                boxShadow: "0 8px 24px rgba(6, 182, 212, 0.25)",
+                border: "1px solid rgba(255, 255, 255, 0.1)",
+                transition: "transform 0.3s ease",
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLDivElement).style.transform = "translateY(-4px)";
+                (e.currentTarget as HTMLDivElement).style.boxShadow = "0 12px 32px rgba(6, 182, 212, 0.35)";
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)";
+                (e.currentTarget as HTMLDivElement).style.boxShadow = "0 8px 24px rgba(6, 182, 212, 0.25)";
+              }}
+            >
+              {/* Decorative circles */}
+              <div style={{ 
+                position: "absolute", 
+                top: "-40px", 
+                right: "-40px", 
+                width: "160px", 
+                height: "160px", 
+                borderRadius: "50%", 
+                background: "rgba(255, 255, 255, 0.05)",
+                border: "1px solid rgba(255, 255, 255, 0.1)",
+              }} />
+              <div style={{ 
+                position: "absolute", 
+                bottom: "-20px", 
+                left: "-20px", 
+                width: "100px", 
+                height: "100px", 
+                borderRadius: "50%", 
+                background: "rgba(255, 255, 255, 0.03)",
+              }} />
+              
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", position: "relative", zIndex: 1 }}>
+                <div>
+                  <p style={{ fontSize: "11px", fontWeight: 600, color: "rgba(255,255,255,0.7)", marginBottom: "8px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    Ingresos de Mes
+                  </p>
+                  <p style={{ fontSize: "36px", fontWeight: 700, color: "#ffffff", marginBottom: "8px", lineHeight: 1 }}>
+                    $2652
+                  </p>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    <span style={{ fontSize: "12px", fontWeight: 700, color: "#cffafe" }}>
+                      +18.4%
+                    </span>
+                    <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.6)" }}>
+                      vs mes anterior
+                    </span>
+                  </div>
+                </div>
+                <div style={{ 
+                  width: "56px", 
+                  height: "56px", 
+                  borderRadius: "16px", 
+                  background: "rgba(255,255,255,0.15)",
+                  backdropFilter: "blur(10px)",
+                  display: "flex", 
+                  alignItems: "center", 
+                  justifyContent: "center",
+                  border: "1px solid rgba(255,255,255,0.2)",
+                  boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                }}>
+                  <DollarSign size={28} color="#ffffff" strokeWidth={2.5} />
+                </div>
               </div>
             </div>
 
@@ -1710,6 +2824,9 @@ export default function Dashboard({ onLogout }: { onLogout?: () => void }) {
             </div>
 
           </div>
+
+            </div>
+          )}
 
         </main>
       </div>
