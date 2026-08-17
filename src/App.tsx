@@ -1,16 +1,24 @@
 import { useEffect } from "react";
 import Dashboard from "./components/Dashboard";
 import Login from "./components/Login";
-import { useAuth } from "./hooks/useAuth";
+import { useAuth } from "./contexts/AuthContext";
 
 function App() {
-  const { isAuthenticated, loading, checkAuth } = useAuth();
+  const { isAuthenticated, loading, checkAuth, user } = useAuth();
 
   useEffect(() => {
-    checkAuth();
-  }, []);
+    console.log('🎯 [App] Auth state changed:', { 
+      isAuthenticated, 
+      hasUser: !!user,
+      userEmail: user?.email,
+      loading 
+    });
+  }, [isAuthenticated, user, loading]);
+
+  console.log('🔄 [App] Rendering with:', { isAuthenticated, loading });
 
   if (loading) {
+    console.log('⏳ [App] Showing loading screen');
     return (
       <div style={{
         height: "100vh",
@@ -43,10 +51,14 @@ function App() {
     );
   }
 
+  // Mostrar Login si no está autenticado
   if (!isAuthenticated) {
+    console.log('🔓 [App] Not authenticated, showing Login');
     return <Login onLoginSuccess={checkAuth} />;
   }
 
+  // Mostrar Dashboard si está autenticado
+  console.log('🔒 [App] Authenticated, showing Dashboard');
   return <Dashboard />;
 }
 

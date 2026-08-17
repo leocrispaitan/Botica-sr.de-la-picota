@@ -35,7 +35,7 @@ import {
   ClipboardList,
   Shield,
 } from "lucide-react";
-import { useAuth } from "../hooks/useAuth";
+import { useAuth } from "../contexts/AuthContext";
 import UsersManagement from "./UsersManagement";
 
 import {
@@ -379,6 +379,7 @@ export default function Dashboard({ onLogout }: { onLogout?: () => void }) {
   const handleLogout = async () => {
     setLogoutAnimating(true);
     try {
+      // El logout del hook ahora maneja todo automáticamente
       await authLogout();
       setTimeout(() => {
         setShowLogoutConfirm(false);

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import authService, { type User } from '../services/authService';
 
 /**
@@ -9,16 +9,21 @@ export const useAuth = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    checkAuth();
-  }, []);
-
-  const checkAuth = async () => {
+  const checkAuth = useCallback(() => {
+    console.log('🔍 Checking auth...');
     try {
-      if (authService.isAuthenticated()) {
+      const hasToken = authService.isAuthenticated();
+      console.log('Has token:', hasToken);
+      
+      if (hasToken) {
         const currentUser = authService.getCurrentUser();
+        console.log('Current user:', currentUser);
         setUser(currentUser);
         setIsAuthenticated(true);
+      } else {
+        console.log('No token found, setting unauthenticated');
+        setUser(null);
+        setIsAuthenticated(false);
       }
     } catch (error) {
       console.error('Error verificando autenticación:', error);
@@ -27,17 +32,32 @@ export const useAuth = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const logout = async () => {
+  useEffect(() => {
+    checkAuth();
+  }, [checkAuth]);
+
+  const logout = useCallback(async () => {
+    console.log('🚪 Starting logout...');
     try {
       await authService.logout();
+      console.log('✅ Logout service completed');
+    } catch (error) {
+      console.error('❌ Error al cerrar sesión:', error);
+    } finally {
+      // Siempre actualizar el estado
+      console.log('🧹 Cleaning auth state...');
       setUser(null);
       setIsAuthenticated(false);
-    } catch (error) {
-      console.error('Error al cerrar sesión:', error);
+      console.log('✅ Auth state cleaned:', { user: null, isAuthenticated: false });
     }
-  };
+  }, []);
+
+  // Log cuando cambian los estados
+  useEffect(() => {
+    console.log('📊 Auth state update:', { isAuthenticated, user: user?.email });
+  }, [isAuthenticated, user]);
 
   return {
     user,
