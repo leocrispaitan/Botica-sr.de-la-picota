@@ -217,7 +217,6 @@ export default function StockCriticoManagement({ isDark = true }: { isDark?: boo
     setCurrentPage(1);
   };
 
-  const totalProductos = mockProductosStockCritico.length;
   const criticos = mockProductosStockCritico.filter(p => p.nivel_criticidad === "critico").length;
   const bajos = mockProductosStockCritico.filter(p => p.nivel_criticidad === "bajo").length;
   const alertas = mockProductosStockCritico.filter(p => p.nivel_criticidad === "alerta").length;

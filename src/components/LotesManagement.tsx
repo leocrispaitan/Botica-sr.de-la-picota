@@ -12,10 +12,8 @@ import {
   Package,
   Calendar,
   MapPin,
-  DollarSign,
   AlertCircle,
   Box,
-  Pill,
 } from "lucide-react";
 
 /* ─── Types ─────────────────────────────────────────────────────────── */
@@ -249,7 +247,6 @@ export default function LotesManagement({ isDark = true }: { isDark?: boolean })
   const lotesVigentes = mockLotes.filter(l => l.estado_vencimiento === "vigente").length;
   const lotesPorVencer = mockLotes.filter(l => l.estado_vencimiento === "proximo").length;
   const lotesVencidos = mockLotes.filter(l => l.estado_vencimiento === "vencido").length;
-  const valorInventario = mockLotes.reduce((sum, l) => sum + (l.costo_unitario_compra * l.stock_lote), 0);
 
   const getEstadoVencimientoColors = (estado: string) => {
     if (estado === "vigente") return { bg: "rgba(34,197,94,0.1)", text: "#22c55e", border: "rgba(34,197,94,0.3)", icon: "✓" };

@@ -12,8 +12,6 @@ import {
   Package,
   DollarSign,
   AlertTriangle,
-  Calendar,
-  Tag,
   Pill,
 } from "lucide-react";
 
