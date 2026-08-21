@@ -37,6 +37,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import UsersManagement from "./UsersManagement";
+import ProductsManagement from "./ProductsManagement";
 
 import {
   imgCanvas,
@@ -2028,6 +2029,8 @@ export default function Dashboard({ onLogout }: { onLogout?: () => void }) {
           {/* Render content based on activeMenu */}
           {activeMenu === "Usuarios" ? (
             <UsersManagement isDark={isDark} />
+          ) : activeMenu === "Productos" ? (
+            <ProductsManagement isDark={isDark} />
           ) : (
             <div className="p-6 space-y-6">
               {/* 4 Summary Cards Grid */}
