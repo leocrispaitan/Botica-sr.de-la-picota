@@ -38,6 +38,9 @@ import {
 import { useAuth } from "../contexts/AuthContext";
 import UsersManagement from "./UsersManagement";
 import ProductsManagement from "./ProductsManagement";
+import CategoriesManagement from "./CategoriesManagement";
+import LotesManagement from "./LotesManagement";
+import StockCriticoManagement from "./StockCriticoManagement";
 
 import {
   imgCanvas,
@@ -2031,6 +2034,12 @@ export default function Dashboard({ onLogout }: { onLogout?: () => void }) {
             <UsersManagement isDark={isDark} />
           ) : activeMenu === "Productos" ? (
             <ProductsManagement isDark={isDark} />
+          ) : activeMenu === "Categorias" ? (
+            <CategoriesManagement isDark={isDark} />
+          ) : activeMenu === "Lotes" ? (
+            <LotesManagement isDark={isDark} />
+          ) : activeMenu === "StockCritico" ? (
+            <StockCriticoManagement isDark={isDark} />
           ) : (
             <div className="p-6 space-y-6">
               {/* 4 Summary Cards Grid */}
