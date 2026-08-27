@@ -41,6 +41,12 @@ import ProductsManagement from "./ProductsManagement";
 import CategoriesManagement from "./CategoriesManagement";
 import LotesManagement from "./LotesManagement";
 import StockCriticoManagement from "./StockCriticoManagement";
+import NewPurchase from "./NewPurchase";
+import PurchaseHistory from "./PurchaseHistory";
+import SuppliersManagement from "./SuppliersManagement";
+import NewSale from "./NewSale";
+import SalesHistory from "./SalesHistory";
+import CustomersManagement from "./CustomersManagement";
 
 import {
   imgCanvas,
@@ -2040,6 +2046,18 @@ export default function Dashboard({ onLogout }: { onLogout?: () => void }) {
             <LotesManagement isDark={isDark} />
           ) : activeMenu === "StockCritico" ? (
             <StockCriticoManagement isDark={isDark} />
+          ) : activeMenu === "NuevaCompra" ? (
+            <NewPurchase isDark={isDark} />
+          ) : activeMenu === "HistorialCompras" ? (
+            <PurchaseHistory isDark={isDark} />
+          ) : activeMenu === "Proveedores" ? (
+            <SuppliersManagement isDark={isDark} />
+          ) : activeMenu === "NuevaVenta" ? (
+            <NewSale isDark={isDark} />
+          ) : activeMenu === "HistorialVentas" ? (
+            <SalesHistory isDark={isDark} />
+          ) : activeMenu === "Clientes" ? (
+            <CustomersManagement isDark={isDark} />
           ) : (
             <div className="p-6 space-y-6">
               {/* 4 Summary Cards Grid */}
