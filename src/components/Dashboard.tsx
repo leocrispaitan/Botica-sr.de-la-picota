@@ -47,6 +47,13 @@ import SuppliersManagement from "./SuppliersManagement";
 import NewSale from "./NewSale";
 import SalesHistory from "./SalesHistory";
 import CustomersManagement from "./CustomersManagement";
+import FormasFarmaceuticasManagement from "./FormasFarmaceuticasManagement";
+import ViasAdministracionManagement from "./ViasAdministracionManagement";
+import MetodosPagoManagement from "./MetodosPagoManagement";
+import LaboratoriosManagement from "./LaboratoriosManagement";
+import ReportesVentas from "./ReportesVentas";
+import ReportesInventario from "./ReportesInventario";
+import ReportesMovimientos from "./ReportesMovimientos";
 
 import {
   imgCanvas,
@@ -2058,6 +2065,20 @@ export default function Dashboard({ onLogout }: { onLogout?: () => void }) {
             <SalesHistory isDark={isDark} />
           ) : activeMenu === "Clientes" ? (
             <CustomersManagement isDark={isDark} />
+          ) : activeMenu === "FormasFarmaceuticas" ? (
+            <FormasFarmaceuticasManagement isDark={isDark} />
+          ) : activeMenu === "ViasAdministracion" ? (
+            <ViasAdministracionManagement isDark={isDark} />
+          ) : activeMenu === "MetodosPago" ? (
+            <MetodosPagoManagement isDark={isDark} />
+          ) : activeMenu === "Laboratorios" ? (
+            <LaboratoriosManagement isDark={isDark} />
+          ) : activeMenu === "ReportesVentas" ? (
+            <ReportesVentas isDark={isDark} />
+          ) : activeMenu === "ReportesInventario" ? (
+            <ReportesInventario isDark={isDark} />
+          ) : activeMenu === "ReportesMovimientos" ? (
+            <ReportesMovimientos isDark={isDark} />
           ) : (
             <div className="p-6 space-y-6">
               {/* 4 Summary Cards Grid */}
