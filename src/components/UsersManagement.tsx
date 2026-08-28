@@ -21,9 +21,11 @@ import {
   Lock,
   CreditCard,
   Image,
+  CheckCircle2,
 } from "lucide-react";
 import { usersService, type Usuario } from "../services/usersService";
 import { api } from "../services/api";
+import toast, { Toaster } from "react-hot-toast";
 
 /* ─── Types ─────────────────────────────────────────────────────────── */
 // Ya no necesitamos definir User aquí, lo importamos como Usuario desde usersService
@@ -398,15 +400,298 @@ export default function UsersManagement({ isDark = true }: { isDark?: boolean })
       // Recargar la lista de usuarios
       await loadUsers();
 
-      // Mostrar mensaje de éxito
-      alert(`✅ Usuario creado exitosamente!\n\nNombre: ${nuevoUsuario.nombre_completo}\nEmail: ${nuevoUsuario.email}\nRol: ${nuevoUsuario.rol?.nombre_rol || 'N/A'}`);
+      // Mostrar notificación de éxito personalizada
+      toast.custom(
+        (t) => (
+          <div
+            style={{
+              background: isDark ? "#212130" : "#ffffff",
+              padding: "24px",
+              borderRadius: "20px",
+              boxShadow: "0 20px 60px rgba(0, 0, 0, 0.3)",
+              border: `2px solid ${isDark ? "rgba(91, 207, 197, 0.3)" : "rgba(91, 207, 197, 0.2)"}`,
+              maxWidth: "420px",
+              animation: t.visible ? "slideIn 0.4s ease-out" : "slideOut 0.3s ease-in",
+            }}
+          >
+            {/* Header con icono de éxito */}
+            <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "16px" }}>
+              <div
+                style={{
+                  width: "56px",
+                  height: "56px",
+                  borderRadius: "50%",
+                  background: "linear-gradient(135deg, #5bcfc5 0%, #4bc0b6 100%)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  boxShadow: "0 8px 24px rgba(91, 207, 197, 0.4)",
+                  animation: "scaleIn 0.5s ease-out",
+                }}
+              >
+                <CheckCircle2 size={32} color="#fff" strokeWidth={2.5} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <h3
+                  style={{
+                    fontSize: "18px",
+                    fontWeight: 700,
+                    color: "#5bcfc5",
+                    marginBottom: "4px",
+                    fontFamily: "'Cairo', sans-serif",
+                  }}
+                >
+                  ¡Usuario Creado Exitosamente!
+                </h3>
+                <p
+                  style={{
+                    fontSize: "13px",
+                    color: isDark ? "#969ba0" : "#787f9e",
+                    fontFamily: "'Cairo', sans-serif",
+                  }}
+                >
+                  El usuario ha sido registrado en el sistema
+                </p>
+              </div>
+            </div>
+
+            {/* Información del usuario */}
+            <div
+              style={{
+                background: isDark ? "#1e1d29" : "#f5f6fa",
+                padding: "16px",
+                borderRadius: "12px",
+                marginBottom: "16px",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
+                <img
+                  src={nuevoUsuario.foto_perfil_url}
+                  alt={nuevoUsuario.nombre_completo}
+                  style={{
+                    width: "48px",
+                    height: "48px",
+                    borderRadius: "50%",
+                    border: "2px solid #5bcfc5",
+                  }}
+                />
+                <div>
+                  <p
+                    style={{
+                      fontSize: "15px",
+                      fontWeight: 600,
+                      color: isDark ? "#ffffff" : "#3d4465",
+                      marginBottom: "2px",
+                      fontFamily: "'Cairo', sans-serif",
+                    }}
+                  >
+                    {nuevoUsuario.nombre_completo}
+                  </p>
+                  <p
+                    style={{
+                      fontSize: "12px",
+                      color: isDark ? "#828690" : "#787f9e",
+                      fontFamily: "'Cairo', sans-serif",
+                    }}
+                  >
+                    @{nuevoUsuario.nombre_usuario}
+                  </p>
+                </div>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <Mail size={14} color="#5bcfc5" />
+                  <span
+                    style={{
+                      fontSize: "13px",
+                      color: isDark ? "#969ba0" : "#787f9e",
+                      fontFamily: "'Cairo', sans-serif",
+                    }}
+                  >
+                    {nuevoUsuario.email}
+                  </span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <Shield size={14} color="#5bcfc5" />
+                  <span
+                    style={{
+                      fontSize: "13px",
+                      color: isDark ? "#969ba0" : "#787f9e",
+                      fontFamily: "'Cairo', sans-serif",
+                    }}
+                  >
+                    Rol: {nuevoUsuario.rol?.nombre_rol || "N/A"}
+                  </span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <CreditCard size={14} color="#5bcfc5" />
+                  <span
+                    style={{
+                      fontSize: "13px",
+                      color: isDark ? "#969ba0" : "#787f9e",
+                      fontFamily: "'Cairo', sans-serif",
+                    }}
+                  >
+                    DNI: {nuevoUsuario.dni}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Botón de cerrar */}
+            <button
+              onClick={() => toast.dismiss(t.id)}
+              style={{
+                width: "100%",
+                padding: "12px",
+                borderRadius: "12px",
+                border: "none",
+                background: "linear-gradient(135deg, #5bcfc5 0%, #4bc0b6 100%)",
+                color: "#fff",
+                fontSize: "14px",
+                fontWeight: 600,
+                cursor: "pointer",
+                fontFamily: "'Cairo', sans-serif",
+                transition: "all 0.2s",
+                boxShadow: "0 4px 12px rgba(91, 207, 197, 0.3)",
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)";
+                (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 6px 20px rgba(91, 207, 197, 0.4)";
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
+                (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 4px 12px rgba(91, 207, 197, 0.3)";
+              }}
+            >
+              ¡Entendido!
+            </button>
+
+            {/* Añadir animaciones CSS */}
+            <style>{`
+              @keyframes slideIn {
+                from {
+                  opacity: 0;
+                  transform: translateY(-20px) scale(0.95);
+                }
+                to {
+                  opacity: 1;
+                  transform: translateY(0) scale(1);
+                }
+              }
+              
+              @keyframes slideOut {
+                from {
+                  opacity: 1;
+                  transform: translateY(0) scale(1);
+                }
+                to {
+                  opacity: 0;
+                  transform: translateY(-20px) scale(0.95);
+                }
+              }
+
+              @keyframes scaleIn {
+                from {
+                  transform: scale(0);
+                  opacity: 0;
+                }
+                to {
+                  transform: scale(1);
+                  opacity: 1;
+                }
+              }
+            `}</style>
+          </div>
+        ),
+        {
+          duration: 5000,
+          position: "top-center",
+        }
+      );
     } catch (error: any) {
       console.error("❌ Error al crear usuario:", error);
       
       // Extraer mensaje de error
       const errorMessage = error.response?.data?.message || error.message || "Error al crear usuario";
       
-      alert(`❌ Error al crear usuario:\n\n${errorMessage}`);
+      // Mostrar notificación de error personalizada
+      toast.custom(
+        (t) => (
+          <div
+            style={{
+              background: isDark ? "#212130" : "#ffffff",
+              padding: "24px",
+              borderRadius: "20px",
+              boxShadow: "0 20px 60px rgba(0, 0, 0, 0.3)",
+              border: `2px solid rgba(239, 68, 68, 0.3)`,
+              maxWidth: "420px",
+              animation: t.visible ? "slideIn 0.4s ease-out" : "slideOut 0.3s ease-in",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "12px" }}>
+              <div
+                style={{
+                  width: "48px",
+                  height: "48px",
+                  borderRadius: "50%",
+                  background: "rgba(239, 68, 68, 0.15)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <AlertCircle size={28} color="#ef4444" strokeWidth={2.5} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <h3
+                  style={{
+                    fontSize: "16px",
+                    fontWeight: 700,
+                    color: "#ef4444",
+                    marginBottom: "4px",
+                    fontFamily: "'Cairo', sans-serif",
+                  }}
+                >
+                  Error al Crear Usuario
+                </h3>
+                <p
+                  style={{
+                    fontSize: "13px",
+                    color: isDark ? "#969ba0" : "#787f9e",
+                    fontFamily: "'Cairo', sans-serif",
+                  }}
+                >
+                  {errorMessage}
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={() => toast.dismiss(t.id)}
+              style={{
+                width: "100%",
+                padding: "10px",
+                borderRadius: "10px",
+                border: "1px solid #ef4444",
+                background: "transparent",
+                color: "#ef4444",
+                fontSize: "13px",
+                fontWeight: 600,
+                cursor: "pointer",
+                fontFamily: "'Cairo', sans-serif",
+              }}
+            >
+              Cerrar
+            </button>
+          </div>
+        ),
+        {
+          duration: 4000,
+          position: "top-center",
+        }
+      );
     } finally {
       setSubmitting(false);
     }
@@ -2217,6 +2502,21 @@ export default function UsersManagement({ isDark = true }: { isDark?: boolean })
           </div>
         </div>
       )}
+
+      {/* Toaster para notificaciones */}
+      <Toaster
+        position="top-center"
+        reverseOrder={false}
+        gutter={8}
+        toastOptions={{
+          duration: 5000,
+          style: {
+            background: "transparent",
+            boxShadow: "none",
+            padding: 0,
+          },
+        }}
+      />
     </div>
   );
 }
