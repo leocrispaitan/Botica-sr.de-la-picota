@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Search,
   Filter,
@@ -13,184 +13,15 @@ import {
   Phone,
   Shield,
   Clock,
+  RefreshCw,
+  AlertCircle,
 } from "lucide-react";
+import { usersService, type Usuario } from "../services/usersService";
 
 /* ─── Types ─────────────────────────────────────────────────────────── */
-interface User {
-  id_usuario: number;
-  id_auth: string;
-  email: string;
-  dni: string;
-  nombre_usuario: string;
-  nombre_completo: string;
-  id_rol: number;
-  foto_perfil_url: string;
-  telefono: string;
-  ultimo_acceso: string;
-  estado_logico: boolean;
-  fecha_registro: string;
-  rol?: {
-    id_rol: number;
-    nombre_rol: string;
-    descripcion: string;
-  };
-}
+// Ya no necesitamos definir User aquí, lo importamos como Usuario desde usersService
 
-/* ─── Mock Data ───────────────────────────────────────────────────────── */
-const mockUsers: User[] = [
-  {
-    id_usuario: 1,
-    id_auth: "a390caf4-8944-41c4-8a19-3695ac099df9",
-    email: "admin@botica.com",
-    dni: "12345678",
-    nombre_usuario: "admin.jperez",
-    nombre_completo: "Juan Pérez Gómez",
-    id_rol: 1,
-    foto_perfil_url: "https://ui-avatars.com/api/?name=Juan+Pérez+Gómez&background=667eea&color=fff&size=200",
-    telefono: "987654321",
-    ultimo_acceso: "2026-08-14 01:53:21",
-    estado_logico: true,
-    fecha_registro: "2026-08-13 22:27:14",
-    rol: {
-      id_rol: 1,
-      nombre_rol: "ADMINISTRATIVO",
-      descripcion: "Acceso total al sistema",
-    },
-  },
-  {
-    id_usuario: 2,
-    id_auth: "b290caf4-8944-41c4-8a19-3695ac099df0",
-    email: "vendedor@botica.com",
-    dni: "87654321",
-    nombre_usuario: "vend.mlopez",
-    nombre_completo: "María López Ruiz",
-    id_rol: 2,
-    foto_perfil_url: "https://ui-avatars.com/api/?name=María+López+Ruiz&background=22c55e&color=fff&size=200",
-    telefono: "976543210",
-    ultimo_acceso: "2026-08-14 00:45:12",
-    estado_logico: true,
-    fecha_registro: "2026-08-13 22:28:30",
-    rol: {
-      id_rol: 2,
-      nombre_rol: "VENDEDOR",
-      descripcion: "Gestión de ventas",
-    },
-  },
-  {
-    id_usuario: 3,
-    id_auth: "c390caf4-8944-41c4-8a19-3695ac099df1",
-    email: "almacenero@botica.com",
-    dni: "11223344",
-    nombre_usuario: "alm.rsilva",
-    nombre_completo: "Roberto Silva Vargas",
-    id_rol: 3,
-    foto_perfil_url: "https://ui-avatars.com/api/?name=Roberto+Silva+Vargas&background=f97316&color=fff&size=200",
-    telefono: "965432109",
-    ultimo_acceso: "2026-08-13 23:15:45",
-    estado_logico: true,
-    fecha_registro: "2026-08-13 22:29:45",
-    rol: {
-      id_rol: 3,
-      nombre_rol: "ALMACENERO",
-      descripcion: "Gestión de inventario",
-    },
-  },
-  {
-    id_usuario: 4,
-    id_auth: "d490caf4-8944-41c4-8a19-3695ac099df2",
-    email: "carlos.martinez@botica.com",
-    dni: "45678912",
-    nombre_usuario: "vend.cmartinez",
-    nombre_completo: "Carlos Martínez Torres",
-    id_rol: 2,
-    foto_perfil_url: "https://ui-avatars.com/api/?name=Carlos+Martínez+Torres&background=22c55e&color=fff&size=200",
-    telefono: "954321098",
-    ultimo_acceso: "2026-08-13 18:30:22",
-    estado_logico: true,
-    fecha_registro: "2026-08-10 10:15:30",
-    rol: {
-      id_rol: 2,
-      nombre_rol: "VENDEDOR",
-      descripcion: "Gestión de ventas",
-    },
-  },
-  {
-    id_usuario: 5,
-    id_auth: "e590caf4-8944-41c4-8a19-3695ac099df3",
-    email: "ana.garcia@botica.com",
-    dni: "78912345",
-    nombre_usuario: "alm.agarcia",
-    nombre_completo: "Ana García Fernández",
-    id_rol: 3,
-    foto_perfil_url: "https://ui-avatars.com/api/?name=Ana+García+Fernández&background=f97316&color=fff&size=200",
-    telefono: "943210987",
-    ultimo_acceso: "2026-08-14 02:10:33",
-    estado_logico: true,
-    fecha_registro: "2026-08-11 14:20:45",
-    rol: {
-      id_rol: 3,
-      nombre_rol: "ALMACENERO",
-      descripcion: "Gestión de inventario",
-    },
-  },
-  {
-    id_usuario: 6,
-    id_auth: "f690caf4-8944-41c4-8a19-3695ac099df4",
-    email: "pedro.ramirez@botica.com",
-    dni: "23456789",
-    nombre_usuario: "vend.pramirez",
-    nombre_completo: "Pedro Ramírez Sánchez",
-    id_rol: 2,
-    foto_perfil_url: "https://ui-avatars.com/api/?name=Pedro+Ramírez+Sánchez&background=22c55e&color=fff&size=200",
-    telefono: "932109876",
-    ultimo_acceso: "2026-08-13 20:45:10",
-    estado_logico: false,
-    fecha_registro: "2026-08-05 09:30:15",
-    rol: {
-      id_rol: 2,
-      nombre_rol: "VENDEDOR",
-      descripcion: "Gestión de ventas",
-    },
-  },
-  {
-    id_usuario: 7,
-    id_auth: "g790caf4-8944-41c4-8a19-3695ac099df5",
-    email: "lucia.torres@botica.com",
-    dni: "34567891",
-    nombre_usuario: "vend.ltorres",
-    nombre_completo: "Lucía Torres Mendoza",
-    id_rol: 2,
-    foto_perfil_url: "https://ui-avatars.com/api/?name=Lucía+Torres+Mendoza&background=22c55e&color=fff&size=200",
-    telefono: "921098765",
-    ultimo_acceso: "2026-08-14 01:20:55",
-    estado_logico: true,
-    fecha_registro: "2026-08-12 11:45:22",
-    rol: {
-      id_rol: 2,
-      nombre_rol: "VENDEDOR",
-      descripcion: "Gestión de ventas",
-    },
-  },
-  {
-    id_usuario: 8,
-    id_auth: "h890caf4-8944-41c4-8a19-3695ac099df6",
-    email: "diego.castro@botica.com",
-    dni: "56789123",
-    nombre_usuario: "alm.dcastro",
-    nombre_completo: "Diego Castro Rojas",
-    id_rol: 3,
-    foto_perfil_url: "https://ui-avatars.com/api/?name=Diego+Castro+Rojas&background=f97316&color=fff&size=200",
-    telefono: "910987654",
-    ultimo_acceso: "2026-08-13 22:55:40",
-    estado_logico: true,
-    fecha_registro: "2026-08-09 16:10:50",
-    rol: {
-      id_rol: 3,
-      nombre_rol: "ALMACENERO",
-      descripcion: "Gestión de inventario",
-    },
-  },
-];
+/* ─── Mock Data - ELIMINADO - Ahora usamos datos reales ─────────────── */
 
 /* ─── Role Badge Colors ─────────────────────────────────────────────── */
 const getRoleBadgeColors = (roleId: number, isDark: boolean) => {
@@ -264,6 +95,12 @@ function getTheme(isDark: boolean) {
 /*  USERS MANAGEMENT COMPONENT                                         */
 /* ═══════════════════════════════════════════════════════════════════ */
 export default function UsersManagement({ isDark = true }: { isDark?: boolean }) {
+  // Estados para datos
+  const [users, setUsers] = useState<Usuario[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Estados para UI
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState<number | "all">("all");
   const [statusFilter, setStatusFilter] = useState<boolean | "all">("all");
@@ -273,9 +110,34 @@ export default function UsersManagement({ isDark = true }: { isDark?: boolean })
 
   const t = getTheme(isDark);
 
+  // Cargar usuarios al montar el componente
+  useEffect(() => {
+    loadUsers();
+  }, []);
+
+  // Función para cargar usuarios desde la API
+  const loadUsers = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await usersService.getAllUsers();
+      setUsers(data);
+    } catch (err) {
+      console.error("Error al cargar usuarios:", err);
+      setError("Error al cargar los usuarios. Por favor, intenta nuevamente.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Función para recargar usuarios
+  const handleRefresh = () => {
+    loadUsers();
+  };
+
   // Filtered users
   const filteredUsers = useMemo(() => {
-    return mockUsers.filter((user) => {
+    return users.filter((user) => {
       const matchesSearch =
         user.nombre_completo.toLowerCase().includes(searchTerm.toLowerCase()) ||
         user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -287,7 +149,7 @@ export default function UsersManagement({ isDark = true }: { isDark?: boolean })
 
       return matchesSearch && matchesRole && matchesStatus;
     });
-  }, [searchTerm, roleFilter, statusFilter]);
+  }, [users, searchTerm, roleFilter, statusFilter]);
 
   // Pagination
   const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
@@ -303,14 +165,94 @@ export default function UsersManagement({ isDark = true }: { isDark?: boolean })
   return (
     <div style={{ padding: "24px", background: t.mainBg, minHeight: "100vh" }}>
       {/* Header */}
-      <div style={{ marginBottom: "24px" }}>
-        <h1 style={{ fontSize: "28px", fontWeight: 700, color: t.textPrimary, marginBottom: "8px" }}>
-          Gestión de Usuarios
-        </h1>
-        <p style={{ fontSize: "14px", color: t.textSecondary }}>
-          Administra y visualiza todos los usuarios del sistema
-        </p>
+      <div style={{ marginBottom: "24px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
+        <div>
+          <h1 style={{ fontSize: "28px", fontWeight: 700, color: t.textPrimary, marginBottom: "8px" }}>
+            Gestión de Usuarios
+          </h1>
+          <p style={{ fontSize: "14px", color: t.textSecondary }}>
+            Administra y visualiza todos los usuarios del sistema
+          </p>
+        </div>
+        
+        {/* Botón de refrescar */}
+        <button
+          onClick={handleRefresh}
+          disabled={loading}
+          style={{
+            padding: "10px 16px",
+            borderRadius: "12px",
+            border: `1px solid ${t.border}`,
+            background: t.cardBg,
+            color: t.textPrimary,
+            fontSize: "14px",
+            fontWeight: 600,
+            cursor: loading ? "not-allowed" : "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            fontFamily: "'Cairo', sans-serif",
+            transition: "all 0.2s",
+            opacity: loading ? 0.6 : 1,
+          }}
+          onMouseEnter={(e) => {
+            if (!loading) {
+              (e.currentTarget as HTMLButtonElement).style.background = t.hoverBg;
+              (e.currentTarget as HTMLButtonElement).style.borderColor = t.accent;
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!loading) {
+              (e.currentTarget as HTMLButtonElement).style.background = t.cardBg;
+              (e.currentTarget as HTMLButtonElement).style.borderColor = t.border;
+            }
+          }}
+        >
+          <RefreshCw size={16} style={{ animation: loading ? "spin 1s linear infinite" : "none" }} />
+          {loading ? "Cargando..." : "Actualizar"}
+        </button>
       </div>
+
+      {/* Error Message */}
+      {error && (
+        <div
+          style={{
+            marginBottom: "20px",
+            padding: "16px 20px",
+            borderRadius: "16px",
+            background: "rgba(239, 68, 68, 0.1)",
+            border: "1px solid rgba(239, 68, 68, 0.3)",
+            display: "flex",
+            alignItems: "center",
+            gap: "12px",
+          }}
+        >
+          <AlertCircle size={20} color="#ef4444" />
+          <div>
+            <p style={{ fontSize: "14px", fontWeight: 600, color: "#ef4444", marginBottom: "4px" }}>
+              Error al cargar datos
+            </p>
+            <p style={{ fontSize: "13px", color: "#ef4444" }}>{error}</p>
+          </div>
+          <button
+            onClick={handleRefresh}
+            style={{
+              marginLeft: "auto",
+              padding: "6px 12px",
+              borderRadius: "8px",
+              border: "1px solid #ef4444",
+              background: "transparent",
+              color: "#ef4444",
+              fontSize: "12px",
+              fontWeight: 600,
+              cursor: "pointer",
+              fontFamily: "'Cairo', sans-serif",
+            }}
+          >
+            Reintentar
+          </button>
+        </div>
+      )}
 
       {/* Stats Cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "20px", marginBottom: "24px" }}>
@@ -353,14 +295,11 @@ export default function UsersManagement({ isDark = true }: { isDark?: boolean })
                 Total Usuarios
               </p>
               <p style={{ fontSize: "36px", fontWeight: 700, color: "#ffffff", marginBottom: "8px", lineHeight: 1 }}>
-                {mockUsers.length}
+                {loading ? "..." : users.length}
               </p>
               <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                <span style={{ fontSize: "12px", fontWeight: 700, color: "#68e365" }}>
-                  +12.5%
-                </span>
                 <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.6)" }}>
-                  vs último mes
+                  Registrados en el sistema
                 </span>
               </div>
             </div>
@@ -420,14 +359,11 @@ export default function UsersManagement({ isDark = true }: { isDark?: boolean })
                 Usuarios Activos
               </p>
               <p style={{ fontSize: "36px", fontWeight: 700, color: "#ffffff", marginBottom: "8px", lineHeight: 1 }}>
-                {mockUsers.filter((u) => u.estado_logico).length}
+                {loading ? "..." : users.filter((u) => u.estado_logico).length}
               </p>
               <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                <span style={{ fontSize: "12px", fontWeight: 700, color: "#a7f3d0" }}>
-                  +8.2%
-                </span>
                 <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.6)" }}>
-                  vs último mes
+                  Con acceso al sistema
                 </span>
               </div>
             </div>
@@ -500,14 +436,11 @@ export default function UsersManagement({ isDark = true }: { isDark?: boolean })
                 Usuarios Inactivos
               </p>
               <p style={{ fontSize: "36px", fontWeight: 700, color: "#ffffff", marginBottom: "8px", lineHeight: 1 }}>
-                {mockUsers.filter((u) => !u.estado_logico).length}
+                {loading ? "..." : users.filter((u) => !u.estado_logico).length}
               </p>
               <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                <span style={{ fontSize: "12px", fontWeight: 700, color: "#fecaca" }}>
-                  -3.1%
-                </span>
                 <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.6)" }}>
-                  vs último mes
+                  Sin acceso al sistema
                 </span>
               </div>
             </div>
@@ -818,7 +751,21 @@ export default function UsersManagement({ isDark = true }: { isDark?: boolean })
               </tr>
             </thead>
             <tbody>
-              {currentUsers.length === 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan={6} style={{ padding: "60px 20px", textAlign: "center" }}>
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "12px" }}>
+                      <RefreshCw size={48} color={t.textMuted} style={{ animation: "spin 1s linear infinite" }} />
+                      <p style={{ fontSize: "16px", fontWeight: 600, color: t.textPrimary }}>
+                        Cargando usuarios...
+                      </p>
+                      <p style={{ fontSize: "14px", color: t.textSecondary }}>
+                        Por favor espera un momento
+                      </p>
+                    </div>
+                  </td>
+                </tr>
+              ) : currentUsers.length === 0 ? (
                 <tr>
                   <td colSpan={6} style={{ padding: "60px 20px", textAlign: "center" }}>
                     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "12px" }}>
@@ -1184,4 +1131,22 @@ export default function UsersManagement({ isDark = true }: { isDark?: boolean })
       </div>
     </div>
   );
+}
+
+/* ─── CSS Animation ────────────────────────────────────────────────── */
+// Agregar esta animación CSS al archivo
+const style = document.createElement('style');
+style.textContent = `
+  @keyframes spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+`;
+if (!document.head.querySelector('style[data-spin-animation]')) {
+  style.setAttribute('data-spin-animation', 'true');
+  document.head.appendChild(style);
 }
