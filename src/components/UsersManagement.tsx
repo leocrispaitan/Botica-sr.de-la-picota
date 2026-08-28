@@ -130,6 +130,7 @@ export default function UsersManagement({ isDark = true }: { isDark?: boolean })
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [validatingDni, setValidatingDni] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const itemsPerPage = 6;
 
   const t = getTheme(isDark);
@@ -362,25 +363,52 @@ export default function UsersManagement({ isDark = true }: { isDark?: boolean })
   };
 
   // Manejar envío del formulario
-  const handleSubmitNewUser = (e: React.FormEvent) => {
+  const handleSubmitNewUser = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (validateForm()) {
-      // Por ahora solo mostramos los datos en consola
-      console.log("✅ Formulario válido - Datos a enviar:", {
+    if (!validateForm()) {
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+
+      // Preparar datos para enviar (solo campos necesarios)
+      const payload = {
         email: formData.email,
         password: formData.password,
         dni: formData.dni,
         nombre_usuario: formData.nombre_usuario,
         nombre_completo: formData.nombre_completo,
         id_rol: formData.id_rol,
-        telefono: formData.telefono || undefined,
-        foto_perfil_url: formData.foto_perfil_url || undefined,
-      });
-      
-      // Cerrar modal y mostrar mensaje de éxito
+        ...(formData.telefono && { telefono: formData.telefono }),
+        ...(formData.foto_perfil_url && { foto_perfil_url: formData.foto_perfil_url }),
+      };
+
+      console.log("📤 Enviando datos al backend:", payload);
+
+      // Llamar al servicio para crear usuario
+      const nuevoUsuario = await usersService.createUser(payload);
+
+      console.log("✅ Usuario creado exitosamente:", nuevoUsuario);
+
+      // Cerrar modal
       setShowNewUserModal(false);
-      alert("✅ Usuario creado exitosamente (solo frontend por ahora)");
+
+      // Recargar la lista de usuarios
+      await loadUsers();
+
+      // Mostrar mensaje de éxito
+      alert(`✅ Usuario creado exitosamente!\n\nNombre: ${nuevoUsuario.nombre_completo}\nEmail: ${nuevoUsuario.email}\nRol: ${nuevoUsuario.rol?.nombre_rol || 'N/A'}`);
+    } catch (error: any) {
+      console.error("❌ Error al crear usuario:", error);
+      
+      // Extraer mensaje de error
+      const errorMessage = error.response?.data?.message || error.message || "Error al crear usuario";
+      
+      alert(`❌ Error al crear usuario:\n\n${errorMessage}`);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -2104,60 +2132,85 @@ export default function UsersManagement({ isDark = true }: { isDark?: boolean })
                 <button
                   type="button"
                   onClick={() => setShowNewUserModal(false)}
+                  disabled={submitting}
                   style={{
                     padding: "12px 28px",
                     borderRadius: "12px",
                     border: `2px solid ${t.border}`,
                     background: "transparent",
-                    color: t.textSecondary,
+                    color: submitting ? t.textMuted : t.textSecondary,
                     fontSize: "14px",
                     fontWeight: 600,
-                    cursor: "pointer",
+                    cursor: submitting ? "not-allowed" : "pointer",
                     fontFamily: "'Cairo', sans-serif",
                     transition: "all 0.2s",
+                    opacity: submitting ? 0.5 : 1,
                   }}
                   onMouseEnter={(e) => {
-                    (e.currentTarget as HTMLButtonElement).style.background = t.hoverBg;
-                    (e.currentTarget as HTMLButtonElement).style.color = t.textPrimary;
-                    (e.currentTarget as HTMLButtonElement).style.borderColor = t.accent;
+                    if (!submitting) {
+                      (e.currentTarget as HTMLButtonElement).style.background = t.hoverBg;
+                      (e.currentTarget as HTMLButtonElement).style.color = t.textPrimary;
+                      (e.currentTarget as HTMLButtonElement).style.borderColor = t.accent;
+                    }
                   }}
                   onMouseLeave={(e) => {
-                    (e.currentTarget as HTMLButtonElement).style.background = "transparent";
-                    (e.currentTarget as HTMLButtonElement).style.color = t.textSecondary;
-                    (e.currentTarget as HTMLButtonElement).style.borderColor = t.border;
+                    if (!submitting) {
+                      (e.currentTarget as HTMLButtonElement).style.background = "transparent";
+                      (e.currentTarget as HTMLButtonElement).style.color = t.textSecondary;
+                      (e.currentTarget as HTMLButtonElement).style.borderColor = t.border;
+                    }
                   }}
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
+                  disabled={submitting || validatingDni}
                   style={{
                     padding: "12px 32px",
                     borderRadius: "12px",
                     border: "none",
-                    background: `linear-gradient(135deg, ${t.accent} 0%, ${t.accentHover} 100%)`,
+                    background: submitting || validatingDni 
+                      ? t.textMuted 
+                      : `linear-gradient(135deg, ${t.accent} 0%, ${t.accentHover} 100%)`,
                     color: "#fff",
                     fontSize: "14px",
                     fontWeight: 600,
-                    cursor: "pointer",
+                    cursor: submitting || validatingDni ? "not-allowed" : "pointer",
                     fontFamily: "'Cairo', sans-serif",
                     transition: "all 0.2s",
-                    boxShadow: `0 4px 16px ${t.accent}40`,
+                    boxShadow: submitting || validatingDni 
+                      ? "none" 
+                      : `0 4px 16px ${t.accent}40`,
                     display: "flex",
                     alignItems: "center",
                     gap: "8px",
+                    opacity: submitting || validatingDni ? 0.6 : 1,
                   }}
                   onMouseEnter={(e) => {
-                    (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)";
-                    (e.currentTarget as HTMLButtonElement).style.boxShadow = `0 6px 24px ${t.accent}50`;
+                    if (!submitting && !validatingDni) {
+                      (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)";
+                      (e.currentTarget as HTMLButtonElement).style.boxShadow = `0 6px 24px ${t.accent}50`;
+                    }
                   }}
                   onMouseLeave={(e) => {
-                    (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
-                    (e.currentTarget as HTMLButtonElement).style.boxShadow = `0 4px 16px ${t.accent}40`;
+                    if (!submitting && !validatingDni) {
+                      (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
+                      (e.currentTarget as HTMLButtonElement).style.boxShadow = `0 4px 16px ${t.accent}40`;
+                    }
                   }}
                 >
-                  <UserPlus size={18} />
-                  Crear Usuario
+                  {submitting ? (
+                    <>
+                      <RefreshCw size={18} style={{ animation: "spin 1s linear infinite" }} />
+                      Creando...
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus size={18} />
+                      Crear Usuario
+                    </>
+                  )}
                 </button>
               </div>
             </form>

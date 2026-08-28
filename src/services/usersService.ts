@@ -45,7 +45,31 @@ export interface UpdateUserPayload {
   id_rol?: number;
 }
 
+export interface CreateUserPayload {
+  email: string;
+  password: string;
+  dni: string;
+  nombre_usuario: string;
+  nombre_completo: string;
+  id_rol: number;
+  telefono?: string;
+  foto_perfil_url?: string;
+}
+
+export interface CreateUserResponse {
+  success: boolean;
+  message: string;
+  data: Usuario;
+}
+
 export const usersService = {
+  /**
+   * Crear un nuevo usuario
+   */
+  createUser: async (payload: CreateUserPayload): Promise<Usuario> => {
+    const response = await api.post<CreateUserResponse>('/users', payload);
+    return response.data.data;
+  },
   /**
    * Obtener todos los usuarios
    */
