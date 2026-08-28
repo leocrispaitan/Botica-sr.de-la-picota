@@ -23,6 +23,7 @@ import {
   Image,
 } from "lucide-react";
 import { usersService, type Usuario } from "../services/usersService";
+import { api } from "../services/api";
 
 /* ─── Types ─────────────────────────────────────────────────────────── */
 // Ya no necesitamos definir User aquí, lo importamos como Usuario desde usersService
@@ -128,6 +129,7 @@ export default function UsersManagement({ isDark = true }: { isDark?: boolean })
   const [showNewUserModal, setShowNewUserModal] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [validatingDni, setValidatingDni] = useState(false);
   const itemsPerPage = 6;
 
   const t = getTheme(isDark);
@@ -244,11 +246,17 @@ export default function UsersManagement({ isDark = true }: { isDark?: boolean })
       errors.email = "Email inválido";
     }
 
-    // Password
+    // Password - Nuevas reglas: mínimo 8 caracteres, letras mayúsculas, minúsculas y dígitos
     if (!formData.password) {
       errors.password = "La contraseña es obligatoria";
-    } else if (formData.password.length < 6) {
-      errors.password = "Mínimo 6 caracteres";
+    } else if (formData.password.length < 8) {
+      errors.password = "Mínimo 8 caracteres";
+    } else if (!/[a-z]/.test(formData.password)) {
+      errors.password = "Debe contener al menos una letra minúscula";
+    } else if (!/[A-Z]/.test(formData.password)) {
+      errors.password = "Debe contener al menos una letra mayúscula";
+    } else if (!/[0-9]/.test(formData.password)) {
+      errors.password = "Debe contener al menos un dígito";
     }
 
     // Confirm Password
@@ -299,6 +307,57 @@ export default function UsersManagement({ isDark = true }: { isDark?: boolean })
         delete newErrors[field];
         return newErrors;
       });
+    }
+  };
+
+  // Validar DNI con la API cuando se completan 8 dígitos
+  const handleDniChange = async (dni: string) => {
+    // Solo números, máximo 8 dígitos
+    const cleanDni = dni.replace(/\D/g, "").slice(0, 8);
+    handleInputChange("dni", cleanDni);
+
+    // Si el DNI tiene 8 dígitos, validar con la API
+    if (cleanDni.length === 8) {
+      setValidatingDni(true);
+      try {
+        const response = await api.post("/validar-dni", { dni: cleanDni });
+
+        if (response.data.success && response.data.data) {
+          // Autocompletar campos con los datos obtenidos
+          setFormData((prev) => ({
+            ...prev,
+            dni: cleanDni,
+            nombre_completo: response.data.data.nombreCompleto || "",
+            nombre_usuario: response.data.data.nombreUsuarioSugerido || "",
+          }));
+
+          // Limpiar errores de los campos autocompletados
+          setFormErrors((prev) => {
+            const newErrors = { ...prev };
+            delete newErrors.dni;
+            delete newErrors.nombre_completo;
+            delete newErrors.nombre_usuario;
+            return newErrors;
+          });
+
+          console.log("✅ DNI validado:", response.data.data);
+        } else {
+          // Mostrar error si el DNI no es válido
+          setFormErrors((prev) => ({
+            ...prev,
+            dni: response.data.message || "DNI no encontrado",
+          }));
+        }
+      } catch (error: any) {
+        console.error("❌ Error al validar DNI:", error);
+        const errorMessage = error.response?.data?.message || "Error al validar DNI. Intenta nuevamente.";
+        setFormErrors((prev) => ({
+          ...prev,
+          dni: errorMessage,
+        }));
+      } finally {
+        setValidatingDni(false);
+      }
     }
   };
 
@@ -1515,7 +1574,7 @@ export default function UsersManagement({ isDark = true }: { isDark?: boolean })
                             type={showPassword ? "text" : "password"}
                             value={formData.password}
                             onChange={(e) => handleInputChange("password", e.target.value)}
-                            placeholder="Mínimo 6 caracteres"
+                            placeholder="Mín. 8 caracteres (Aa-Zz, 0-9)"
                             style={{
                               width: "100%",
                               padding: "12px 44px 12px 44px",
@@ -1571,6 +1630,26 @@ export default function UsersManagement({ isDark = true }: { isDark?: boolean })
                           <p style={{ fontSize: "12px", color: "#ef4444", marginTop: "6px", display: "flex", alignItems: "center", gap: "4px" }}>
                             <AlertCircle size={12} /> {formErrors.password}
                           </p>
+                        )}
+                        {!formErrors.password && formData.password && (
+                          <div style={{ marginTop: "8px", padding: "8px 12px", background: t.innerBg, borderRadius: "8px", fontSize: "11px" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px", color: formData.password.length >= 8 ? "#22c55e" : t.textMuted }}>
+                              <span>{formData.password.length >= 8 ? "✓" : "○"}</span>
+                              <span>Mínimo 8 caracteres</span>
+                            </div>
+                            <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px", color: /[a-z]/.test(formData.password) ? "#22c55e" : t.textMuted }}>
+                              <span>{/[a-z]/.test(formData.password) ? "✓" : "○"}</span>
+                              <span>Al menos una letra minúscula</span>
+                            </div>
+                            <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px", color: /[A-Z]/.test(formData.password) ? "#22c55e" : t.textMuted }}>
+                              <span>{/[A-Z]/.test(formData.password) ? "✓" : "○"}</span>
+                              <span>Al menos una letra mayúscula</span>
+                            </div>
+                            <div style={{ display: "flex", alignItems: "center", gap: "6px", color: /[0-9]/.test(formData.password) ? "#22c55e" : t.textMuted }}>
+                              <span>{/[0-9]/.test(formData.password) ? "✓" : "○"}</span>
+                              <span>Al menos un dígito</span>
+                            </div>
+                          </div>
                         )}
                       </div>
 
@@ -1675,30 +1754,44 @@ export default function UsersManagement({ isDark = true }: { isDark?: boolean })
                           DNI <span style={{ color: "#ef4444" }}>*</span>
                         </label>
                         <div style={{ position: "relative" }}>
-                          <CreditCard size={16} style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: t.textMuted }} />
+                          <CreditCard size={16} style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: t.textMuted, zIndex: 1 }} />
+                          {validatingDni && (
+                            <RefreshCw 
+                              size={16} 
+                              style={{ 
+                                position: "absolute", 
+                                right: "14px", 
+                                top: "50%", 
+                                transform: "translateY(-50%)", 
+                                color: t.accent,
+                                animation: "spin 1s linear infinite",
+                                zIndex: 1
+                              }} 
+                            />
+                          )}
                           <input
                             type="text"
                             value={formData.dni}
-                            onChange={(e) => {
-                              const value = e.target.value.replace(/\D/g, "").slice(0, 8);
-                              handleInputChange("dni", value);
-                            }}
+                            onChange={(e) => handleDniChange(e.target.value)}
                             placeholder="12345678"
                             maxLength={8}
+                            disabled={validatingDni}
                             style={{
                               width: "100%",
-                              padding: "12px 14px 12px 44px",
+                              padding: "12px 44px 12px 44px",
                               borderRadius: "12px",
-                              border: `2px solid ${formErrors.dni ? "#ef4444" : t.border}`,
+                              border: `2px solid ${formErrors.dni ? "#ef4444" : validatingDni ? t.accent : t.border}`,
                               background: t.inputBg,
                               color: t.textPrimary,
                               fontSize: "14px",
                               outline: "none",
                               fontFamily: "'Cairo', sans-serif",
                               transition: "all 0.2s",
+                              opacity: validatingDni ? 0.7 : 1,
+                              cursor: validatingDni ? "not-allowed" : "text",
                             }}
                             onFocus={(e) => {
-                              if (!formErrors.dni) {
+                              if (!formErrors.dni && !validatingDni) {
                                 e.currentTarget.style.borderColor = t.accent;
                                 e.currentTarget.style.boxShadow = `0 0 0 3px ${t.accent}15`;
                               }
@@ -1709,7 +1802,12 @@ export default function UsersManagement({ isDark = true }: { isDark?: boolean })
                             }}
                           />
                         </div>
-                        {formErrors.dni && (
+                        {validatingDni && (
+                          <p style={{ fontSize: "12px", color: t.accent, marginTop: "6px", display: "flex", alignItems: "center", gap: "4px" }}>
+                            <RefreshCw size={12} style={{ animation: "spin 1s linear infinite" }} /> Validando DNI...
+                          </p>
+                        )}
+                        {formErrors.dni && !validatingDni && (
                           <p style={{ fontSize: "12px", color: "#ef4444", marginTop: "6px", display: "flex", alignItems: "center", gap: "4px" }}>
                             <AlertCircle size={12} /> {formErrors.dni}
                           </p>
