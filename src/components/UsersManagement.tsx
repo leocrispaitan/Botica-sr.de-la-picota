@@ -43,6 +43,17 @@ interface NewUserFormData {
   foto_perfil_url: string;
 }
 
+interface EditUserFormData {
+  email: string;
+  dni: string;
+  nombre_usuario: string;
+  nombre_completo: string;
+  id_rol: number;
+  telefono: string;
+  foto_perfil_url: string;
+  estado_logico: boolean;
+}
+
 /* ─── Mock Data - ELIMINADO - Ahora usamos datos reales ─────────────── */
 
 /* ─── Role Badge Colors ─────────────────────────────────────────────── */
@@ -129,6 +140,9 @@ export default function UsersManagement({ isDark = true }: { isDark?: boolean })
   const [currentPage, setCurrentPage] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
   const [showNewUserModal, setShowNewUserModal] = useState(false);
+  const [showUserDetailsModal, setShowUserDetailsModal] = useState(false);
+  const [showEditUserModal, setShowEditUserModal] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<Usuario | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [validatingDni, setValidatingDni] = useState(false);
@@ -151,6 +165,16 @@ export default function UsersManagement({ isDark = true }: { isDark?: boolean })
   });
 
   const [formErrors, setFormErrors] = useState<Partial<Record<keyof NewUserFormData, string>>>({});
+  const [editFormData, setEditFormData] = useState<EditUserFormData>({
+    email: "",
+    dni: "",
+    nombre_usuario: "",
+    nombre_completo: "",
+    id_rol: 2,
+    telefono: "",
+    foto_perfil_url: "",
+    estado_logico: true,
+  });
 
   // Limpiar formulario cuando se cierra el modal
   useEffect(() => {
@@ -186,6 +210,34 @@ export default function UsersManagement({ isDark = true }: { isDark?: boolean })
     return "https://ui-avatars.com/api/?name=?&background=e0e0e0&color=999&size=200";
   };
 
+  const getUserAvatar = (user?: Pick<Usuario, "foto_perfil_url" | "nombre_completo"> | null) => {
+    if (user?.foto_perfil_url && /^https?:\/\/.+/.test(user.foto_perfil_url)) {
+      return user.foto_perfil_url;
+    }
+    const name = encodeURIComponent(user?.nombre_completo?.trim() || "?");
+    return `https://ui-avatars.com/api/?name=${name}&background=5bcfc5&color=fff&size=200&bold=true`;
+  };
+
+  const getRoleName = (roleId: number) => {
+    if (roleId === 1) return "ADMINISTRATIVO";
+    if (roleId === 2) return "VENDEDOR";
+    if (roleId === 3) return "ALMACENERO";
+    return "USUARIO";
+  };
+
+  const formatDateTime = (dateValue?: string) => {
+    if (!dateValue) return "No registrado";
+    const date = new Date(dateValue);
+    if (Number.isNaN(date.getTime())) return "No registrado";
+    return date.toLocaleString("es-PE", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
   // Cargar usuarios al montar el componente
   useEffect(() => {
     loadUsers();
@@ -209,6 +261,51 @@ export default function UsersManagement({ isDark = true }: { isDark?: boolean })
   // Función para recargar usuarios
   const handleRefresh = () => {
     loadUsers();
+  };
+
+  const handleViewUserDetails = (user: Usuario) => {
+    setSelectedUser(user);
+    setShowUserDetailsModal(true);
+  };
+
+  const handleOpenEditUser = (user: Usuario) => {
+    setSelectedUser(user);
+    setEditFormData({
+      email: user.email || "",
+      dni: user.dni || "",
+      nombre_usuario: user.nombre_usuario || "",
+      nombre_completo: user.nombre_completo || "",
+      id_rol: user.id_rol || 2,
+      telefono: user.telefono || "",
+      foto_perfil_url: user.foto_perfil_url || "",
+      estado_logico: user.estado_logico,
+    });
+    setShowEditUserModal(true);
+  };
+
+  const handleEditInputChange = (field: keyof EditUserFormData, value: string | number | boolean) => {
+    setEditFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleSubmitEditUser = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedUser) return;
+
+    const updatedUser: Usuario = {
+      ...selectedUser,
+      ...editFormData,
+      rol: selectedUser.rol
+        ? {
+            ...selectedUser.rol,
+            nombre_rol: getRoleName(editFormData.id_rol),
+          }
+        : selectedUser.rol,
+    };
+
+    setUsers((prev) => prev.map((user) => (user.id_usuario === selectedUser.id_usuario ? updatedUser : user)));
+    setSelectedUser(updatedUser);
+    setShowEditUserModal(false);
+    toast.success("Vista de edicion guardada localmente. Backend aun no conectado.");
   };
 
   // Filtered users
@@ -1439,6 +1536,7 @@ export default function UsersManagement({ isDark = true }: { isDark?: boolean })
                         <div style={{ display: "flex", justifyContent: "center", gap: "4px" }}>
                           <button
                             title="Ver detalles"
+                            onClick={() => handleViewUserDetails(user)}
                             style={{
                               padding: "8px",
                               borderRadius: "8px",
@@ -1464,6 +1562,7 @@ export default function UsersManagement({ isDark = true }: { isDark?: boolean })
                           </button>
                           <button
                             title="Editar usuario"
+                            onClick={() => handleOpenEditUser(user)}
                             style={{
                               padding: "8px",
                               borderRadius: "8px",
@@ -2496,6 +2595,464 @@ export default function UsersManagement({ isDark = true }: { isDark?: boolean })
                       Crear Usuario
                     </>
                   )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: DETALLES DEL USUARIO */}
+      {showUserDetailsModal && selectedUser && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0, 0, 0, 0.7)",
+            backdropFilter: "blur(4px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+            padding: "20px",
+          }}
+          onClick={() => setShowUserDetailsModal(false)}
+        >
+          <div
+            style={{
+              background: t.cardBg,
+              borderRadius: "24px",
+              maxWidth: "920px",
+              width: "100%",
+              maxHeight: "90vh",
+              overflow: "auto",
+              boxShadow: "0 20px 60px rgba(0, 0, 0, 0.4)",
+              border: `1px solid ${t.borderCard}`,
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              style={{
+                padding: "24px 32px",
+                borderBottom: `1px solid ${t.border}`,
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                position: "sticky",
+                top: 0,
+                background: t.cardBg,
+                zIndex: 1,
+                borderRadius: "24px 24px 0 0",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+                <div
+                  style={{
+                    width: "48px",
+                    height: "48px",
+                    borderRadius: "14px",
+                    background: `linear-gradient(135deg, ${t.accent} 0%, ${t.accentHover} 100%)`,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    boxShadow: `0 8px 24px ${t.accent}40`,
+                  }}
+                >
+                  <Eye size={24} color="#fff" />
+                </div>
+                <div>
+                  <h2 style={{ fontSize: "22px", fontWeight: 700, color: t.textPrimary, marginBottom: "4px" }}>
+                    Detalles del Usuario
+                  </h2>
+                  <p style={{ fontSize: "13px", color: t.textSecondary }}>
+                    Informacion completa del usuario seleccionado
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowUserDetailsModal(false)}
+                style={{
+                  width: "40px",
+                  height: "40px",
+                  borderRadius: "10px",
+                  border: `1px solid ${t.border}`,
+                  background: t.innerBg,
+                  color: t.textSecondary,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div style={{ padding: "32px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "280px 1fr", gap: "28px" }}>
+                <div
+                  style={{
+                    background: t.innerBg,
+                    border: `1px solid ${t.border}`,
+                    borderRadius: "20px",
+                    padding: "24px",
+                    textAlign: "center",
+                  }}
+                >
+                  <img
+                    src={getUserAvatar(selectedUser)}
+                    alt={selectedUser.nombre_completo}
+                    style={{
+                      width: "150px",
+                      height: "150px",
+                      borderRadius: "50%",
+                      objectFit: "cover",
+                      border: `4px solid ${t.accent}`,
+                      boxShadow: `0 8px 24px ${t.accent}30`,
+                      marginBottom: "18px",
+                    }}
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = getUserAvatar({ ...selectedUser, foto_perfil_url: "" });
+                    }}
+                  />
+                  <h3 style={{ fontSize: "18px", fontWeight: 700, color: t.textPrimary, marginBottom: "4px" }}>
+                    {selectedUser.nombre_completo}
+                  </h3>
+                  <p style={{ fontSize: "13px", color: t.textSecondary, marginBottom: "16px" }}>
+                    @{selectedUser.nombre_usuario}
+                  </p>
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      padding: "8px 14px",
+                      borderRadius: "999px",
+                      background: selectedUser.estado_logico ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)",
+                      color: selectedUser.estado_logico ? "#22c55e" : "#ef4444",
+                      border: `1px solid ${selectedUser.estado_logico ? "rgba(34,197,94,0.3)" : "rgba(239,68,68,0.3)"}`,
+                      fontSize: "12px",
+                      fontWeight: 700,
+                    }}
+                  >
+                    <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: selectedUser.estado_logico ? "#22c55e" : "#ef4444" }} />
+                    {selectedUser.estado_logico ? "Activo" : "Inactivo"}
+                  </span>
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "16px" }}>
+                  {[
+                    { label: "ID Usuario", value: `#${selectedUser.id_usuario}`, icon: <User size={18} color={t.accent} /> },
+                    { label: "DNI", value: selectedUser.dni || "No registrado", icon: <CreditCard size={18} color={t.accent} /> },
+                    { label: "Email", value: selectedUser.email || "No registrado", icon: <Mail size={18} color={t.accent} /> },
+                    { label: "Telefono", value: selectedUser.telefono || "No registrado", icon: <Phone size={18} color={t.accent} /> },
+                    { label: "Rol", value: selectedUser.rol?.nombre_rol || getRoleName(selectedUser.id_rol), icon: <Shield size={18} color={t.accent} /> },
+                    { label: "ID Auth", value: selectedUser.id_auth || "No registrado", icon: <Lock size={18} color={t.accent} /> },
+                    { label: "Fecha de registro", value: formatDateTime(selectedUser.fecha_registro), icon: <Clock size={18} color={t.accent} /> },
+                    { label: "Ultimo acceso", value: formatDateTime(selectedUser.ultimo_acceso), icon: <Clock size={18} color={t.accent} /> },
+                  ].map((item) => (
+                    <div
+                      key={item.label}
+                      style={{
+                        background: t.innerBg,
+                        border: `1px solid ${t.border}`,
+                        borderRadius: "16px",
+                        padding: "16px",
+                        minWidth: 0,
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px" }}>
+                        {item.icon}
+                        <span style={{ fontSize: "12px", fontWeight: 700, color: t.textSecondary, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                          {item.label}
+                        </span>
+                      </div>
+                      <p style={{ fontSize: "14px", fontWeight: 600, color: t.textPrimary, wordBreak: "break-word" }}>
+                        {item.value}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px", marginTop: "28px", paddingTop: "24px", borderTop: `1px solid ${t.border}` }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowUserDetailsModal(false);
+                    handleOpenEditUser(selectedUser);
+                  }}
+                  style={{
+                    padding: "12px 24px",
+                    borderRadius: "12px",
+                    border: "none",
+                    background: "rgba(249,115,22,0.12)",
+                    color: "#fb923c",
+                    fontSize: "14px",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                  }}
+                >
+                  <Edit2 size={18} />
+                  Editar Usuario
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowUserDetailsModal(false)}
+                  style={{
+                    padding: "12px 24px",
+                    borderRadius: "12px",
+                    border: `2px solid ${t.border}`,
+                    background: "transparent",
+                    color: t.textSecondary,
+                    fontSize: "14px",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                  }}
+                >
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: EDITAR USUARIO */}
+      {showEditUserModal && selectedUser && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0, 0, 0, 0.7)",
+            backdropFilter: "blur(4px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+            padding: "20px",
+          }}
+          onClick={() => setShowEditUserModal(false)}
+        >
+          <div
+            style={{
+              background: t.cardBg,
+              borderRadius: "24px",
+              maxWidth: "1000px",
+              width: "100%",
+              maxHeight: "90vh",
+              overflow: "auto",
+              boxShadow: "0 20px 60px rgba(0, 0, 0, 0.4)",
+              border: `1px solid ${t.borderCard}`,
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              style={{
+                padding: "24px 32px",
+                borderBottom: `1px solid ${t.border}`,
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                position: "sticky",
+                top: 0,
+                background: t.cardBg,
+                zIndex: 1,
+                borderRadius: "24px 24px 0 0",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+                <div
+                  style={{
+                    width: "48px",
+                    height: "48px",
+                    borderRadius: "14px",
+                    background: "linear-gradient(135deg, #fb923c 0%, #f97316 100%)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    boxShadow: "0 8px 24px rgba(249,115,22,0.35)",
+                  }}
+                >
+                  <Edit2 size={24} color="#fff" />
+                </div>
+                <div>
+                  <h2 style={{ fontSize: "22px", fontWeight: 700, color: t.textPrimary, marginBottom: "4px" }}>
+                    Editar Usuario
+                  </h2>
+                  <p style={{ fontSize: "13px", color: t.textSecondary }}>
+                    Vista frontend con datos precargados. Sin conexion backend por ahora.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowEditUserModal(false)}
+                style={{
+                  width: "40px",
+                  height: "40px",
+                  borderRadius: "10px",
+                  border: `1px solid ${t.border}`,
+                  background: t.innerBg,
+                  color: t.textSecondary,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmitEditUser} style={{ padding: "32px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: "28px" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "16px" }}>
+                  <div>
+                    <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px" }}>Nombre completo</label>
+                    <input
+                      value={editFormData.nombre_completo}
+                      onChange={(e) => handleEditInputChange("nombre_completo", e.target.value)}
+                      style={{ width: "100%", padding: "12px 14px", borderRadius: "12px", border: `2px solid ${t.border}`, background: t.inputBg, color: t.textPrimary, fontSize: "14px", outline: "none" }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px" }}>Nombre de usuario</label>
+                    <input
+                      value={editFormData.nombre_usuario}
+                      onChange={(e) => handleEditInputChange("nombre_usuario", e.target.value)}
+                      style={{ width: "100%", padding: "12px 14px", borderRadius: "12px", border: `2px solid ${t.border}`, background: t.inputBg, color: t.textPrimary, fontSize: "14px", outline: "none" }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px" }}>Email</label>
+                    <input
+                      type="email"
+                      value={editFormData.email}
+                      onChange={(e) => handleEditInputChange("email", e.target.value)}
+                      style={{ width: "100%", padding: "12px 14px", borderRadius: "12px", border: `2px solid ${t.border}`, background: t.inputBg, color: t.textPrimary, fontSize: "14px", outline: "none" }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px" }}>DNI</label>
+                    <input
+                      value={editFormData.dni}
+                      maxLength={8}
+                      onChange={(e) => handleEditInputChange("dni", e.target.value.replace(/\D/g, "").slice(0, 8))}
+                      style={{ width: "100%", padding: "12px 14px", borderRadius: "12px", border: `2px solid ${t.border}`, background: t.inputBg, color: t.textPrimary, fontSize: "14px", outline: "none" }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px" }}>Telefono</label>
+                    <input
+                      value={editFormData.telefono}
+                      maxLength={9}
+                      onChange={(e) => handleEditInputChange("telefono", e.target.value.replace(/\D/g, "").slice(0, 9))}
+                      style={{ width: "100%", padding: "12px 14px", borderRadius: "12px", border: `2px solid ${t.border}`, background: t.inputBg, color: t.textPrimary, fontSize: "14px", outline: "none" }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px" }}>Rol</label>
+                    <select
+                      value={editFormData.id_rol}
+                      onChange={(e) => handleEditInputChange("id_rol", Number(e.target.value))}
+                      style={{ width: "100%", padding: "12px 14px", borderRadius: "12px", border: `2px solid ${t.border}`, background: t.inputBg, color: t.textPrimary, fontSize: "14px", outline: "none", cursor: "pointer" }}
+                    >
+                      <option value={1}>Administrativo</option>
+                      <option value={2}>Vendedor</option>
+                      <option value={3}>Almacenero</option>
+                    </select>
+                  </div>
+                  <div style={{ gridColumn: "1 / -1" }}>
+                    <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px" }}>URL de foto de perfil</label>
+                    <input
+                      value={editFormData.foto_perfil_url}
+                      onChange={(e) => handleEditInputChange("foto_perfil_url", e.target.value)}
+                      placeholder="https://ejemplo.com/avatar.jpg"
+                      style={{ width: "100%", padding: "12px 14px", borderRadius: "12px", border: `2px solid ${t.border}`, background: t.inputBg, color: t.textPrimary, fontSize: "14px", outline: "none" }}
+                    />
+                  </div>
+                  <div style={{ gridColumn: "1 / -1" }}>
+                    <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px" }}>Estado</label>
+                    <select
+                      value={editFormData.estado_logico ? "true" : "false"}
+                      onChange={(e) => handleEditInputChange("estado_logico", e.target.value === "true")}
+                      style={{ width: "100%", padding: "12px 14px", borderRadius: "12px", border: `2px solid ${t.border}`, background: t.inputBg, color: t.textPrimary, fontSize: "14px", outline: "none", cursor: "pointer" }}
+                    >
+                      <option value="true">Activo</option>
+                      <option value="false">Inactivo</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    background: t.innerBg,
+                    border: `1px solid ${t.border}`,
+                    borderRadius: "20px",
+                    padding: "24px",
+                    textAlign: "center",
+                    height: "fit-content",
+                    position: "sticky",
+                    top: "100px",
+                  }}
+                >
+                  <p style={{ fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "16px" }}>Vista previa</p>
+                  <img
+                    src={getUserAvatar(editFormData)}
+                    alt="Vista previa"
+                    style={{ width: "160px", height: "160px", borderRadius: "50%", objectFit: "cover", border: `4px solid ${t.accent}`, marginBottom: "18px" }}
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = getUserAvatar({ ...editFormData, foto_perfil_url: "" });
+                    }}
+                  />
+                  <h3 style={{ fontSize: "17px", fontWeight: 700, color: t.textPrimary, marginBottom: "4px" }}>
+                    {editFormData.nombre_completo || "Nombre del usuario"}
+                  </h3>
+                  <p style={{ fontSize: "13px", color: t.textSecondary, marginBottom: "12px" }}>
+                    @{editFormData.nombre_usuario || "usuario"}
+                  </p>
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      padding: "8px 14px",
+                      borderRadius: "999px",
+                      background: getRoleBadgeColors(editFormData.id_rol, isDark).bg,
+                      color: getRoleBadgeColors(editFormData.id_rol, isDark).text,
+                      border: `1px solid ${getRoleBadgeColors(editFormData.id_rol, isDark).border}`,
+                      fontSize: "12px",
+                      fontWeight: 700,
+                      marginBottom: "16px",
+                    }}
+                  >
+                    {getRoleName(editFormData.id_rol)}
+                  </span>
+                  <div style={{ background: t.cardBg, borderRadius: "12px", padding: "14px", textAlign: "left", color: t.textSecondary, fontSize: "12px" }}>
+                    <p style={{ marginBottom: "8px" }}>DNI: {editFormData.dni || "--------"}</p>
+                    <p style={{ marginBottom: "8px" }}>Email: {editFormData.email || "No registrado"}</p>
+                    <p>Estado: {editFormData.estado_logico ? "Activo" : "Inactivo"}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px", marginTop: "28px", paddingTop: "24px", borderTop: `1px solid ${t.border}` }}>
+                <button
+                  type="button"
+                  onClick={() => setShowEditUserModal(false)}
+                  style={{ padding: "12px 28px", borderRadius: "12px", border: `2px solid ${t.border}`, background: "transparent", color: t.textSecondary, fontSize: "14px", fontWeight: 700, cursor: "pointer" }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  style={{ padding: "12px 32px", borderRadius: "12px", border: "none", background: "linear-gradient(135deg, #fb923c 0%, #f97316 100%)", color: "#fff", fontSize: "14px", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: "8px", boxShadow: "0 4px 16px rgba(249,115,22,0.35)" }}
+                >
+                  <Edit2 size={18} />
+                  Guardar Cambios
                 </button>
               </div>
             </form>
