@@ -464,19 +464,47 @@ export default function Dashboard({ onLogout }: { onLogout?: () => void }) {
   const [transferTarget, setTransferTarget] = useState({
     name: "Samuel",
     handle: "@sam224",
-    img: imgRectangle,
+    img: "https://i.pravatar.cc/150?img=12",
   });
   const [transferAmount, setTransferAmount] = useState("20.000");
   const [transferStatus, setTransferStatus] = useState<"idle" | "processing" | "success">("idle");
 
   const friends = [
-    { name: "Samuel", handle: "@sam224", img: imgRectangle },
-    { name: "Cindy", handle: "@cindy_a", img: imgRectangle1 },
-    { name: "Renata", handle: "@chef_renata", img: imgRectangle2 },
-    { name: "Alex", handle: "@alex23", img: imgRectangle3 },
-    { name: "Hawkins", handle: "@hawk_jr", img: imgRectangle4 },
-    { name: "William", handle: "@will_iam", img: imgRectangle5 },
-    { name: "Julian", handle: "@julian_s", img: imgRectangle6 },
+    { name: "Samuel", handle: "@sam224", img: "https://i.pravatar.cc/150?img=12" },
+    { name: "Cindy", handle: "@cindy_a", img: "https://i.pravatar.cc/150?img=45" },
+    { name: "Renata", handle: "@chef_renata", img: "https://i.pravatar.cc/150?img=32" },
+    { name: "Alex", handle: "@alex23", img: "https://i.pravatar.cc/150?img=68" },
+    { name: "Hawkins", handle: "@hawk_jr", img: "https://i.pravatar.cc/150?img=59" },
+    { name: "William", handle: "@will_iam", img: "https://i.pravatar.cc/150?img=33" },
+    { name: "Julian", handle: "@julian_s", img: "https://i.pravatar.cc/150?img=51" },
+  ];
+  
+  // Datos mock para los gráficos
+  const activityData = [
+    { day: 'Sun', value: 35 },
+    { day: 'Mon', value: 52 },
+    { day: 'Tue', value: 28 },
+    { day: 'Wed', value: 65 },
+    { day: 'Thu', value: 48 },
+    { day: 'Fri', value: 71 },
+    { day: 'Sat', value: 42 },
+  ];
+  
+  const transactionData = [
+    { day: 'Sun', income: 45, outcome: 75 },
+    { day: 'Mon', income: 62, outcome: 42 },
+    { day: 'Tue', income: 25, outcome: 65 },
+    { day: 'Wed', income: 72, outcome: 55 },
+    { day: 'Thu', income: 42, outcome: 22 },
+    { day: 'Fri', income: 88, outcome: 48 },
+    { day: 'Sat', income: 52, outcome: 72 },
+  ];
+  
+  const spendingData = [
+    { label: 'Investment', value: 14145, max: 25000, color: '#8b5cf6', percent: 56.6 },
+    { label: 'Restaurant', value: 15167, max: 55000, color: '#5bcfc5', percent: 27.6 },
+    { label: 'Installment', value: 4487, max: 51000, color: '#60a5fa', percent: 8.8 },
+    { label: 'Property', value: 3890, max: 54000, color: '#a78bfa', percent: 7.2 },
   ];
 
   const handleTransfer = () => {
@@ -2451,7 +2479,119 @@ export default function Dashboard({ onLogout }: { onLogout?: () => void }) {
                   ))}
                 </div>
                 <div className="size-28 relative flex-shrink-0 flex items-center justify-center">
-                  <img src={imgCanvas} alt="Pie Chart" className="max-w-none object-cover size-full" />
+                  {/* Gráfico de Dona (Donut Chart) SVG */}
+                  <svg className="w-full h-full" viewBox="0 0 120 120">
+                    <defs>
+                      {/* Gradientes para cada sección */}
+                      <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#5a7edc" />
+                        <stop offset="100%" stopColor="#496ecc" />
+                      </linearGradient>
+                      <linearGradient id="grad2" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#7beb6f" />
+                        <stop offset="100%" stopColor="#68e365" />
+                      </linearGradient>
+                      <linearGradient id="grad3" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#ffb366" />
+                        <stop offset="100%" stopColor="#ffa755" />
+                      </linearGradient>
+                      <linearGradient id="grad4" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#d8d8d8" />
+                        <stop offset="100%" stopColor="#c8c8c8" />
+                      </linearGradient>
+                      
+                      {/* Filtro de sombra */}
+                      <filter id="shadow">
+                        <feDropShadow dx="0" dy="2" stdDeviation="3" floodOpacity="0.2"/>
+                      </filter>
+                    </defs>
+                    
+                    {/* Círculo de fondo sutil */}
+                    <circle cx="60" cy="60" r="50" fill="none" stroke={t.border} strokeWidth="0.5" opacity="0.2"/>
+                    
+                    {/* Account - 20% (azul) */}
+                    <circle
+                      cx="60"
+                      cy="60"
+                      r="40"
+                      fill="none"
+                      stroke="url(#grad1)"
+                      strokeWidth="20"
+                      strokeDasharray="50.27 251.33"
+                      strokeDashoffset="0"
+                      transform="rotate(-90 60 60)"
+                      filter="url(#shadow)"
+                      style={{ transition: "all 0.3s ease" }}
+                    />
+                    
+                    {/* Services - 40% (verde) */}
+                    <circle
+                      cx="60"
+                      cy="60"
+                      r="40"
+                      fill="none"
+                      stroke="url(#grad2)"
+                      strokeWidth="20"
+                      strokeDasharray="100.53 150.8"
+                      strokeDashoffset="-50.27"
+                      transform="rotate(-90 60 60)"
+                      filter="url(#shadow)"
+                      style={{ transition: "all 0.3s ease" }}
+                    />
+                    
+                    {/* Restaurant - 15% (naranja) */}
+                    <circle
+                      cx="60"
+                      cy="60"
+                      r="40"
+                      fill="none"
+                      stroke="url(#grad3)"
+                      strokeWidth="20"
+                      strokeDasharray="37.7 213.63"
+                      strokeDashoffset="-150.8"
+                      transform="rotate(-90 60 60)"
+                      filter="url(#shadow)"
+                      style={{ transition: "all 0.3s ease" }}
+                    />
+                    
+                    {/* Others - 15% (gris) */}
+                    <circle
+                      cx="60"
+                      cy="60"
+                      r="40"
+                      fill="none"
+                      stroke="url(#grad4)"
+                      strokeWidth="20"
+                      strokeDasharray="37.7 213.63"
+                      strokeDashoffset="-188.5"
+                      transform="rotate(-90 60 60)"
+                      filter="url(#shadow)"
+                      style={{ transition: "all 0.3s ease" }}
+                    />
+                    
+                    {/* Círculo interior para efecto de dona */}
+                    <circle
+                      cx="60"
+                      cy="60"
+                      r="30"
+                      fill={t.cardBg}
+                      style={{ transition: "fill 0.3s ease" }}
+                    />
+                    
+                    {/* Texto central */}
+                    <text
+                      x="60"
+                      y="60"
+                      textAnchor="middle"
+                      dominantBaseline="middle"
+                      fill={t.textPrimary}
+                      fontSize="18"
+                      fontWeight="700"
+                      fontFamily="'Cairo', sans-serif"
+                    >
+                      100%
+                    </text>
+                  </svg>
                 </div>
               </div>
             </div>
@@ -2485,23 +2625,98 @@ export default function Dashboard({ onLogout }: { onLogout?: () => void }) {
               <div className="w-full flex-1 relative min-h-[300px] mt-4 flex items-center justify-center">
                 <div className="w-full h-full relative">
                   <div className="w-full h-[280px] relative overflow-hidden bg-transparent">
-                    <div className="absolute inset-0">
-                      <img alt="" className="w-full h-full object-fill opacity-10" src={imgSvgjsLine2553} />
-                    </div>
-                    <div className="absolute inset-0">
-                      <img alt="" className="w-full h-full object-fill opacity-20" src={imgSvgjsG2566} />
-                    </div>
-                    <div className="absolute inset-0 flex">
-                      {[imgClipPathGroup, imgClipPathGroup1, imgClipPathGroup2, imgClipPathGroup3, imgClipPathGroup4, imgClipPathGroup5, imgClipPathGroup6, imgClipPathGroup7].map((img, i) => (
-                        <img key={i} alt="" className="absolute inset-0 w-full h-full object-contain" src={img} />
+                    {/* Grid de fondo */}
+                    <svg className="absolute inset-0 w-full h-full" style={{ opacity: 0.1 }}>
+                      <defs>
+                        <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+                          <path d="M 40 0 L 0 0 0 40" fill="none" stroke={t.textMuted} strokeWidth="0.5"/>
+                        </pattern>
+                      </defs>
+                      <rect width="100%" height="100%" fill="url(#grid)" />
+                    </svg>
+
+                    {/* Gráfico de línea */}
+                    <svg className="absolute inset-0 w-full h-full" viewBox="0 0 400 280" preserveAspectRatio="none">
+                      <defs>
+                        <linearGradient id="activityGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                          <stop offset="0%" stopColor="#68e365" stopOpacity="0.3"/>
+                          <stop offset="100%" stopColor="#68e365" stopOpacity="0.05"/>
+                        </linearGradient>
+                      </defs>
+                      
+                      {/* Área bajo la curva */}
+                      <path
+                        d="M 0 245 L 0 210 Q 50 180, 57 170 T 114 190 T 171 145 T 228 165 T 285 125 T 342 155 L 400 155 L 400 245 Z"
+                        fill="url(#activityGradient)"
+                        opacity="0.6"
+                      />
+                      
+                      {/* Línea principal */}
+                      <path
+                        d="M 0 210 Q 50 180, 57 170 T 114 190 T 171 145 T 228 165 T 285 125 T 342 155 L 400 155"
+                        fill="none"
+                        stroke="#68e365"
+                        strokeWidth="3"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                      
+                      {/* Puntos en la línea */}
+                      {[
+                        { x: 57, y: 170 },
+                        { x: 114, y: 190 },
+                        { x: 171, y: 145 },
+                        { x: 228, y: 165 },
+                        { x: 285, y: 125 },
+                        { x: 342, y: 155 },
+                        { x: 400, y: 155 }
+                      ].map((point, i) => (
+                        <g key={i}>
+                          <circle
+                            cx={point.x}
+                            cy={point.y}
+                            r="5"
+                            fill="#68e365"
+                            stroke={t.cardBg}
+                            strokeWidth="2"
+                          />
+                          <circle
+                            cx={point.x}
+                            cy={point.y}
+                            r="5"
+                            fill="#68e365"
+                            opacity="0.3"
+                          >
+                            <animate
+                              attributeName="r"
+                              from="5"
+                              to="10"
+                              dur="2s"
+                              begin={`${i * 0.2}s`}
+                              repeatCount="indefinite"
+                            />
+                            <animate
+                              attributeName="opacity"
+                              from="0.3"
+                              to="0"
+                              dur="2s"
+                              begin={`${i * 0.2}s`}
+                              repeatCount="indefinite"
+                            />
+                          </circle>
+                        </g>
                       ))}
-                    </div>
+                    </svg>
+
+                    {/* Etiquetas del eje X */}
                     <div className="absolute inset-x-0 bottom-0 flex justify-between px-6 text-[11px]" style={{ color: t.textMuted }}>
                       <span>Sun</span>
                       <span>Mon</span>
                       <span>Tue</span>
                       <span>Wed</span>
                     </div>
+                    
+                    {/* Etiquetas del eje Y */}
                     <div className="absolute left-0 inset-y-0 flex flex-col justify-between text-[11px] py-2" style={{ color: t.textMuted }}>
                       <span>80</span>
                       <span>60</span>
@@ -2686,17 +2901,156 @@ export default function Dashboard({ onLogout }: { onLogout?: () => void }) {
               <div className="w-full flex-1 relative min-h-[300px] mt-4 flex items-center justify-center">
                 <div className="w-full h-full relative">
                   <div className="w-full h-[280px] relative overflow-hidden bg-transparent">
-                    <div className="absolute inset-0">
-                      <img alt="" className="w-full h-full object-fill opacity-10" src={imgSvgjsLine2631} />
-                    </div>
-                    <div className="absolute inset-0">
-                      <img alt="" className="w-full h-full object-fill opacity-20" src={imgSvgjsG2646} />
-                    </div>
-                    <div className="absolute inset-0 flex">
-                      {[imgClipPathGroup8, imgClipPathGroup9, imgClipPathGroup10, imgClipPathGroup11, imgClipPathGroup12, imgClipPathGroup13, imgClipPathGroup14, imgClipPathGroup15, imgClipPathGroup16, imgClipPathGroup17, imgClipPathGroup18, imgClipPathGroup19].map((img, i) => (
-                        <img key={i} alt="" className="absolute inset-0 w-full h-full object-contain" src={img} />
-                      ))}
-                    </div>
+                    {/* Grid de fondo */}
+                    <svg className="absolute inset-0 w-full h-full" style={{ opacity: 0.08 }}>
+                      <defs>
+                        <pattern id="grid-transaction" width="60" height="40" patternUnits="userSpaceOnUse">
+                          <path d="M 60 0 L 0 0 0 40" fill="none" stroke={t.textMuted} strokeWidth="0.5"/>
+                        </pattern>
+                      </defs>
+                      <rect width="100%" height="100%" fill="url(#grid-transaction)" />
+                    </svg>
+
+                    {/* Gráfico de barras */}
+                    <svg className="absolute inset-0 w-full h-full" viewBox="0 0 600 280" preserveAspectRatio="xMidYMid meet">
+                      <defs>
+                        {/* Gradientes para Income */}
+                        <linearGradient id="incomeGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                          <stop offset="0%" stopColor="#68e365" stopOpacity="1"/>
+                          <stop offset="100%" stopColor="#68e365" stopOpacity="0.7"/>
+                        </linearGradient>
+                        {/* Gradientes para Outcome */}
+                        <linearGradient id="outcomeGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                          <stop offset="0%" stopColor="#fe7d65" stopOpacity="1"/>
+                          <stop offset="100%" stopColor="#fe7d65" stopOpacity="0.7"/>
+                        </linearGradient>
+                        
+                        {/* Sombra para las barras */}
+                        <filter id="barShadow">
+                          <feDropShadow dx="0" dy="2" stdDeviation="3" floodOpacity="0.15"/>
+                        </filter>
+                      </defs>
+                      
+                      {/* Barras por día - Income (verde) y Outcome (rojo) */}
+                      {transactionData.map((day, index) => {
+                        const x = 60 + (index * 80);
+                        const maxHeight = 180;
+                        const incomeHeight = (day.income / 100) * maxHeight;
+                        const outcomeHeight = (day.outcome / 100) * maxHeight;
+                        const barWidth = 28;
+                        const spacing = 8;
+                        
+                        return (
+                          <g key={index}>
+                            {/* Barra Income */}
+                            <rect
+                              x={x - spacing}
+                              y={220 - incomeHeight}
+                              width={barWidth}
+                              height={incomeHeight}
+                              fill="url(#incomeGrad)"
+                              rx="6"
+                              ry="6"
+                              filter="url(#barShadow)"
+                              style={{ 
+                                transition: "all 0.3s ease",
+                                cursor: "pointer"
+                              }}
+                            >
+                              <animate
+                                attributeName="height"
+                                from="0"
+                                to={incomeHeight}
+                                dur="1s"
+                                begin={`${index * 0.1}s`}
+                                fill="freeze"
+                              />
+                              <animate
+                                attributeName="y"
+                                from="220"
+                                to={220 - incomeHeight}
+                                dur="1s"
+                                begin={`${index * 0.1}s`}
+                                fill="freeze"
+                              />
+                            </rect>
+                            
+                            {/* Barra Outcome */}
+                            <rect
+                              x={x + spacing + barWidth}
+                              y={220 - outcomeHeight}
+                              width={barWidth}
+                              height={outcomeHeight}
+                              fill="url(#outcomeGrad)"
+                              rx="6"
+                              ry="6"
+                              filter="url(#barShadow)"
+                              style={{ 
+                                transition: "all 0.3s ease",
+                                cursor: "pointer"
+                              }}
+                            >
+                              <animate
+                                attributeName="height"
+                                from="0"
+                                to={outcomeHeight}
+                                dur="1s"
+                                begin={`${index * 0.1}s`}
+                                fill="freeze"
+                              />
+                              <animate
+                                attributeName="y"
+                                from="220"
+                                to={220 - outcomeHeight}
+                                dur="1s"
+                                begin={`${index * 0.1}s`}
+                                fill="freeze"
+                              />
+                            </rect>
+                            
+                            {/* Highlight en hover */}
+                            <rect
+                              x={x - spacing}
+                              y={220 - incomeHeight}
+                              width={barWidth}
+                              height={incomeHeight}
+                              fill="white"
+                              rx="6"
+                              ry="6"
+                              opacity="0"
+                              className="hover:opacity-20 transition-opacity duration-200"
+                              style={{ cursor: "pointer" }}
+                            />
+                            
+                            <rect
+                              x={x + spacing + barWidth}
+                              y={220 - outcomeHeight}
+                              width={barWidth}
+                              height={outcomeHeight}
+                              fill="white"
+                              rx="6"
+                              ry="6"
+                              opacity="0"
+                              className="hover:opacity-20 transition-opacity duration-200"
+                              style={{ cursor: "pointer" }}
+                            />
+                          </g>
+                        );
+                      })}
+                      
+                      {/* Línea base */}
+                      <line 
+                        x1="40" 
+                        y1="220" 
+                        x2="580" 
+                        y2="220" 
+                        stroke={t.border} 
+                        strokeWidth="1"
+                        opacity="0.3"
+                      />
+                    </svg>
+
+                    {/* Etiquetas del eje X */}
                     <div className="absolute inset-x-0 bottom-0 flex justify-between px-8 text-[11px]" style={{ color: t.textMuted }}>
                       <span>Sun</span>
                       <span>Mon</span>
@@ -2704,7 +3058,10 @@ export default function Dashboard({ onLogout }: { onLogout?: () => void }) {
                       <span>Wed</span>
                       <span>Thu</span>
                       <span>Fri</span>
+                      <span>Sat</span>
                     </div>
+                    
+                    {/* Etiquetas del eje Y */}
                     <div className="absolute left-0 inset-y-0 flex flex-col justify-between text-[11px] py-2" style={{ color: t.textMuted }}>
                       <span>100</span>
                       <span>80</span>
