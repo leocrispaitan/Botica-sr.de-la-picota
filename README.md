@@ -1,7 +1,10 @@
-# Dompet Dashboard frontend
+# 🏥 Botica Control - Frontend
 
-Réplica en código (React + TypeScript + Vite + Tailwind CSS v4) del diseño de Figma:
-"Codia AI Web2Figma: Import Web to Editable Figma (Comunidad)".
+Sistema de gestión integral para farmacias desarrollado con React, TypeScript, Vite, Tailwind CSS y Supabase.
+
+## 📚 Documentación
+
+Ver toda la documentación organizada en: **[📁 docs/README.md](./docs/README.md)**
 
 ## Instalación
 
