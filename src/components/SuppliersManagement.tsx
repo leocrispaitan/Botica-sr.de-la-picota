@@ -12,8 +12,6 @@ import {
   Phone,
   MapPin,
   FileText,
-  Calendar,
-  TrendingUp,
   Truck,
   Building2,
   X,

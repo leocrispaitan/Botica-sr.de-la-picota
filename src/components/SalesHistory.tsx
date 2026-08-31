@@ -9,13 +9,10 @@ import {
   User,
   ChevronLeft,
   ChevronRight,
-  FileText,
-  TrendingUp,
   ShoppingCart,
   X,
   CreditCard,
   Receipt,
-  Package,
   XCircle,
 } from "lucide-react";
 

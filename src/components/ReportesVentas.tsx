@@ -1,14 +1,11 @@
 import { useState, useMemo } from "react";
 import {
-  TrendingUp,
   DollarSign,
   ShoppingCart,
   CreditCard,
   Calendar,
   Download,
-  Filter,
   ArrowUpRight,
-  ArrowDownRight,
   Users,
   Package,
   BarChart3,
@@ -204,7 +201,6 @@ function getTheme(isDark: boolean) {
 /*  REPORTES VENTAS COMPONENT                                         */
 /* ═══════════════════════════════════════════════════════════════════ */
 export default function ReportesVentas({ isDark = true }: { isDark?: boolean }) {
-  const [dateRange, setDateRange] = useState<"7days" | "30days" | "90days" | "all">("30days");
   const [showFilters, setShowFilters] = useState(false);
 
   const t = getTheme(isDark);
@@ -612,7 +608,7 @@ export default function ReportesVentas({ isDark = true }: { isDark?: boolean }) 
 
           {/* Simple Line Chart Visualization */}
           <div style={{ height: "250px", display: "flex", alignItems: "flex-end", gap: "8px", padding: "20px 0" }}>
-            {Object.entries(stats.ventasPorDia).map(([fecha, monto], index) => {
+            {Object.entries(stats.ventasPorDia).map(([fecha, monto]) => {
               const maxMonto = Math.max(...Object.values(stats.ventasPorDia));
               const altura = (monto / maxMonto) * 100;
               return (

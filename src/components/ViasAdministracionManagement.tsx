@@ -11,7 +11,6 @@ import {
   ChevronRight,
   FlaskConical,
   CheckCircle2,
-  XCircle,
   Archive,
   Syringe,
 } from "lucide-react";

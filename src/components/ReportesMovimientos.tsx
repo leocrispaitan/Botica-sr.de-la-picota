@@ -1,8 +1,5 @@
 import { useState, useMemo } from "react";
 import {
-  FileBarChart,
-  TrendingUp,
-  TrendingDown,
   Package,
   ShoppingCart,
   AlertCircle,
@@ -13,9 +10,7 @@ import {
   Search,
   User,
   Calendar,
-  Clock,
-  ArrowUpRight,
-  ArrowDownLeft,
+  TrendingUp,
   Activity,
   Layers,
 } from "lucide-react";
