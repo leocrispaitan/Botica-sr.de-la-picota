@@ -109,7 +109,7 @@ export const puedeVerSubmenu = (
  * Obtiene el menú predeterminado para un rol
  * TODOS los roles inician en Dashboard
  */
-export const getMenuPredeterminado = (rol: string | undefined): string => {
+export const getMenuPredeterminado = (_rol?: string): string => {
   // SIEMPRE retornar Dashboard como vista inicial
   // Todos los roles tienen acceso al Dashboard
   return 'Dashboard';
