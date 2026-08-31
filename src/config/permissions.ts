@@ -107,41 +107,11 @@ export const puedeVerSubmenu = (
 
 /**
  * Obtiene el menú predeterminado para un rol
- * Útil para redireccionar al usuario a su vista principal
+ * TODOS los roles inician en Dashboard
  */
 export const getMenuPredeterminado = (rol: string | undefined): string => {
-  if (!rol) return 'Dashboard';
-  
-  const rolNormalizado = rol.toUpperCase() as RoleName;
-  
-  if (!PERMISOS_POR_ROL[rolNormalizado]) {
-    return 'Dashboard';
-  }
-
-  const permisos = PERMISOS_POR_ROL[rolNormalizado];
-  
-  // Si solo tiene acceso al Dashboard, retornar Dashboard
-  if (permisos.menuVisible.length === 1 && permisos.menuVisible[0] === 'Dashboard') {
-    return 'Dashboard';
-  }
-  
-  // Si tiene acceso a Ventas, preferir Nueva Venta (para vendedores)
-  if (permisos.menuVisible.includes('Ventas')) {
-    const ventasSubmenus = permisos.submenuVisible['Ventas'];
-    if (ventasSubmenus?.includes('Nueva Venta')) {
-      return 'NuevaVenta';
-    }
-  }
-  
-  // Si tiene acceso a Inventario, preferir Productos (para almaceneros)
-  if (permisos.menuVisible.includes('Inventario')) {
-    const inventarioSubmenus = permisos.submenuVisible['Inventario'];
-    if (inventarioSubmenus?.includes('Productos')) {
-      return 'Productos';
-    }
-  }
-  
-  // Por defecto, retornar Dashboard
+  // SIEMPRE retornar Dashboard como vista inicial
+  // Todos los roles tienen acceso al Dashboard
   return 'Dashboard';
 };
 
