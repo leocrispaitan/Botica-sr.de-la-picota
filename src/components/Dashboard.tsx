@@ -36,6 +36,7 @@ import {
   Shield,
 } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
+import { usePermissions } from "../hooks/usePermissions";
 import UsersManagement from "./UsersManagement";
 import ProductsManagement from "./ProductsManagement";
 import CategoriesManagement from "./CategoriesManagement";
@@ -276,9 +277,16 @@ export default function Dashboard({ onLogout }: { onLogout?: () => void }) {
   // ═══ Autenticación ═══
   const { user, logout: authLogout } = useAuth();
   
+  // ═══ Permisos ═══
+  const { canViewMenu, canViewSubmenu, getDefaultMenu, isAdmin, isVendedor, isAlmacenero } = usePermissions();
+  
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [activeMenu, setActiveMenu] = useState("Dashboard");
+  
+  // ═══ Inicializar activeMenu según el rol del usuario ═══
+  const defaultMenu = getDefaultMenu();
+  const [activeMenu, setActiveMenu] = useState(defaultMenu);
+  
   const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
   const [isDark, setIsDark] = useState(true);
   const [logoutHover, setLogoutHover] = useState(false);
@@ -592,6 +600,70 @@ export default function Dashboard({ onLogout }: { onLogout?: () => void }) {
       setExpandedMenus([...expandedMenus, menuName]);
     }
   };
+
+  // ═══ Filtrar menú según permisos del usuario ═══
+  const menuItemsFiltrados = menuItems.filter(item => {
+    // Verificar si el usuario tiene permiso para ver este menú
+    return canViewMenu(item.name);
+  }).map(item => {
+    // Si el item tiene submenu, filtrarlo también
+    if ('submenu' in item && item.submenu) {
+      const submenuFiltrado = item.submenu.filter(subItem => 
+        canViewSubmenu(item.name, subItem.name)
+      );
+      
+      // Si después del filtro no queda ningún submenu, no mostrar el item
+      if (submenuFiltrado.length === 0) {
+        return null;
+      }
+      
+      return {
+        ...item,
+        submenu: submenuFiltrado
+      };
+    }
+    return item;
+  }).filter(Boolean); // Eliminar items null
+
+  // ═══ Debug: Mostrar información de permisos (solo en desarrollo) ═══
+  useEffect(() => {
+    console.log('🔐 [Dashboard] Información de permisos:', {
+      userRole,
+      isAdmin,
+      isVendedor,
+      isAlmacenero,
+      defaultMenu,
+      activeMenu,
+      menuItemsOriginales: menuItems.length,
+      menuItemsFiltrados: menuItemsFiltrados.length,
+    });
+  }, [userRole, isAdmin, isVendedor, isAlmacenero]);
+
+  // ═══ Protección: Verificar si el usuario tiene acceso al menú activo ═══
+  useEffect(() => {
+    // Verificar si el activeMenu actual es accesible para el usuario
+    const tieneAcceso = menuItemsFiltrados.some(item => {
+      // Verificar si es un item directo
+      if ('path' in item && item.path === activeMenu) {
+        return true;
+      }
+      // Verificar si está en algún submenu
+      if ('submenu' in item && item.submenu) {
+        return item.submenu.some(subItem => subItem.path === activeMenu);
+      }
+      // Verificar si es el nombre del menú principal
+      if (item.name === activeMenu) {
+        return true;
+      }
+      return false;
+    });
+
+    // Si no tiene acceso, redirigir al menú predeterminado
+    if (!tieneAcceso && activeMenu !== defaultMenu) {
+      console.warn(`⚠️ Usuario sin acceso a "${activeMenu}", redirigiendo a "${defaultMenu}"`);
+      setActiveMenu(defaultMenu);
+    }
+  }, [activeMenu, menuItemsFiltrados, defaultMenu]);
 
   return (
     <div
@@ -1020,7 +1092,7 @@ export default function Dashboard({ onLogout }: { onLogout?: () => void }) {
 
           {/* Nav Menu */}
           <nav className="space-y-1">
-            {menuItems.map((item) => {
+            {menuItemsFiltrados.map((item) => {
               const Icon = item.icon;
               const hasSubmenu = 'submenu' in item && item.submenu && item.submenu.length > 0;
               const isExpanded = expandedMenus.includes(item.name);
@@ -2103,6 +2175,307 @@ export default function Dashboard({ onLogout }: { onLogout?: () => void }) {
             <ReportesMovimientos isDark={isDark} />
           ) : (
             <div className="p-6 space-y-6">
+              {/* Banner de Bienvenida según Rol */}
+              <div style={{
+                background: isVendedor 
+                  ? "linear-gradient(135deg, #10b981 0%, #34d399 40%, #059669 100%)"
+                  : isAlmacenero 
+                  ? "linear-gradient(135deg, #f97316 0%, #fb923c 40%, #ea580c 100%)"
+                  : "linear-gradient(135deg, #8b5cf6 0%, #a78bfa 40%, #7c3aed 100%)",
+                borderRadius: "24px",
+                padding: "32px",
+                marginBottom: "24px",
+                boxShadow: isVendedor
+                  ? "0 8px 24px rgba(16, 185, 129, 0.25)"
+                  : isAlmacenero
+                  ? "0 8px 24px rgba(249, 115, 22, 0.25)"
+                  : "0 8px 24px rgba(139, 92, 246, 0.25)",
+                border: "1px solid rgba(255, 255, 255, 0.1)",
+                position: "relative",
+                overflow: "hidden",
+              }}>
+                {/* Decorative circles */}
+                <div style={{ 
+                  position: "absolute", 
+                  top: "-40px", 
+                  right: "-40px", 
+                  width: "160px", 
+                  height: "160px", 
+                  borderRadius: "50%", 
+                  background: "rgba(255, 255, 255, 0.05)",
+                  border: "1px solid rgba(255, 255, 255, 0.1)",
+                }} />
+                
+                <div style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "20px",
+                  position: "relative",
+                  zIndex: 1,
+                }}>
+                  <div style={{
+                    width: "80px",
+                    height: "80px",
+                    borderRadius: "20px",
+                    background: "rgba(255,255,255,0.15)",
+                    backdropFilter: "blur(10px)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: "40px",
+                    border: "1px solid rgba(255,255,255,0.2)",
+                  }}>
+                    {isVendedor ? "💼" : isAlmacenero ? "📦" : "👑"}
+                  </div>
+                  
+                  <div>
+                    <h2 style={{
+                      fontSize: "28px",
+                      fontWeight: 700,
+                      color: "#fff",
+                      marginBottom: "8px",
+                    }}>
+                      ¡Bienvenido, {userName}!
+                    </h2>
+                    <p style={{
+                      fontSize: "16px",
+                      color: "rgba(255,255,255,0.9)",
+                      lineHeight: 1.5,
+                    }}>
+                      {isVendedor && "Panel de Ventas - Gestiona tus ventas y clientes de forma eficiente"}
+                      {isAlmacenero && "Panel de Inventario - Controla el stock y gestiona las compras"}
+                      {isAdmin && "Panel de Administración - Control total del sistema"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Acceso Rápido según Rol */}
+              {isVendedor && (
+                <div>
+                  <h3 style={{ 
+                    fontSize: "20px", 
+                    fontWeight: 700, 
+                    color: t.textPrimary, 
+                    marginBottom: "16px" 
+                  }}>
+                    Acceso Rápido
+                  </h3>
+                  <div style={{ 
+                    display: "grid", 
+                    gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", 
+                    gap: "20px" 
+                  }}>
+                    <button
+                      onClick={() => setActiveMenu("NuevaVenta")}
+                      style={{
+                        padding: "24px",
+                        background: t.cardBg,
+                        border: `1px solid ${t.borderCard}`,
+                        borderRadius: "20px",
+                        textAlign: "left",
+                        cursor: "pointer",
+                        transition: "all 0.2s",
+                      }}
+                      onMouseEnter={(e) => {
+                        (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-4px)";
+                        (e.currentTarget as HTMLButtonElement).style.boxShadow = `0 8px 24px ${t.accent}20`;
+                        (e.currentTarget as HTMLButtonElement).style.borderColor = t.accent;
+                      }}
+                      onMouseLeave={(e) => {
+                        (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
+                        (e.currentTarget as HTMLButtonElement).style.boxShadow = "none";
+                        (e.currentTarget as HTMLButtonElement).style.borderColor = t.borderCard;
+                      }}
+                    >
+                      <DollarSign size={32} color="#10b981" style={{ marginBottom: "12px" }} />
+                      <h4 style={{ fontSize: "18px", fontWeight: 700, color: t.textPrimary, marginBottom: "8px" }}>
+                        Nueva Venta
+                      </h4>
+                      <p style={{ fontSize: "14px", color: t.textSecondary }}>
+                        Registra una nueva venta en el sistema
+                      </p>
+                    </button>
+
+                    <button
+                      onClick={() => setActiveMenu("HistorialVentas")}
+                      style={{
+                        padding: "24px",
+                        background: t.cardBg,
+                        border: `1px solid ${t.borderCard}`,
+                        borderRadius: "20px",
+                        textAlign: "left",
+                        cursor: "pointer",
+                        transition: "all 0.2s",
+                      }}
+                      onMouseEnter={(e) => {
+                        (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-4px)";
+                        (e.currentTarget as HTMLButtonElement).style.boxShadow = `0 8px 24px ${t.accent}20`;
+                        (e.currentTarget as HTMLButtonElement).style.borderColor = t.accent;
+                      }}
+                      onMouseLeave={(e) => {
+                        (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
+                        (e.currentTarget as HTMLButtonElement).style.boxShadow = "none";
+                        (e.currentTarget as HTMLButtonElement).style.borderColor = t.borderCard;
+                      }}
+                    >
+                      <FileBarChart size={32} color="#3b82f6" style={{ marginBottom: "12px" }} />
+                      <h4 style={{ fontSize: "18px", fontWeight: 700, color: t.textPrimary, marginBottom: "8px" }}>
+                        Historial de Ventas
+                      </h4>
+                      <p style={{ fontSize: "14px", color: t.textSecondary }}>
+                        Consulta todas tus ventas realizadas
+                      </p>
+                    </button>
+
+                    <button
+                      onClick={() => setActiveMenu("Clientes")}
+                      style={{
+                        padding: "24px",
+                        background: t.cardBg,
+                        border: `1px solid ${t.borderCard}`,
+                        borderRadius: "20px",
+                        textAlign: "left",
+                        cursor: "pointer",
+                        transition: "all 0.2s",
+                      }}
+                      onMouseEnter={(e) => {
+                        (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-4px)";
+                        (e.currentTarget as HTMLButtonElement).style.boxShadow = `0 8px 24px ${t.accent}20`;
+                        (e.currentTarget as HTMLButtonElement).style.borderColor = t.accent;
+                      }}
+                      onMouseLeave={(e) => {
+                        (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
+                        (e.currentTarget as HTMLButtonElement).style.boxShadow = "none";
+                        (e.currentTarget as HTMLButtonElement).style.borderColor = t.borderCard;
+                      }}
+                    >
+                      <Users size={32} color="#8b5cf6" style={{ marginBottom: "12px" }} />
+                      <h4 style={{ fontSize: "18px", fontWeight: 700, color: t.textPrimary, marginBottom: "8px" }}>
+                        Clientes
+                      </h4>
+                      <p style={{ fontSize: "14px", color: t.textSecondary }}>
+                        Gestiona tu cartera de clientes
+                      </p>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {isAlmacenero && (
+                <div>
+                  <h3 style={{ 
+                    fontSize: "20px", 
+                    fontWeight: 700, 
+                    color: t.textPrimary, 
+                    marginBottom: "16px" 
+                  }}>
+                    Acceso Rápido
+                  </h3>
+                  <div style={{ 
+                    display: "grid", 
+                    gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", 
+                    gap: "20px" 
+                  }}>
+                    <button
+                      onClick={() => setActiveMenu("Productos")}
+                      style={{
+                        padding: "24px",
+                        background: t.cardBg,
+                        border: `1px solid ${t.borderCard}`,
+                        borderRadius: "20px",
+                        textAlign: "left",
+                        cursor: "pointer",
+                        transition: "all 0.2s",
+                      }}
+                      onMouseEnter={(e) => {
+                        (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-4px)";
+                        (e.currentTarget as HTMLButtonElement).style.boxShadow = `0 8px 24px ${t.accent}20`;
+                        (e.currentTarget as HTMLButtonElement).style.borderColor = t.accent;
+                      }}
+                      onMouseLeave={(e) => {
+                        (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
+                        (e.currentTarget as HTMLButtonElement).style.boxShadow = "none";
+                        (e.currentTarget as HTMLButtonElement).style.borderColor = t.borderCard;
+                      }}
+                    >
+                      <Package size={32} color="#f97316" style={{ marginBottom: "12px" }} />
+                      <h4 style={{ fontSize: "18px", fontWeight: 700, color: t.textPrimary, marginBottom: "8px" }}>
+                        Productos
+                      </h4>
+                      <p style={{ fontSize: "14px", color: t.textSecondary }}>
+                        Gestiona el inventario de productos
+                      </p>
+                    </button>
+
+                    <button
+                      onClick={() => setActiveMenu("NuevaCompra")}
+                      style={{
+                        padding: "24px",
+                        background: t.cardBg,
+                        border: `1px solid ${t.borderCard}`,
+                        borderRadius: "20px",
+                        textAlign: "left",
+                        cursor: "pointer",
+                        transition: "all 0.2s",
+                      }}
+                      onMouseEnter={(e) => {
+                        (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-4px)";
+                        (e.currentTarget as HTMLButtonElement).style.boxShadow = `0 8px 24px ${t.accent}20`;
+                        (e.currentTarget as HTMLButtonElement).style.borderColor = t.accent;
+                      }}
+                      onMouseLeave={(e) => {
+                        (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
+                        (e.currentTarget as HTMLButtonElement).style.boxShadow = "none";
+                        (e.currentTarget as HTMLButtonElement).style.borderColor = t.borderCard;
+                      }}
+                    >
+                      <ShoppingBag size={32} color="#10b981" style={{ marginBottom: "12px" }} />
+                      <h4 style={{ fontSize: "18px", fontWeight: 700, color: t.textPrimary, marginBottom: "8px" }}>
+                        Nueva Compra
+                      </h4>
+                      <p style={{ fontSize: "14px", color: t.textSecondary }}>
+                        Registra compras de mercadería
+                      </p>
+                    </button>
+
+                    <button
+                      onClick={() => setActiveMenu("StockCritico")}
+                      style={{
+                        padding: "24px",
+                        background: t.cardBg,
+                        border: `1px solid ${t.borderCard}`,
+                        borderRadius: "20px",
+                        textAlign: "left",
+                        cursor: "pointer",
+                        transition: "all 0.2s",
+                      }}
+                      onMouseEnter={(e) => {
+                        (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-4px)";
+                        (e.currentTarget as HTMLButtonElement).style.boxShadow = `0 8px 24px ${t.accent}20`;
+                        (e.currentTarget as HTMLButtonElement).style.borderColor = t.accent;
+                      }}
+                      onMouseLeave={(e) => {
+                        (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
+                        (e.currentTarget as HTMLButtonElement).style.boxShadow = "none";
+                        (e.currentTarget as HTMLButtonElement).style.borderColor = t.borderCard;
+                      }}
+                    >
+                      <TrendingDown size={32} color="#ef4444" style={{ marginBottom: "12px" }} />
+                      <h4 style={{ fontSize: "18px", fontWeight: 700, color: t.textPrimary, marginBottom: "8px" }}>
+                        Stock Crítico
+                      </h4>
+                      <p style={{ fontSize: "14px", color: t.textSecondary }}>
+                        Productos con stock bajo
+                      </p>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Dashboard completo solo para admin */}
+              {isAdmin && (
+                <>
               {/* 4 Summary Cards Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
 
@@ -3227,7 +3600,8 @@ export default function Dashboard({ onLogout }: { onLogout?: () => void }) {
             </div>
 
           </div>
-
+                </>
+              )}
             </div>
           )}
 
