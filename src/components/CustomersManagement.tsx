@@ -3,7 +3,6 @@ import {
   Search,
   Filter,
   UserPlus,
-  MoreVertical,
   Edit2,
   Trash2,
   Eye,

@@ -11,7 +11,6 @@ import {
   ChevronLeft,
   ChevronRight,
   FileText,
-  TrendingUp,
   ShoppingBag,
   X,
   Truck,

@@ -40,9 +40,13 @@ export interface UpdateUserStatusPayload {
 
 export interface UpdateUserPayload {
   nombre_completo?: string;
+  nombre_usuario?: string;
+  dni?: string;
+  email?: string;
   telefono?: string;
   foto_perfil_url?: string;
   id_rol?: number;
+  estado_logico?: boolean;
 }
 
 export interface CreateUserPayload {

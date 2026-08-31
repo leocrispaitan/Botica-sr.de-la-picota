@@ -12,7 +12,6 @@ import {
   Building2,
   CheckCircle2,
   Archive,
-  Globe,
   MapPin,
   Briefcase,
 } from "lucide-react";

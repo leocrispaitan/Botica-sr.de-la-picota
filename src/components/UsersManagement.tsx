@@ -54,6 +54,15 @@ interface EditUserFormData {
   estado_logico: boolean;
 }
 
+interface EditUserFormErrors {
+  email?: string;
+  dni?: string;
+  nombre_usuario?: string;
+  nombre_completo?: string;
+  telefono?: string;
+  foto_perfil_url?: string;
+}
+
 /* ─── Mock Data - ELIMINADO - Ahora usamos datos reales ─────────────── */
 
 /* ─── Role Badge Colors ─────────────────────────────────────────────── */
@@ -175,6 +184,9 @@ export default function UsersManagement({ isDark = true }: { isDark?: boolean })
     foto_perfil_url: "",
     estado_logico: true,
   });
+  const [editFormErrors, setEditFormErrors] = useState<EditUserFormErrors>({});
+  const [validatingEditDni, setValidatingEditDni] = useState(false);
+  const [submittingEdit, setSubmittingEdit] = useState(false);
 
   // Limpiar formulario cuando se cierra el modal
   useEffect(() => {
@@ -280,32 +292,414 @@ export default function UsersManagement({ isDark = true }: { isDark?: boolean })
       foto_perfil_url: user.foto_perfil_url || "",
       estado_logico: user.estado_logico,
     });
+    setEditFormErrors({});
     setShowEditUserModal(true);
   };
 
   const handleEditInputChange = (field: keyof EditUserFormData, value: string | number | boolean) => {
     setEditFormData((prev) => ({ ...prev, [field]: value }));
+    // Limpiar error del campo cuando el usuario empieza a escribir
+    if (editFormErrors[field as keyof EditUserFormErrors]) {
+      setEditFormErrors((prev) => {
+        const newErrors = { ...prev };
+        delete newErrors[field as keyof EditUserFormErrors];
+        return newErrors;
+      });
+    }
   };
 
-  const handleSubmitEditUser = (e: React.FormEvent) => {
+  // Validar DNI en edición con la API cuando se completan 8 dígitos
+  const handleEditDniChange = async (dni: string) => {
+    // Solo números, máximo 8 dígitos
+    const cleanDni = dni.replace(/\D/g, "").slice(0, 8);
+    handleEditInputChange("dni", cleanDni);
+
+    // Si el DNI tiene 8 dígitos y es diferente al original, validar con la API
+    if (cleanDni.length === 8 && cleanDni !== selectedUser?.dni) {
+      setValidatingEditDni(true);
+      try {
+        const response = await api.post("/validar-dni", { dni: cleanDni });
+
+        if (response.data.success && response.data.data) {
+          // Autocompletar campos con los datos obtenidos
+          setEditFormData((prev) => ({
+            ...prev,
+            dni: cleanDni,
+            nombre_completo: response.data.data.nombreCompleto || prev.nombre_completo,
+            nombre_usuario: response.data.data.nombreUsuarioSugerido || prev.nombre_usuario,
+          }));
+
+          // Limpiar errores de los campos autocompletados
+          setEditFormErrors((prev) => {
+            const newErrors = { ...prev };
+            delete newErrors.dni;
+            delete newErrors.nombre_completo;
+            delete newErrors.nombre_usuario;
+            return newErrors;
+          });
+
+          console.log("✅ DNI validado en edición:", response.data.data);
+        } else {
+          // Mostrar error si el DNI no es válido
+          setEditFormErrors((prev) => ({
+            ...prev,
+            dni: response.data.message || "DNI no encontrado",
+          }));
+        }
+      } catch (error: any) {
+        console.error("❌ Error al validar DNI en edición:", error);
+        const errorMessage = error.response?.data?.message || "Error al validar DNI. Intenta nuevamente.";
+        setEditFormErrors((prev) => ({
+          ...prev,
+          dni: errorMessage,
+        }));
+      } finally {
+        setValidatingEditDni(false);
+      }
+    }
+  };
+
+  // Validar formulario de edición
+  const validateEditForm = (): boolean => {
+    const errors: EditUserFormErrors = {};
+
+    // Email
+    if (!editFormData.email.trim()) {
+      errors.email = "El email es obligatorio";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(editFormData.email)) {
+      errors.email = "Email inválido";
+    }
+
+    // DNI
+    if (!editFormData.dni.trim()) {
+      errors.dni = "El DNI es obligatorio";
+    } else if (!/^\d{8}$/.test(editFormData.dni)) {
+      errors.dni = "DNI debe tener 8 dígitos";
+    }
+
+    // Nombre Usuario
+    if (!editFormData.nombre_usuario.trim()) {
+      errors.nombre_usuario = "El nombre de usuario es obligatorio";
+    } else if (editFormData.nombre_usuario.length < 4) {
+      errors.nombre_usuario = "Mínimo 4 caracteres";
+    }
+
+    // Nombre Completo
+    if (!editFormData.nombre_completo.trim()) {
+      errors.nombre_completo = "El nombre completo es obligatorio";
+    }
+
+    // Teléfono (opcional pero si se proporciona, validar)
+    if (editFormData.telefono && !/^\d{9}$/.test(editFormData.telefono)) {
+      errors.telefono = "Teléfono debe tener 9 dígitos";
+    }
+
+    // URL de foto (opcional pero si se proporciona, validar)
+    if (editFormData.foto_perfil_url && !/^https?:\/\/.+/.test(editFormData.foto_perfil_url)) {
+      errors.foto_perfil_url = "URL inválida";
+    }
+
+    setEditFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleSubmitEditUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedUser) return;
 
-    const updatedUser: Usuario = {
-      ...selectedUser,
-      ...editFormData,
-      rol: selectedUser.rol
-        ? {
-            ...selectedUser.rol,
-            nombre_rol: getRoleName(editFormData.id_rol),
-          }
-        : selectedUser.rol,
-    };
+    if (!validateEditForm()) {
+      return;
+    }
 
-    setUsers((prev) => prev.map((user) => (user.id_usuario === selectedUser.id_usuario ? updatedUser : user)));
-    setSelectedUser(updatedUser);
-    setShowEditUserModal(false);
-    toast.success("Vista de edicion guardada localmente. Backend aun no conectado.");
+    try {
+      setSubmittingEdit(true);
+
+      // Preparar payload solo con campos que pueden cambiar
+      const payload = {
+        email: editFormData.email,
+        dni: editFormData.dni,
+        nombre_usuario: editFormData.nombre_usuario,
+        nombre_completo: editFormData.nombre_completo,
+        id_rol: editFormData.id_rol,
+        telefono: editFormData.telefono,
+        foto_perfil_url: editFormData.foto_perfil_url,
+        estado_logico: editFormData.estado_logico,
+      };
+
+      console.log("📤 Enviando actualización al backend:", payload);
+
+      // Llamar al servicio para actualizar usuario
+      const usuarioActualizado = await usersService.updateUser(selectedUser.id_usuario, payload);
+
+      console.log("✅ Usuario actualizado exitosamente:", usuarioActualizado);
+
+      // Actualizar la lista de usuarios localmente
+      setUsers((prev) => 
+        prev.map((user) => 
+          user.id_usuario === selectedUser.id_usuario ? usuarioActualizado : user
+        )
+      );
+
+      // Actualizar el usuario seleccionado
+      setSelectedUser(usuarioActualizado);
+
+      // Cerrar modal
+      setShowEditUserModal(false);
+
+      // Mostrar notificación de éxito personalizada
+      toast.custom(
+        (t) => (
+          <div
+            style={{
+              background: isDark ? "#212130" : "#ffffff",
+              padding: "24px",
+              borderRadius: "20px",
+              boxShadow: "0 20px 60px rgba(0, 0, 0, 0.3)",
+              border: `2px solid ${isDark ? "rgba(251, 146, 60, 0.3)" : "rgba(251, 146, 60, 0.2)"}`,
+              maxWidth: "420px",
+              animation: t.visible ? "slideIn 0.4s ease-out" : "slideOut 0.3s ease-in",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "16px" }}>
+              <div
+                style={{
+                  width: "56px",
+                  height: "56px",
+                  borderRadius: "50%",
+                  background: "linear-gradient(135deg, #fb923c 0%, #f97316 100%)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  boxShadow: "0 8px 24px rgba(251, 146, 60, 0.4)",
+                  animation: "scaleIn 0.5s ease-out",
+                }}
+              >
+                <CheckCircle2 size={32} color="#fff" strokeWidth={2.5} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <h3
+                  style={{
+                    fontSize: "18px",
+                    fontWeight: 700,
+                    color: "#fb923c",
+                    marginBottom: "4px",
+                    fontFamily: "'Cairo', sans-serif",
+                  }}
+                >
+                  ¡Usuario Actualizado!
+                </h3>
+                <p
+                  style={{
+                    fontSize: "13px",
+                    color: isDark ? "#969ba0" : "#787f9e",
+                    fontFamily: "'Cairo', sans-serif",
+                  }}
+                >
+                  Los cambios se guardaron correctamente
+                </p>
+              </div>
+            </div>
+
+            <div
+              style={{
+                background: isDark ? "#1e1d29" : "#f5f6fa",
+                padding: "16px",
+                borderRadius: "12px",
+                marginBottom: "16px",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
+                <img
+                  src={usuarioActualizado.foto_perfil_url}
+                  alt={usuarioActualizado.nombre_completo}
+                  style={{
+                    width: "48px",
+                    height: "48px",
+                    borderRadius: "50%",
+                    border: "2px solid #fb923c",
+                  }}
+                />
+                <div>
+                  <p
+                    style={{
+                      fontSize: "15px",
+                      fontWeight: 600,
+                      color: isDark ? "#ffffff" : "#3d4465",
+                      marginBottom: "2px",
+                      fontFamily: "'Cairo', sans-serif",
+                    }}
+                  >
+                    {usuarioActualizado.nombre_completo}
+                  </p>
+                  <p
+                    style={{
+                      fontSize: "12px",
+                      color: isDark ? "#828690" : "#787f9e",
+                      fontFamily: "'Cairo', sans-serif",
+                    }}
+                  >
+                    @{usuarioActualizado.nombre_usuario}
+                  </p>
+                </div>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <Mail size={14} color="#fb923c" />
+                  <span
+                    style={{
+                      fontSize: "13px",
+                      color: isDark ? "#969ba0" : "#787f9e",
+                      fontFamily: "'Cairo', sans-serif",
+                    }}
+                  >
+                    {usuarioActualizado.email}
+                  </span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <Shield size={14} color="#fb923c" />
+                  <span
+                    style={{
+                      fontSize: "13px",
+                      color: isDark ? "#969ba0" : "#787f9e",
+                      fontFamily: "'Cairo', sans-serif",
+                    }}
+                  >
+                    Rol: {usuarioActualizado.rol?.nombre_rol || "N/A"}
+                  </span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <CreditCard size={14} color="#fb923c" />
+                  <span
+                    style={{
+                      fontSize: "13px",
+                      color: isDark ? "#969ba0" : "#787f9e",
+                      fontFamily: "'Cairo', sans-serif",
+                    }}
+                  >
+                    DNI: {usuarioActualizado.dni}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={() => toast.dismiss(t.id)}
+              style={{
+                width: "100%",
+                padding: "12px",
+                borderRadius: "12px",
+                border: "none",
+                background: "linear-gradient(135deg, #fb923c 0%, #f97316 100%)",
+                color: "#fff",
+                fontSize: "14px",
+                fontWeight: 600,
+                cursor: "pointer",
+                fontFamily: "'Cairo', sans-serif",
+                transition: "all 0.2s",
+                boxShadow: "0 4px 12px rgba(251, 146, 60, 0.3)",
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)";
+                (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 6px 20px rgba(251, 146, 60, 0.4)";
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
+                (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 4px 12px rgba(251, 146, 60, 0.3)";
+              }}
+            >
+              ¡Entendido!
+            </button>
+          </div>
+        ),
+        {
+          duration: 5000,
+          position: "top-center",
+        }
+      );
+    } catch (error: any) {
+      console.error("❌ Error al actualizar usuario:", error);
+      
+      const errorMessage = error.response?.data?.message || error.message || "Error al actualizar usuario";
+      
+      toast.custom(
+        (t) => (
+          <div
+            style={{
+              background: isDark ? "#212130" : "#ffffff",
+              padding: "24px",
+              borderRadius: "20px",
+              boxShadow: "0 20px 60px rgba(0, 0, 0, 0.3)",
+              border: `2px solid rgba(239, 68, 68, 0.3)`,
+              maxWidth: "420px",
+              animation: t.visible ? "slideIn 0.4s ease-out" : "slideOut 0.3s ease-in",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "12px" }}>
+              <div
+                style={{
+                  width: "48px",
+                  height: "48px",
+                  borderRadius: "50%",
+                  background: "rgba(239, 68, 68, 0.15)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <AlertCircle size={28} color="#ef4444" strokeWidth={2.5} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <h3
+                  style={{
+                    fontSize: "16px",
+                    fontWeight: 700,
+                    color: "#ef4444",
+                    marginBottom: "4px",
+                    fontFamily: "'Cairo', sans-serif",
+                  }}
+                >
+                  Error al Actualizar Usuario
+                </h3>
+                <p
+                  style={{
+                    fontSize: "13px",
+                    color: isDark ? "#969ba0" : "#787f9e",
+                    fontFamily: "'Cairo', sans-serif",
+                  }}
+                >
+                  {errorMessage}
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={() => toast.dismiss(t.id)}
+              style={{
+                width: "100%",
+                padding: "10px",
+                borderRadius: "10px",
+                border: "1px solid #ef4444",
+                background: "transparent",
+                color: "#ef4444",
+                fontSize: "13px",
+                fontWeight: 600,
+                cursor: "pointer",
+                fontFamily: "'Cairo', sans-serif",
+              }}
+            >
+              Cerrar
+            </button>
+          </div>
+        ),
+        {
+          duration: 4000,
+          position: "top-center",
+        }
+      );
+    } finally {
+      setSubmittingEdit(false);
+    }
   };
 
   // Filtered users
@@ -2841,7 +3235,7 @@ export default function UsersManagement({ isDark = true }: { isDark?: boolean })
             style={{
               background: t.cardBg,
               borderRadius: "24px",
-              maxWidth: "1000px",
+              maxWidth: "1100px",
               width: "100%",
               maxHeight: "90vh",
               overflow: "auto",
@@ -2850,6 +3244,7 @@ export default function UsersManagement({ isDark = true }: { isDark?: boolean })
             }}
             onClick={(e) => e.stopPropagation()}
           >
+            {/* Header */}
             <div
               style={{
                 padding: "24px 32px",
@@ -2867,9 +3262,9 @@ export default function UsersManagement({ isDark = true }: { isDark?: boolean })
               <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
                 <div
                   style={{
-                    width: "48px",
-                    height: "48px",
-                    borderRadius: "14px",
+                    width: "56px",
+                    height: "56px",
+                    borderRadius: "16px",
                     background: "linear-gradient(135deg, #fb923c 0%, #f97316 100%)",
                     display: "flex",
                     alignItems: "center",
@@ -2877,182 +3272,577 @@ export default function UsersManagement({ isDark = true }: { isDark?: boolean })
                     boxShadow: "0 8px 24px rgba(249,115,22,0.35)",
                   }}
                 >
-                  <Edit2 size={24} color="#fff" />
+                  <Edit2 size={28} color="#fff" strokeWidth={2.5} />
                 </div>
                 <div>
-                  <h2 style={{ fontSize: "22px", fontWeight: 700, color: t.textPrimary, marginBottom: "4px" }}>
+                  <h2 style={{ fontSize: "24px", fontWeight: 700, color: t.textPrimary, marginBottom: "4px" }}>
                     Editar Usuario
                   </h2>
-                  <p style={{ fontSize: "13px", color: t.textSecondary }}>
-                    Vista frontend con datos precargados. Sin conexion backend por ahora.
+                  <p style={{ fontSize: "14px", color: t.textSecondary }}>
+                    Modifica la información del usuario en el sistema
                   </p>
                 </div>
               </div>
               <button
                 onClick={() => setShowEditUserModal(false)}
                 style={{
-                  width: "40px",
-                  height: "40px",
-                  borderRadius: "10px",
-                  border: `1px solid ${t.border}`,
-                  background: t.innerBg,
+                  width: "44px",
+                  height: "44px",
+                  borderRadius: "12px",
+                  border: "none",
+                  background: "transparent",
                   color: t.textSecondary,
                   cursor: "pointer",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
+                  transition: "all 0.2s",
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.background = "rgba(239, 68, 68, 0.1)";
+                  (e.currentTarget as HTMLButtonElement).style.color = "#ef4444";
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.background = "transparent";
+                  (e.currentTarget as HTMLButtonElement).style.color = t.textSecondary;
                 }}
               >
-                <X size={20} />
+                <X size={22} />
               </button>
             </div>
 
+            {/* Formulario */}
             <form onSubmit={handleSubmitEditUser} style={{ padding: "32px" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: "28px" }}>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "16px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: "32px" }}>
+                
+                {/* Columna Izquierda: Formulario */}
+                <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+                  
+                  {/* Información de cuenta */}
                   <div>
-                    <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px" }}>Nombre completo</label>
-                    <input
-                      value={editFormData.nombre_completo}
-                      onChange={(e) => handleEditInputChange("nombre_completo", e.target.value)}
-                      style={{ width: "100%", padding: "12px 14px", borderRadius: "12px", border: `2px solid ${t.border}`, background: t.inputBg, color: t.textPrimary, fontSize: "14px", outline: "none" }}
-                    />
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px" }}>
+                      <div style={{ 
+                        width: "32px", 
+                        height: "32px", 
+                        borderRadius: "8px", 
+                        background: "rgba(251, 146, 60, 0.15)", 
+                        display: "flex", 
+                        alignItems: "center", 
+                        justifyContent: "center" 
+                      }}>
+                        <Mail size={16} color="#fb923c" />
+                      </div>
+                      <h3 style={{ fontSize: "16px", fontWeight: 700, color: t.textPrimary }}>
+                        Información de Cuenta
+                      </h3>
+                    </div>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                      {/* Email */}
+                      <div>
+                        <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px" }}>
+                          Email <span style={{ color: "#ef4444" }}>*</span>
+                        </label>
+                        <div style={{ position: "relative" }}>
+                          <Mail size={16} style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: t.textMuted }} />
+                          <input
+                            type="email"
+                            value={editFormData.email}
+                            onChange={(e) => handleEditInputChange("email", e.target.value)}
+                            style={{
+                              width: "100%",
+                              padding: "12px 14px 12px 44px",
+                              borderRadius: "12px",
+                              border: `2px solid ${editFormErrors.email ? "#ef4444" : t.border}`,
+                              background: t.inputBg,
+                              color: t.textPrimary,
+                              fontSize: "14px",
+                              outline: "none",
+                              fontFamily: "'Cairo', sans-serif",
+                              transition: "all 0.2s",
+                            }}
+                          />
+                        </div>
+                        {editFormErrors.email && (
+                          <p style={{ fontSize: "12px", color: "#ef4444", marginTop: "6px", display: "flex", alignItems: "center", gap: "4px" }}>
+                            <AlertCircle size={12} /> {editFormErrors.email}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Rol */}
+                      <div>
+                        <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px" }}>
+                          Rol <span style={{ color: "#ef4444" }}>*</span>
+                        </label>
+                        <div style={{ position: "relative" }}>
+                          <Shield size={16} style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: t.textMuted, zIndex: 1 }} />
+                          <select
+                            value={editFormData.id_rol}
+                            onChange={(e) => handleEditInputChange("id_rol", Number(e.target.value))}
+                            style={{
+                              width: "100%",
+                              padding: "12px 14px 12px 44px",
+                              borderRadius: "12px",
+                              border: `2px solid ${t.border}`,
+                              background: t.inputBg,
+                              color: t.textPrimary,
+                              fontSize: "14px",
+                              outline: "none",
+                              fontFamily: "'Cairo', sans-serif",
+                              cursor: "pointer",
+                              transition: "all 0.2s",
+                            }}
+                          >
+                            <option value={1}>👑 Administrador</option>
+                            <option value={2}>💼 Vendedor</option>
+                            <option value={3}>📦 Almacenero</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
                   </div>
+
+                  {/* Separador */}
+                  <div style={{ height: "1px", background: t.border }} />
+
+                  {/* Información Personal */}
                   <div>
-                    <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px" }}>Nombre de usuario</label>
-                    <input
-                      value={editFormData.nombre_usuario}
-                      onChange={(e) => handleEditInputChange("nombre_usuario", e.target.value)}
-                      style={{ width: "100%", padding: "12px 14px", borderRadius: "12px", border: `2px solid ${t.border}`, background: t.inputBg, color: t.textPrimary, fontSize: "14px", outline: "none" }}
-                    />
-                  </div>
-                  <div>
-                    <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px" }}>Email</label>
-                    <input
-                      type="email"
-                      value={editFormData.email}
-                      onChange={(e) => handleEditInputChange("email", e.target.value)}
-                      style={{ width: "100%", padding: "12px 14px", borderRadius: "12px", border: `2px solid ${t.border}`, background: t.inputBg, color: t.textPrimary, fontSize: "14px", outline: "none" }}
-                    />
-                  </div>
-                  <div>
-                    <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px" }}>DNI</label>
-                    <input
-                      value={editFormData.dni}
-                      maxLength={8}
-                      onChange={(e) => handleEditInputChange("dni", e.target.value.replace(/\D/g, "").slice(0, 8))}
-                      style={{ width: "100%", padding: "12px 14px", borderRadius: "12px", border: `2px solid ${t.border}`, background: t.inputBg, color: t.textPrimary, fontSize: "14px", outline: "none" }}
-                    />
-                  </div>
-                  <div>
-                    <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px" }}>Telefono</label>
-                    <input
-                      value={editFormData.telefono}
-                      maxLength={9}
-                      onChange={(e) => handleEditInputChange("telefono", e.target.value.replace(/\D/g, "").slice(0, 9))}
-                      style={{ width: "100%", padding: "12px 14px", borderRadius: "12px", border: `2px solid ${t.border}`, background: t.inputBg, color: t.textPrimary, fontSize: "14px", outline: "none" }}
-                    />
-                  </div>
-                  <div>
-                    <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px" }}>Rol</label>
-                    <select
-                      value={editFormData.id_rol}
-                      onChange={(e) => handleEditInputChange("id_rol", Number(e.target.value))}
-                      style={{ width: "100%", padding: "12px 14px", borderRadius: "12px", border: `2px solid ${t.border}`, background: t.inputBg, color: t.textPrimary, fontSize: "14px", outline: "none", cursor: "pointer" }}
-                    >
-                      <option value={1}>Administrativo</option>
-                      <option value={2}>Vendedor</option>
-                      <option value={3}>Almacenero</option>
-                    </select>
-                  </div>
-                  <div style={{ gridColumn: "1 / -1" }}>
-                    <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px" }}>URL de foto de perfil</label>
-                    <input
-                      value={editFormData.foto_perfil_url}
-                      onChange={(e) => handleEditInputChange("foto_perfil_url", e.target.value)}
-                      placeholder="https://ejemplo.com/avatar.jpg"
-                      style={{ width: "100%", padding: "12px 14px", borderRadius: "12px", border: `2px solid ${t.border}`, background: t.inputBg, color: t.textPrimary, fontSize: "14px", outline: "none" }}
-                    />
-                  </div>
-                  <div style={{ gridColumn: "1 / -1" }}>
-                    <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px" }}>Estado</label>
-                    <select
-                      value={editFormData.estado_logico ? "true" : "false"}
-                      onChange={(e) => handleEditInputChange("estado_logico", e.target.value === "true")}
-                      style={{ width: "100%", padding: "12px 14px", borderRadius: "12px", border: `2px solid ${t.border}`, background: t.inputBg, color: t.textPrimary, fontSize: "14px", outline: "none", cursor: "pointer" }}
-                    >
-                      <option value="true">Activo</option>
-                      <option value="false">Inactivo</option>
-                    </select>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px" }}>
+                      <div style={{ 
+                        width: "32px", 
+                        height: "32px", 
+                        borderRadius: "8px", 
+                        background: "rgba(251, 146, 60, 0.15)", 
+                        display: "flex", 
+                        alignItems: "center", 
+                        justifyContent: "center" 
+                      }}>
+                        <User size={16} color="#fb923c" />
+                      </div>
+                      <h3 style={{ fontSize: "16px", fontWeight: 700, color: t.textPrimary }}>
+                        Información Personal
+                      </h3>
+                      <span style={{ fontSize: "11px", color: t.textMuted, marginLeft: "8px" }}>
+                        (El DNI se autocompletará nombre y usuario)
+                      </span>
+                    </div>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                      {/* DNI */}
+                      <div>
+                        <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px" }}>
+                          DNI <span style={{ color: "#ef4444" }}>*</span>
+                        </label>
+                        <div style={{ position: "relative" }}>
+                          <CreditCard size={16} style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: t.textMuted, zIndex: 1 }} />
+                          {validatingEditDni && (
+                            <RefreshCw 
+                              size={16} 
+                              style={{ 
+                                position: "absolute", 
+                                right: "14px", 
+                                top: "50%", 
+                                transform: "translateY(-50%)", 
+                                color: "#fb923c",
+                                animation: "spin 1s linear infinite",
+                                zIndex: 1
+                              }} 
+                            />
+                          )}
+                          <input
+                            type="text"
+                            value={editFormData.dni}
+                            onChange={(e) => handleEditDniChange(e.target.value)}
+                            placeholder="12345678"
+                            maxLength={8}
+                            disabled={validatingEditDni}
+                            style={{
+                              width: "100%",
+                              padding: "12px 44px 12px 44px",
+                              borderRadius: "12px",
+                              border: `2px solid ${editFormErrors.dni ? "#ef4444" : validatingEditDni ? "#fb923c" : t.border}`,
+                              background: t.inputBg,
+                              color: t.textPrimary,
+                              fontSize: "14px",
+                              outline: "none",
+                              fontFamily: "'Cairo', sans-serif",
+                              transition: "all 0.2s",
+                              opacity: validatingEditDni ? 0.7 : 1,
+                              cursor: validatingEditDni ? "not-allowed" : "text",
+                            }}
+                          />
+                        </div>
+                        {validatingEditDni && (
+                          <p style={{ fontSize: "12px", color: "#fb923c", marginTop: "6px", display: "flex", alignItems: "center", gap: "4px" }}>
+                            <RefreshCw size={12} style={{ animation: "spin 1s linear infinite" }} /> Validando DNI...
+                          </p>
+                        )}
+                        {editFormErrors.dni && !validatingEditDni && (
+                          <p style={{ fontSize: "12px", color: "#ef4444", marginTop: "6px", display: "flex", alignItems: "center", gap: "4px" }}>
+                            <AlertCircle size={12} /> {editFormErrors.dni}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Nombre de Usuario */}
+                      <div>
+                        <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px" }}>
+                          Nombre de Usuario <span style={{ color: "#ef4444" }}>*</span>
+                        </label>
+                        <div style={{ position: "relative" }}>
+                          <User size={16} style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: t.textMuted }} />
+                          <input
+                            type="text"
+                            value={editFormData.nombre_usuario}
+                            onChange={(e) => handleEditInputChange("nombre_usuario", e.target.value)}
+                            placeholder="admin.jperez"
+                            style={{
+                              width: "100%",
+                              padding: "12px 14px 12px 44px",
+                              borderRadius: "12px",
+                              border: `2px solid ${editFormErrors.nombre_usuario ? "#ef4444" : t.border}`,
+                              background: t.inputBg,
+                              color: t.textPrimary,
+                              fontSize: "14px",
+                              outline: "none",
+                              fontFamily: "'Cairo', sans-serif",
+                              transition: "all 0.2s",
+                            }}
+                          />
+                        </div>
+                        {editFormErrors.nombre_usuario && (
+                          <p style={{ fontSize: "12px", color: "#ef4444", marginTop: "6px", display: "flex", alignItems: "center", gap: "4px" }}>
+                            <AlertCircle size={12} /> {editFormErrors.nombre_usuario}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Nombre Completo */}
+                      <div>
+                        <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px" }}>
+                          Nombre Completo <span style={{ color: "#ef4444" }}>*</span>
+                        </label>
+                        <div style={{ position: "relative" }}>
+                          <User size={16} style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: t.textMuted }} />
+                          <input
+                            type="text"
+                            value={editFormData.nombre_completo}
+                            onChange={(e) => handleEditInputChange("nombre_completo", e.target.value)}
+                            placeholder="Juan Pérez Gómez"
+                            style={{
+                              width: "100%",
+                              padding: "12px 14px 12px 44px",
+                              borderRadius: "12px",
+                              border: `2px solid ${editFormErrors.nombre_completo ? "#ef4444" : t.border}`,
+                              background: t.inputBg,
+                              color: t.textPrimary,
+                              fontSize: "14px",
+                              outline: "none",
+                              fontFamily: "'Cairo', sans-serif",
+                              transition: "all 0.2s",
+                            }}
+                          />
+                        </div>
+                        {editFormErrors.nombre_completo && (
+                          <p style={{ fontSize: "12px", color: "#ef4444", marginTop: "6px", display: "flex", alignItems: "center", gap: "4px" }}>
+                            <AlertCircle size={12} /> {editFormErrors.nombre_completo}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Teléfono */}
+                      <div>
+                        <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px" }}>
+                          Teléfono <span style={{ fontSize: "11px", color: t.textMuted }}>(Opcional)</span>
+                        </label>
+                        <div style={{ position: "relative" }}>
+                          <Phone size={16} style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: t.textMuted }} />
+                          <input
+                            type="text"
+                            value={editFormData.telefono}
+                            onChange={(e) => handleEditInputChange("telefono", e.target.value.replace(/\D/g, "").slice(0, 9))}
+                            placeholder="987654321"
+                            maxLength={9}
+                            style={{
+                              width: "100%",
+                              padding: "12px 14px 12px 44px",
+                              borderRadius: "12px",
+                              border: `2px solid ${editFormErrors.telefono ? "#ef4444" : t.border}`,
+                              background: t.inputBg,
+                              color: t.textPrimary,
+                              fontSize: "14px",
+                              outline: "none",
+                              fontFamily: "'Cairo', sans-serif",
+                              transition: "all 0.2s",
+                            }}
+                          />
+                        </div>
+                        {editFormErrors.telefono && (
+                          <p style={{ fontSize: "12px", color: "#ef4444", marginTop: "6px", display: "flex", alignItems: "center", gap: "4px" }}>
+                            <AlertCircle size={12} /> {editFormErrors.telefono}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* URL Foto de Perfil */}
+                    <div style={{ marginTop: "16px" }}>
+                      <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px" }}>
+                        URL de Foto de Perfil <span style={{ fontSize: "11px", color: t.textMuted }}>(Opcional)</span>
+                      </label>
+                      <div style={{ position: "relative" }}>
+                        <Image size={16} style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: t.textMuted }} />
+                        <input
+                          type="text"
+                          value={editFormData.foto_perfil_url}
+                          onChange={(e) => handleEditInputChange("foto_perfil_url", e.target.value)}
+                          placeholder="https://ejemplo.com/avatar.jpg"
+                          style={{
+                            width: "100%",
+                            padding: "12px 14px 12px 44px",
+                            borderRadius: "12px",
+                            border: `2px solid ${editFormErrors.foto_perfil_url ? "#ef4444" : t.border}`,
+                            background: t.inputBg,
+                            color: t.textPrimary,
+                            fontSize: "14px",
+                            outline: "none",
+                            fontFamily: "'Cairo', sans-serif",
+                            transition: "all 0.2s",
+                          }}
+                        />
+                      </div>
+                      {editFormErrors.foto_perfil_url && (
+                        <p style={{ fontSize: "12px", color: "#ef4444", marginTop: "6px", display: "flex", alignItems: "center", gap: "4px" }}>
+                          <AlertCircle size={12} /> {editFormErrors.foto_perfil_url}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Estado */}
+                    <div style={{ marginTop: "16px" }}>
+                      <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px" }}>
+                        Estado del Usuario
+                      </label>
+                      <select
+                        value={editFormData.estado_logico ? "true" : "false"}
+                        onChange={(e) => handleEditInputChange("estado_logico", e.target.value === "true")}
+                        style={{
+                          width: "100%",
+                          padding: "12px 14px",
+                          borderRadius: "12px",
+                          border: `2px solid ${t.border}`,
+                          background: t.inputBg,
+                          color: t.textPrimary,
+                          fontSize: "14px",
+                          outline: "none",
+                          fontFamily: "'Cairo', sans-serif",
+                          cursor: "pointer",
+                        }}
+                      >
+                        <option value="true">✓ Activo</option>
+                        <option value="false">✗ Inactivo</option>
+                      </select>
+                    </div>
                   </div>
                 </div>
 
-                <div
-                  style={{
-                    background: t.innerBg,
-                    border: `1px solid ${t.border}`,
-                    borderRadius: "20px",
-                    padding: "24px",
-                    textAlign: "center",
-                    height: "fit-content",
-                    position: "sticky",
-                    top: "100px",
-                  }}
-                >
-                  <p style={{ fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "16px" }}>Vista previa</p>
-                  <img
-                    src={getUserAvatar(editFormData)}
-                    alt="Vista previa"
-                    style={{ width: "160px", height: "160px", borderRadius: "50%", objectFit: "cover", border: `4px solid ${t.accent}`, marginBottom: "18px" }}
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src = getUserAvatar({ ...editFormData, foto_perfil_url: "" });
-                    }}
-                  />
-                  <h3 style={{ fontSize: "17px", fontWeight: 700, color: t.textPrimary, marginBottom: "4px" }}>
-                    {editFormData.nombre_completo || "Nombre del usuario"}
-                  </h3>
-                  <p style={{ fontSize: "13px", color: t.textSecondary, marginBottom: "12px" }}>
-                    @{editFormData.nombre_usuario || "usuario"}
-                  </p>
-                  <span
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "6px",
-                      padding: "8px 14px",
-                      borderRadius: "999px",
-                      background: getRoleBadgeColors(editFormData.id_rol, isDark).bg,
-                      color: getRoleBadgeColors(editFormData.id_rol, isDark).text,
-                      border: `1px solid ${getRoleBadgeColors(editFormData.id_rol, isDark).border}`,
-                      fontSize: "12px",
-                      fontWeight: 700,
-                      marginBottom: "16px",
-                    }}
-                  >
-                    {getRoleName(editFormData.id_rol)}
-                  </span>
-                  <div style={{ background: t.cardBg, borderRadius: "12px", padding: "14px", textAlign: "left", color: t.textSecondary, fontSize: "12px" }}>
-                    <p style={{ marginBottom: "8px" }}>DNI: {editFormData.dni || "--------"}</p>
-                    <p style={{ marginBottom: "8px" }}>Email: {editFormData.email || "No registrado"}</p>
-                    <p>Estado: {editFormData.estado_logico ? "Activo" : "Inactivo"}</p>
+                {/* Columna Derecha: Vista Previa */}
+                <div>
+                  <div style={{ position: "sticky", top: "32px" }}>
+                    <div style={{ 
+                      background: t.innerBg, 
+                      borderRadius: "20px", 
+                      padding: "24px",
+                      border: `1px solid ${t.border}`,
+                    }}>
+                      <p style={{ fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "16px", textAlign: "center" }}>
+                        Vista Previa del Perfil
+                      </p>
+                      
+                      {/* Avatar Preview */}
+                      <div style={{ 
+                        width: "180px", 
+                        height: "180px", 
+                        margin: "0 auto 20px",
+                        borderRadius: "50%",
+                        overflow: "hidden",
+                        border: `4px solid #fb923c`,
+                        boxShadow: "0 8px 24px rgba(251, 146, 60, 0.3)",
+                      }}>
+                        <img
+                          src={getUserAvatar(editFormData)}
+                          alt="Avatar Preview"
+                          style={{
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "cover",
+                          }}
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = getUserAvatar({ ...editFormData, foto_perfil_url: "" });
+                          }}
+                        />
+                      </div>
+
+                      {/* Info Preview */}
+                      <div style={{ textAlign: "center", marginBottom: "20px" }}>
+                        <p style={{ fontSize: "16px", fontWeight: 700, color: t.textPrimary, marginBottom: "4px" }}>
+                          {editFormData.nombre_completo || "Nombre del Usuario"}
+                        </p>
+                        <p style={{ fontSize: "13px", color: t.textSecondary, marginBottom: "2px" }}>
+                          @{editFormData.nombre_usuario || "nombre.usuario"}
+                        </p>
+                        <p style={{ fontSize: "12px", color: t.textMuted }}>
+                          {editFormData.email || "email@ejemplo.com"}
+                        </p>
+                      </div>
+
+                      {/* Role Badge */}
+                      <div style={{ display: "flex", justifyContent: "center", marginBottom: "20px" }}>
+                        <span
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "6px",
+                            padding: "8px 16px",
+                            borderRadius: "999px",
+                            background: getRoleBadgeColors(editFormData.id_rol, isDark).bg,
+                            color: getRoleBadgeColors(editFormData.id_rol, isDark).text,
+                            border: `1px solid ${getRoleBadgeColors(editFormData.id_rol, isDark).border}`,
+                            fontSize: "12px",
+                            fontWeight: 700,
+                            letterSpacing: "0.03em",
+                          }}
+                        >
+                          <span style={{ fontSize: "16px" }}>{getRoleBadgeColors(editFormData.id_rol, isDark).icon}</span>
+                          {getRoleName(editFormData.id_rol)}
+                        </span>
+                      </div>
+
+                      {/* Additional Info */}
+                      <div style={{ 
+                        background: t.cardBg, 
+                        borderRadius: "12px", 
+                        padding: "16px",
+                        fontSize: "12px",
+                        color: t.textSecondary,
+                      }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+                          <CreditCard size={14} color={t.textMuted} />
+                          <span>DNI: {editFormData.dni || "--------"}</span>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+                          <Phone size={14} color={t.textMuted} />
+                          <span>Tel: {editFormData.telefono || "No especificado"}</span>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                          <div style={{ 
+                            width: "8px", 
+                            height: "8px", 
+                            borderRadius: "50%", 
+                            background: editFormData.estado_logico ? "#22c55e" : "#ef4444"
+                          }} />
+                          <span>Estado: {editFormData.estado_logico ? "Activo" : "Inactivo"}</span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
 
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px", marginTop: "28px", paddingTop: "24px", borderTop: `1px solid ${t.border}` }}>
+              {/* Botones del Footer */}
+              <div
+                style={{
+                  display: "flex",
+                  gap: "12px",
+                  justifyContent: "flex-end",
+                  marginTop: "32px",
+                  paddingTop: "24px",
+                  borderTop: `1px solid ${t.border}`,
+                }}
+              >
                 <button
                   type="button"
                   onClick={() => setShowEditUserModal(false)}
-                  style={{ padding: "12px 28px", borderRadius: "12px", border: `2px solid ${t.border}`, background: "transparent", color: t.textSecondary, fontSize: "14px", fontWeight: 700, cursor: "pointer" }}
+                  disabled={submittingEdit}
+                  style={{
+                    padding: "12px 28px",
+                    borderRadius: "12px",
+                    border: `2px solid ${t.border}`,
+                    background: "transparent",
+                    color: submittingEdit ? t.textMuted : t.textSecondary,
+                    fontSize: "14px",
+                    fontWeight: 600,
+                    cursor: submittingEdit ? "not-allowed" : "pointer",
+                    fontFamily: "'Cairo', sans-serif",
+                    transition: "all 0.2s",
+                    opacity: submittingEdit ? 0.5 : 1,
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!submittingEdit) {
+                      (e.currentTarget as HTMLButtonElement).style.background = t.hoverBg;
+                      (e.currentTarget as HTMLButtonElement).style.color = t.textPrimary;
+                      (e.currentTarget as HTMLButtonElement).style.borderColor = "#fb923c";
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!submittingEdit) {
+                      (e.currentTarget as HTMLButtonElement).style.background = "transparent";
+                      (e.currentTarget as HTMLButtonElement).style.color = t.textSecondary;
+                      (e.currentTarget as HTMLButtonElement).style.borderColor = t.border;
+                    }
+                  }}
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  style={{ padding: "12px 32px", borderRadius: "12px", border: "none", background: "linear-gradient(135deg, #fb923c 0%, #f97316 100%)", color: "#fff", fontSize: "14px", fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: "8px", boxShadow: "0 4px 16px rgba(249,115,22,0.35)" }}
+                  disabled={submittingEdit || validatingEditDni}
+                  style={{
+                    padding: "12px 32px",
+                    borderRadius: "12px",
+                    border: "none",
+                    background: submittingEdit || validatingEditDni 
+                      ? t.textMuted 
+                      : "linear-gradient(135deg, #fb923c 0%, #f97316 100%)",
+                    color: "#fff",
+                    fontSize: "14px",
+                    fontWeight: 600,
+                    cursor: submittingEdit || validatingEditDni ? "not-allowed" : "pointer",
+                    fontFamily: "'Cairo', sans-serif",
+                    transition: "all 0.2s",
+                    boxShadow: submittingEdit || validatingEditDni 
+                      ? "none" 
+                      : "0 4px 16px rgba(251, 146, 60, 0.35)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    opacity: submittingEdit || validatingEditDni ? 0.6 : 1,
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!submittingEdit && !validatingEditDni) {
+                      (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)";
+                      (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 6px 24px rgba(251, 146, 60, 0.45)";
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!submittingEdit && !validatingEditDni) {
+                      (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
+                      (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 4px 16px rgba(251, 146, 60, 0.35)";
+                    }
+                  }}
                 >
-                  <Edit2 size={18} />
-                  Guardar Cambios
+                  {submittingEdit ? (
+                    <>
+                      <RefreshCw size={18} style={{ animation: "spin 1s linear infinite" }} />
+                      Guardando...
+                    </>
+                  ) : (
+                    <>
+                      <Edit2 size={18} />
+                      Guardar Cambios
+                    </>
+                  )}
                 </button>
               </div>
             </form>

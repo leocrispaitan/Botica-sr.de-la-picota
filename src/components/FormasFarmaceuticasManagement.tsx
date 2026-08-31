@@ -11,7 +11,6 @@ import {
   ChevronRight,
   Pill,
   CheckCircle2,
-  XCircle,
   Archive,
 } from "lucide-react";
 

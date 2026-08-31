@@ -6,7 +6,6 @@ import {
   ShoppingCart,
   User,
   CreditCard,
-  FileText,
   DollarSign,
   Save,
   X,
