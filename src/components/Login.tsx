@@ -13,7 +13,6 @@ import {
   ArrowLeft,
   BriefcaseBusiness,
   IdCard,
-  Image,
   Phone,
   User,
   UserPlus,
@@ -108,7 +107,6 @@ export default function Login({ onLoginSuccess }: { onLoginSuccess?: () => void 
     username: "",
     fullName: "",
     phone: "",
-    profilePhoto: "",
   });
   const [status, setStatus] = useState<
     "idle" | "loading" | "success" | "error"
@@ -1066,19 +1064,6 @@ export default function Login({ onLoginSuccess }: { onLoginSuccess?: () => void 
                         <input id="register-phone" inputMode="tel" placeholder="987654321" value={registerForm.phone} onChange={(e) => updateRegisterField("phone", e.target.value)} style={{ width: "100%", padding: "14px 14px 14px 42px", borderRadius: "14px", fontSize: "15px", color: theme.textPrimary, background: theme.innerBg, border: `1.5px solid ${theme.border}`, outline: "none", fontFamily: "'Cairo', sans-serif" }} />
                       </div>
                     </div>
-                  </div>
-
-                  <div style={{ marginBottom: "24px" }}>
-                    <label htmlFor="register-profile-photo" style={{ display: "block", fontSize: "13px", fontWeight: 600, color: theme.textSecondary, marginBottom: "8px" }}>
-                      URL de Foto de Perfil <span style={{ color: theme.textMuted, fontWeight: 500 }}>(Opcional)</span>
-                    </label>
-                    <div style={{ position: "relative" }}>
-                      <Image size={18} style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: theme.textMuted }} />
-                      <input id="register-profile-photo" type="url" placeholder="https://ejemplo.com/avatar.jpg" value={registerForm.profilePhoto} onChange={(e) => updateRegisterField("profilePhoto", e.target.value)} style={{ width: "100%", padding: "14px 14px 14px 42px", borderRadius: "14px", fontSize: "15px", color: theme.textPrimary, background: theme.innerBg, border: `1.5px solid ${theme.border}`, outline: "none", fontFamily: "'Cairo', sans-serif" }} />
-                    </div>
-                    <p style={{ fontSize: "12px", color: theme.textMuted, marginTop: "8px" }}>
-                      Deja vacio para generar un avatar automatico con las iniciales.
-                    </p>
                   </div>
 
                   <button
