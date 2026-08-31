@@ -54,6 +54,7 @@ import LaboratoriosManagement from "./LaboratoriosManagement";
 import ReportesVentas from "./ReportesVentas";
 import ReportesInventario from "./ReportesInventario";
 import ReportesMovimientos from "./ReportesMovimientos";
+import MiPerfil from "./MiPerfil";
 
 import {
   // imgCanvas,
@@ -925,17 +926,7 @@ export default function Dashboard({ onLogout }: { onLogout?: () => void }) {
                     colorBg: isDark ? "rgba(91,207,197,0.12)" : "rgba(91,207,197,0.08)",
                     hoverBg: isDark ? "rgba(91,207,197,0.08)" : "rgba(91,207,197,0.05)",
                     delay: "0.08s",
-                    action: () => { setProfileMenuOpen(false); },
-                  },
-                  {
-                    icon: Settings,
-                    label: "Ajustes",
-                    subtitle: "Configuración",
-                    color: "#ffa755",
-                    colorBg: isDark ? "rgba(255,167,85,0.12)" : "rgba(255,167,85,0.08)",
-                    hoverBg: isDark ? "rgba(255,167,85,0.08)" : "rgba(255,167,85,0.05)",
-                    delay: "0.12s",
-                    action: () => { setProfileMenuOpen(false); },
+                    action: () => { setProfileMenuOpen(false); setActiveMenu("MiPerfil"); },
                   },
                   {
                     icon: LogOut,
@@ -944,7 +935,7 @@ export default function Dashboard({ onLogout }: { onLogout?: () => void }) {
                     color: "#ef4444",
                     colorBg: isDark ? "rgba(239,68,68,0.12)" : "rgba(239,68,68,0.08)",
                     hoverBg: isDark ? "rgba(239,68,68,0.08)" : "rgba(239,68,68,0.05)",
-                    delay: "0.16s",
+                    delay: "0.12s",
                     action: () => { setProfileMenuOpen(false); setShowLogoutConfirm(true); },
                   },
                 ].map((item, idx) => {
@@ -966,8 +957,8 @@ export default function Dashboard({ onLogout }: { onLogout?: () => void }) {
                         fontFamily: "'Cairo', sans-serif",
                         transition: "all 0.2s ease",
                         animation: `profileMenuItemFade 0.3s ease ${item.delay} both`,
-                        marginBottom: idx < 2 ? "2px" : "0",
-                        ...(idx === 2 ? {
+                        marginBottom: idx < 1 ? "2px" : "0",
+                        ...(idx === 1 ? {
                           marginTop: "4px",
                           borderTop: `1px solid ${isDark ? "rgba(46,46,66,0.4)" : "rgba(220,222,235,0.6)"}`,
                           paddingTop: "12px",
@@ -2071,7 +2062,9 @@ export default function Dashboard({ onLogout }: { onLogout?: () => void }) {
         <main className="flex-1 overflow-y-auto" style={{ background: t.mainBg, transition: "background 0.4s ease" }}>
           
           {/* Render content based on activeMenu */}
-          {activeMenu === "Usuarios" ? (
+          {activeMenu === "MiPerfil" ? (
+            <MiPerfil isDark={isDark} />
+          ) : activeMenu === "Usuarios" ? (
             <UsersManagement isDark={isDark} />
           ) : activeMenu === "Productos" ? (
             <ProductsManagement isDark={isDark} />
