@@ -623,7 +623,7 @@ export default function Dashboard({ onLogout }: { onLogout?: () => void }) {
       };
     }
     return item;
-  }).filter(Boolean); // Eliminar items null
+  }).filter((item): item is NonNullable<typeof item> => item !== null); // Type guard para eliminar nulls
 
   // ═══ Debug: Mostrar información de permisos (solo en desarrollo) ═══
   useEffect(() => {
