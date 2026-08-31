@@ -56,38 +56,38 @@ import ReportesInventario from "./ReportesInventario";
 import ReportesMovimientos from "./ReportesMovimientos";
 
 import {
-  imgCanvas,
+  // imgCanvas,
   imgRectangle,
-  imgRectangle1,
-  imgRectangle2,
-  imgRectangle3,
-  imgRectangle4,
-  imgRectangle5,
-  imgRectangle6,
-  imgSvgjsLine2553,
-  imgSvgjsG2566,
-  imgClipPathGroup,
-  imgClipPathGroup1,
-  imgClipPathGroup2,
-  imgClipPathGroup3,
-  imgClipPathGroup4,
-  imgClipPathGroup5,
-  imgClipPathGroup6,
-  imgClipPathGroup7,
-  imgSvgjsLine2631,
-  imgSvgjsG2646,
-  imgClipPathGroup8,
-  imgClipPathGroup9,
-  imgClipPathGroup10,
-  imgClipPathGroup11,
-  imgClipPathGroup12,
-  imgClipPathGroup13,
-  imgClipPathGroup14,
-  imgClipPathGroup15,
-  imgClipPathGroup16,
-  imgClipPathGroup17,
-  imgClipPathGroup18,
-  imgClipPathGroup19,
+  // imgRectangle1,
+  // imgRectangle2,
+  // imgRectangle3,
+  // imgRectangle4,
+  // imgRectangle5,
+  // imgRectangle6,
+  // imgSvgjsLine2553,
+  // imgSvgjsG2566,
+  // imgClipPathGroup,
+  // imgClipPathGroup1,
+  // imgClipPathGroup2,
+  // imgClipPathGroup3,
+  // imgClipPathGroup4,
+  // imgClipPathGroup5,
+  // imgClipPathGroup6,
+  // imgClipPathGroup7,
+  // imgSvgjsLine2631,
+  // imgSvgjsG2646,
+  // imgClipPathGroup8,
+  // imgClipPathGroup9,
+  // imgClipPathGroup10,
+  // imgClipPathGroup11,
+  // imgClipPathGroup12,
+  // imgClipPathGroup13,
+  // imgClipPathGroup14,
+  // imgClipPathGroup15,
+  // imgClipPathGroup16,
+  // imgClipPathGroup17,
+  // imgClipPathGroup18,
+  // imgClipPathGroup19,
   imgGroup,
   imgGroup1,
   imgGroup2,
@@ -480,15 +480,15 @@ export default function Dashboard({ onLogout }: { onLogout?: () => void }) {
   ];
   
   // Datos mock para los gráficos
-  const activityData = [
-    { day: 'Sun', value: 35 },
-    { day: 'Mon', value: 52 },
-    { day: 'Tue', value: 28 },
-    { day: 'Wed', value: 65 },
-    { day: 'Thu', value: 48 },
-    { day: 'Fri', value: 71 },
-    { day: 'Sat', value: 42 },
-  ];
+  // const activityData = [
+  //   { day: 'Sun', value: 35 },
+  //   { day: 'Mon', value: 52 },
+  //   { day: 'Tue', value: 28 },
+  //   { day: 'Wed', value: 65 },
+  //   { day: 'Thu', value: 48 },
+  //   { day: 'Fri', value: 71 },
+  //   { day: 'Sat', value: 42 },
+  // ];
   
   const transactionData = [
     { day: 'Sun', income: 45, outcome: 75 },
@@ -500,12 +500,12 @@ export default function Dashboard({ onLogout }: { onLogout?: () => void }) {
     { day: 'Sat', income: 52, outcome: 72 },
   ];
   
-  const spendingData = [
-    { label: 'Investment', value: 14145, max: 25000, color: '#8b5cf6', percent: 56.6 },
-    { label: 'Restaurant', value: 15167, max: 55000, color: '#5bcfc5', percent: 27.6 },
-    { label: 'Installment', value: 4487, max: 51000, color: '#60a5fa', percent: 8.8 },
-    { label: 'Property', value: 3890, max: 54000, color: '#a78bfa', percent: 7.2 },
-  ];
+  // const spendingData = [
+  //   { label: 'Investment', value: 14145, max: 25000, color: '#8b5cf6', percent: 56.6 },
+  //   { label: 'Restaurant', value: 15167, max: 55000, color: '#5bcfc5', percent: 27.6 },
+  //   { label: 'Installment', value: 4487, max: 51000, color: '#60a5fa', percent: 8.8 },
+  //   { label: 'Property', value: 3890, max: 54000, color: '#a78bfa', percent: 7.2 },
+  // ];
 
   const handleTransfer = () => {
     setTransferStatus("processing");
