@@ -3,7 +3,7 @@ import {
   LayoutDashboard,
   TrendingUp,
   Mail,
-  MessageSquare,
+  //MessageSquare,
   Bell,
   Search,
   ChevronRight,
