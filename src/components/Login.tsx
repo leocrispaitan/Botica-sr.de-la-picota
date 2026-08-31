@@ -7,10 +7,16 @@ import {
   EyeOff,
   Mail,
   Lock,
-  Shield,
   ChevronRight,
   Package,
   AlertTriangle,
+  ArrowLeft,
+  BriefcaseBusiness,
+  IdCard,
+  Image,
+  Phone,
+  User,
+  UserPlus,
 } from "lucide-react";
 import authService from "../services/authService";
 
@@ -37,7 +43,7 @@ const theme = {
 };
 
 /* ─── Secure Badge ───────────────────────────────────────────────────── */
-function SecureBadge() {
+export function SecureBadge() {
   return (
     <div
       style={{
@@ -87,9 +93,23 @@ export default function Login({ onLoginSuccess }: { onLoginSuccess?: () => void 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [showRegisterPassword, setShowRegisterPassword] = useState(false);
+  const [showRegisterConfirm, setShowRegisterConfirm] = useState(false);
+  const [authView, setAuthView] = useState<"login" | "register">("login");
   const [remember, setRemember] = useState(false);
   const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
+  const [registerForm, setRegisterForm] = useState({
+    email: "",
+    role: "Vendedor",
+    password: "",
+    confirmPassword: "",
+    dni: "",
+    username: "",
+    fullName: "",
+    phone: "",
+    profilePhoto: "",
+  });
   const [status, setStatus] = useState<
     "idle" | "loading" | "success" | "error"
   >("idle");
@@ -152,6 +172,17 @@ export default function Login({ onLoginSuccess }: { onLoginSuccess?: () => void 
     }
   };
 
+  const updateRegisterField = (
+    field: keyof typeof registerForm,
+    value: string
+  ) => {
+    setRegisterForm((current) => ({ ...current, [field]: value }));
+  };
+
+  const handleRegisterSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+  };
+
   return (
     <>
       {/* Global keyframes */}
@@ -198,7 +229,8 @@ export default function Login({ onLoginSuccess }: { onLoginSuccess?: () => void 
           background: theme.mainBg,
           color: theme.textSecondary,
           position: "relative",
-          overflow: "hidden",
+          overflowX: "hidden",
+          overflowY: "auto",
         }}
       >
         {/* ═══ LEFT PANEL — Brand / Context ═══════════════════════════════ */}
@@ -370,9 +402,10 @@ export default function Login({ onLoginSuccess }: { onLoginSuccess?: () => void 
           <div
             style={{
               width: "100%",
-              maxWidth: "420px",
+              maxWidth: authView === "register" ? "760px" : "420px",
               position: "relative",
               zIndex: 10,
+              transition: "max-width 0.25s ease",
             }}
           >
             <div
@@ -380,7 +413,7 @@ export default function Login({ onLoginSuccess }: { onLoginSuccess?: () => void 
                 background: theme.cardBg,
                 border: `1px solid ${theme.borderCard}`,
                 borderRadius: "24px",
-                padding: "40px 32px",
+                padding: authView === "register" ? "36px" : "40px 32px",
                 position: "relative",
                 boxShadow: "0 20px 40px -10px rgba(0,0,0,0.08)",
                 animation: shake
@@ -388,11 +421,62 @@ export default function Login({ onLoginSuccess }: { onLoginSuccess?: () => void 
                   : "cardReveal 0.65s cubic-bezier(.22,1,.36,1) both",
               }}
             >
-              <SecureBadge />
+              {authView === "register" && (
+                <div
+                  style={{
+                    animation:
+                      "fadeSlideUp 0.5s cubic-bezier(.22,1,.36,1) 0.15s both",
+                    marginBottom: "24px",
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setAuthView("login")}
+                    style={{
+                      border: "none",
+                      background: theme.accentSoft,
+                      color: theme.accent,
+                      borderRadius: "12px",
+                      padding: "8px 12px",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      cursor: "pointer",
+                      fontSize: "13px",
+                      fontWeight: 700,
+                      fontFamily: "'Cairo', sans-serif",
+                      marginBottom: "18px",
+                    }}
+                  >
+                    <ArrowLeft size={16} />
+                    Volver al inicio
+                  </button>
+                  <h2
+                    style={{
+                      fontSize: "28px",
+                      fontWeight: 800,
+                      color: theme.textPrimary,
+                      marginBottom: "6px",
+                      lineHeight: 1.15,
+                    }}
+                  >
+                    Crear cuenta
+                  </h2>
+                  <p
+                    style={{
+                      fontSize: "14px",
+                      color: theme.textMuted,
+                    }}
+                  >
+                    Completa los datos para preparar el alta del usuario.
+                  </p>
+                </div>
+              )}
 
               {/* Header */}
               <div
                 style={{
+                  display: authView === "register" ? "none" : "block",
                   animation:
                     "fadeSlideUp 0.5s cubic-bezier(.22,1,.36,1) 0.15s both",
                   marginBottom: "28px",
@@ -420,6 +504,7 @@ export default function Login({ onLoginSuccess }: { onLoginSuccess?: () => void 
               </div>
 
               {/* Form */}
+              {authView === "login" && (
               <form
                 ref={formRef}
                 onSubmit={handleSubmit}
@@ -848,6 +933,179 @@ export default function Login({ onLoginSuccess }: { onLoginSuccess?: () => void 
                   {status === "idle" && <ChevronRight size={18} />}
                 </button>
               </form>
+              )}
+
+              {authView === "register" && (
+                <form
+                  onSubmit={handleRegisterSubmit}
+                  noValidate
+                  style={{
+                    animation:
+                      "fadeSlideUp 0.5s cubic-bezier(.22,1,.36,1) 0.25s both",
+                  }}
+                >
+                  <div className="register-grid">
+                    <div style={{ marginBottom: "18px" }}>
+                      <label htmlFor="register-email" style={{ display: "block", fontSize: "13px", fontWeight: 600, color: theme.textSecondary, marginBottom: "8px" }}>
+                        Email *
+                      </label>
+                      <div style={{ position: "relative" }}>
+                        <Mail size={18} style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: theme.textMuted }} />
+                        <input
+                          id="register-email"
+                          type="email"
+                          autoComplete="off"
+                          placeholder="usuario@botica.com"
+                          value={registerForm.email}
+                          onChange={(e) => updateRegisterField("email", e.target.value)}
+                          style={{ width: "100%", padding: "14px 14px 14px 42px", borderRadius: "14px", fontSize: "15px", color: theme.textPrimary, background: theme.innerBg, border: `1.5px solid ${theme.border}`, outline: "none", fontFamily: "'Cairo', sans-serif" }}
+                        />
+                      </div>
+                    </div>
+
+                    <div style={{ marginBottom: "18px" }}>
+                      <label htmlFor="register-role" style={{ display: "block", fontSize: "13px", fontWeight: 600, color: theme.textSecondary, marginBottom: "8px" }}>
+                        Rol *
+                      </label>
+                      <div style={{ position: "relative" }}>
+                        <BriefcaseBusiness size={18} style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: theme.textMuted }} />
+                        <select
+                          id="register-role"
+                          value={registerForm.role}
+                          onChange={(e) => updateRegisterField("role", e.target.value)}
+                          style={{ width: "100%", padding: "14px 42px", borderRadius: "14px", fontSize: "15px", color: theme.textPrimary, background: theme.innerBg, border: `1.5px solid ${theme.border}`, outline: "none", fontFamily: "'Cairo', sans-serif", appearance: "none", cursor: "pointer" }}
+                        >
+                          <option>Administrador</option>
+                          <option>Vendedor</option>
+                          <option>Farmaceutico</option>
+                        </select>
+                        <ChevronRight size={18} style={{ position: "absolute", right: "14px", top: "50%", transform: "translateY(-50%) rotate(90deg)", color: theme.textMuted, pointerEvents: "none" }} />
+                      </div>
+                    </div>
+
+                    <div style={{ marginBottom: "18px" }}>
+                      <label htmlFor="register-password" style={{ display: "block", fontSize: "13px", fontWeight: 600, color: theme.textSecondary, marginBottom: "8px" }}>
+                        Contraseña *
+                      </label>
+                      <div style={{ position: "relative" }}>
+                        <Lock size={18} style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: theme.textMuted }} />
+                        <input
+                          id="register-password"
+                          type={showRegisterPassword ? "text" : "password"}
+                          autoComplete="new-password"
+                          placeholder="Min. 8 caracteres"
+                          value={registerForm.password}
+                          onChange={(e) => updateRegisterField("password", e.target.value)}
+                          style={{ width: "100%", padding: "14px 44px 14px 42px", borderRadius: "14px", fontSize: "15px", color: theme.textPrimary, background: theme.innerBg, border: `1.5px solid ${theme.border}`, outline: "none", fontFamily: "'Cairo', sans-serif" }}
+                        />
+                        <button type="button" onClick={() => setShowRegisterPassword(!showRegisterPassword)} aria-label="Mostrar u ocultar contraseña" style={{ position: "absolute", right: "14px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: theme.textMuted, padding: "4px", display: "flex" }}>
+                          {showRegisterPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div style={{ marginBottom: "18px" }}>
+                      <label htmlFor="register-confirm-password" style={{ display: "block", fontSize: "13px", fontWeight: 600, color: theme.textSecondary, marginBottom: "8px" }}>
+                        Confirmar Contraseña *
+                      </label>
+                      <div style={{ position: "relative" }}>
+                        <Lock size={18} style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: theme.textMuted }} />
+                        <input
+                          id="register-confirm-password"
+                          type={showRegisterConfirm ? "text" : "password"}
+                          autoComplete="new-password"
+                          placeholder="Repite la contraseña"
+                          value={registerForm.confirmPassword}
+                          onChange={(e) => updateRegisterField("confirmPassword", e.target.value)}
+                          style={{ width: "100%", padding: "14px 44px 14px 42px", borderRadius: "14px", fontSize: "15px", color: theme.textPrimary, background: theme.innerBg, border: `1.5px solid ${theme.border}`, outline: "none", fontFamily: "'Cairo', sans-serif" }}
+                        />
+                        <button type="button" onClick={() => setShowRegisterConfirm(!showRegisterConfirm)} aria-label="Mostrar u ocultar confirmacion" style={{ position: "absolute", right: "14px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: theme.textMuted, padding: "4px", display: "flex" }}>
+                          {showRegisterConfirm ? <EyeOff size={18} /> : <Eye size={18} />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div style={{ marginBottom: "18px" }}>
+                      <label htmlFor="register-dni" style={{ display: "block", fontSize: "13px", fontWeight: 600, color: theme.textSecondary, marginBottom: "8px" }}>
+                        DNI *
+                      </label>
+                      <div style={{ position: "relative" }}>
+                        <IdCard size={18} style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: theme.textMuted }} />
+                        <input id="register-dni" inputMode="numeric" placeholder="12345678" value={registerForm.dni} onChange={(e) => updateRegisterField("dni", e.target.value)} style={{ width: "100%", padding: "14px 14px 14px 42px", borderRadius: "14px", fontSize: "15px", color: theme.textPrimary, background: theme.innerBg, border: `1.5px solid ${theme.border}`, outline: "none", fontFamily: "'Cairo', sans-serif" }} />
+                      </div>
+                    </div>
+
+                    <div style={{ marginBottom: "18px" }}>
+                      <label htmlFor="register-username" style={{ display: "block", fontSize: "13px", fontWeight: 600, color: theme.textSecondary, marginBottom: "8px" }}>
+                        Nombre de Usuario *
+                      </label>
+                      <div style={{ position: "relative" }}>
+                        <User size={18} style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: theme.textMuted }} />
+                        <input id="register-username" placeholder="admin.jperez" value={registerForm.username} onChange={(e) => updateRegisterField("username", e.target.value)} style={{ width: "100%", padding: "14px 14px 14px 42px", borderRadius: "14px", fontSize: "15px", color: theme.textPrimary, background: theme.innerBg, border: `1.5px solid ${theme.border}`, outline: "none", fontFamily: "'Cairo', sans-serif" }} />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="register-grid">
+                    <div style={{ marginBottom: "18px" }}>
+                      <label htmlFor="register-full-name" style={{ display: "block", fontSize: "13px", fontWeight: 600, color: theme.textSecondary, marginBottom: "8px" }}>
+                        Nombre Completo *
+                      </label>
+                      <div style={{ position: "relative" }}>
+                        <User size={18} style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: theme.textMuted }} />
+                        <input id="register-full-name" placeholder="Juan Perez Gomez" value={registerForm.fullName} onChange={(e) => updateRegisterField("fullName", e.target.value)} style={{ width: "100%", padding: "14px 14px 14px 42px", borderRadius: "14px", fontSize: "15px", color: theme.textPrimary, background: theme.innerBg, border: `1.5px solid ${theme.border}`, outline: "none", fontFamily: "'Cairo', sans-serif" }} />
+                      </div>
+                    </div>
+
+                    <div style={{ marginBottom: "18px" }}>
+                      <label htmlFor="register-phone" style={{ display: "block", fontSize: "13px", fontWeight: 600, color: theme.textSecondary, marginBottom: "8px" }}>
+                        Telefono <span style={{ color: theme.textMuted, fontWeight: 500 }}>(Opcional)</span>
+                      </label>
+                      <div style={{ position: "relative" }}>
+                        <Phone size={18} style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: theme.textMuted }} />
+                        <input id="register-phone" inputMode="tel" placeholder="987654321" value={registerForm.phone} onChange={(e) => updateRegisterField("phone", e.target.value)} style={{ width: "100%", padding: "14px 14px 14px 42px", borderRadius: "14px", fontSize: "15px", color: theme.textPrimary, background: theme.innerBg, border: `1.5px solid ${theme.border}`, outline: "none", fontFamily: "'Cairo', sans-serif" }} />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ marginBottom: "24px" }}>
+                    <label htmlFor="register-profile-photo" style={{ display: "block", fontSize: "13px", fontWeight: 600, color: theme.textSecondary, marginBottom: "8px" }}>
+                      URL de Foto de Perfil <span style={{ color: theme.textMuted, fontWeight: 500 }}>(Opcional)</span>
+                    </label>
+                    <div style={{ position: "relative" }}>
+                      <Image size={18} style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: theme.textMuted }} />
+                      <input id="register-profile-photo" type="url" placeholder="https://ejemplo.com/avatar.jpg" value={registerForm.profilePhoto} onChange={(e) => updateRegisterField("profilePhoto", e.target.value)} style={{ width: "100%", padding: "14px 14px 14px 42px", borderRadius: "14px", fontSize: "15px", color: theme.textPrimary, background: theme.innerBg, border: `1.5px solid ${theme.border}`, outline: "none", fontFamily: "'Cairo', sans-serif" }} />
+                    </div>
+                    <p style={{ fontSize: "12px", color: theme.textMuted, marginTop: "8px" }}>
+                      Deja vacio para generar un avatar automatico con las iniciales.
+                    </p>
+                  </div>
+
+                  <button
+                    type="submit"
+                    style={{
+                      width: "100%",
+                      padding: "16px",
+                      borderRadius: "14px",
+                      border: "none",
+                      fontSize: "15px",
+                      fontWeight: 700,
+                      fontFamily: "'Cairo', sans-serif",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "10px",
+                      background: theme.accent,
+                      color: "#ffffff",
+                      boxShadow: `0 8px 24px -6px ${theme.accentGlow}`,
+                    }}
+                  >
+                    <UserPlus size={18} />
+                    Crear cuenta
+                  </button>
+                </form>
+              )}
 
               {/* Toast Area */}
               {status === "success" && (
@@ -886,8 +1144,8 @@ export default function Login({ onLoginSuccess }: { onLoginSuccess?: () => void 
                 </div>
               )}
 
-              {/* Footer notice */}
-              <p
+              {/* Auth switch */}
+              <div
                 style={{
                   textAlign: "center",
                   fontSize: "12px",
@@ -900,12 +1158,32 @@ export default function Login({ onLoginSuccess }: { onLoginSuccess?: () => void 
                   color: theme.textMuted,
                 }}
               >
-                <Shield
+                <UserPlus
                   size={14}
                   style={{ flexShrink: 0, color: theme.textMuted }}
                 />
-                Acceso seguro y encriptado
-              </p>
+                <span>
+                  {authView === "register"
+                    ? "¿Ya tienes cuenta?"
+                    : "¿No tienes cuenta?"}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setAuthView(authView === "register" ? "login" : "register")}
+                  style={{
+                    border: "none",
+                    background: "transparent",
+                    color: theme.accent,
+                    cursor: "pointer",
+                    fontSize: "12px",
+                    fontWeight: 800,
+                    fontFamily: "'Cairo', sans-serif",
+                    padding: 0,
+                  }}
+                >
+                  {authView === "register" ? "Iniciar sesión" : "Registrarse"}
+                </button>
+              </div>
             </div>
 
 
@@ -921,6 +1199,11 @@ export default function Login({ onLoginSuccess }: { onLoginSuccess?: () => void 
         .login-mobile-brand {
           display: none !important;
         }
+        .register-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 0 18px;
+        }
         
         @media (max-width: 1023px) {
           .login-brand-panel {
@@ -932,12 +1215,19 @@ export default function Login({ onLoginSuccess }: { onLoginSuccess?: () => void 
           .login-form-panel {
             padding-top: 80px !important;
           }
+          .register-grid {
+            grid-template-columns: 1fr;
+            gap: 0;
+          }
         }
 
         @media (max-width: 480px) {
           .login-form-panel {
             padding-left: 16px !important;
             padding-right: 16px !important;
+          }
+          .login-form-panel > div > div {
+            padding: 32px 20px !important;
           }
         }
       `}</style>
