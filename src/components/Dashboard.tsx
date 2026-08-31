@@ -55,6 +55,7 @@ import ReportesVentas from "./ReportesVentas";
 import ReportesInventario from "./ReportesInventario";
 import ReportesMovimientos from "./ReportesMovimientos";
 import MiPerfil from "./MiPerfil";
+import SolicitudesRegistro from "./SolicitudesRegistro";
 
 import {
   // imgCanvas,
@@ -2030,7 +2031,11 @@ export default function Dashboard({ onLogout }: { onLogout?: () => void }) {
               {/* ✨ Premium Theme Toggle — replaces Settings icon */}
               <ThemeToggle isDark={isDark} onToggle={() => setIsDark(!isDark)} />
 
-              <button className="p-2.5 rounded-xl border transition-colors relative" style={{ color: t.textPrimary, background: t.innerBg, borderColor: t.borderSoft }}>
+              <button 
+                onClick={() => setActiveMenu("SolicitudesRegistro")}
+                className="p-2.5 rounded-xl border transition-colors relative" 
+                style={{ color: t.textPrimary, background: t.innerBg, borderColor: t.borderSoft }}
+              >
                 <Mail size={18} />
                 <span className="absolute -top-1 -right-1 bg-[#5bcfc5] text-[#171622] text-[10px] font-bold rounded-full size-4 flex items-center justify-center">
                   2
@@ -2058,6 +2063,8 @@ export default function Dashboard({ onLogout }: { onLogout?: () => void }) {
           {/* Render content based on activeMenu */}
           {activeMenu === "MiPerfil" ? (
             <MiPerfil isDark={isDark} />
+          ) : activeMenu === "SolicitudesRegistro" ? (
+            <SolicitudesRegistro isDark={isDark} />
           ) : activeMenu === "Usuarios" ? (
             <UsersManagement isDark={isDark} />
           ) : activeMenu === "Productos" ? (
