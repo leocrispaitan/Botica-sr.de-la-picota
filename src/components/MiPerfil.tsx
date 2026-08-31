@@ -55,18 +55,9 @@ export default function MiPerfil({ isDark }: MiPerfilProps) {
   const userPhoto = user?.foto_perfil_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(formData.nombre_completo)}&background=5bcfc5&color=fff&size=200`;
   const userRole = user?.rol?.nombre_rol || "ADMINISTRATIVO";
   const userRoleDescription = user?.rol?.descripcion || "Acceso total: gestión de usuarios, reportes y configuración";
-  const fechaRegistro = user?.fecha_registro ? new Date(user.fecha_registro).toLocaleDateString('es-PE', { 
-    day: '2-digit', 
-    month: 'long', 
-    year: 'numeric' 
-  }) : "15 de enero de 2024";
-  const ultimoAcceso = user?.ultimo_acceso ? new Date(user.ultimo_acceso).toLocaleDateString('es-PE', { 
-    day: '2-digit', 
-    month: 'short', 
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  }) : "Hoy, 10:30 AM";
+  // Valores mock para fechas (TODO: agregar estos campos al tipo User cuando estén en el backend)
+  const fechaRegistro = "15 de enero de 2024";
+  const ultimoAcceso = "Hoy, 10:30 AM";
 
   // Colores del tema
   const t = isDark ? {
