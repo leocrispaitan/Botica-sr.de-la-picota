@@ -2996,19 +2996,22 @@ export default function UsersManagement({ isDark = true }: { isDark?: boolean })
         </div>
       )}
 
-      {/* MODAL: DETALLES DEL USUARIO - RESPONSIVO */}
+      {/* MODAL: DETALLES DEL USUARIO - DISEÑO INSPIRADO EN EDITAR USUARIO */}
       {showUserDetailsModal && selectedUser && (
         <div
           style={{
             position: "fixed",
-            inset: 0,
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
             background: "rgba(0, 0, 0, 0.7)",
             backdropFilter: "blur(4px)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             zIndex: 1000,
-            padding: "12px",
+            padding: "20px",
           }}
           onClick={() => setShowUserDetailsModal(false)}
         >
@@ -3016,7 +3019,7 @@ export default function UsersManagement({ isDark = true }: { isDark?: boolean })
             style={{
               background: t.cardBg,
               borderRadius: "24px",
-              maxWidth: "920px",
+              maxWidth: "1100px",
               width: "100%",
               maxHeight: "90vh",
               overflow: "auto",
@@ -3025,10 +3028,10 @@ export default function UsersManagement({ isDark = true }: { isDark?: boolean })
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Header - Responsivo */}
+            {/* Header */}
             <div
               style={{
-                padding: "16px 20px",
+                padding: "24px 32px",
                 borderBottom: `1px solid ${t.border}`,
                 display: "flex",
                 justifyContent: "space-between",
@@ -3038,30 +3041,28 @@ export default function UsersManagement({ isDark = true }: { isDark?: boolean })
                 background: t.cardBg,
                 zIndex: 1,
                 borderRadius: "24px 24px 0 0",
-                gap: "12px",
               }}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: "12px", minWidth: 0, flex: 1 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
                 <div
                   style={{
-                    width: "40px",
-                    height: "40px",
-                    borderRadius: "12px",
+                    width: "56px",
+                    height: "56px",
+                    borderRadius: "16px",
                     background: `linear-gradient(135deg, ${t.accent} 0%, ${t.accentHover} 100%)`,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
                     boxShadow: `0 8px 24px ${t.accent}40`,
-                    flexShrink: 0,
                   }}
                 >
-                  <Eye size={20} color="#fff" />
+                  <Eye size={28} color="#fff" strokeWidth={2.5} />
                 </div>
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <h2 style={{ fontSize: "18px", fontWeight: 700, color: t.textPrimary, marginBottom: "2px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                <div>
+                  <h2 style={{ fontSize: "24px", fontWeight: 700, color: t.textPrimary, marginBottom: "4px" }}>
                     Detalles del Usuario
                   </h2>
-                  <p style={{ fontSize: "12px", color: t.textSecondary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "none" }}>
+                  <p style={{ fontSize: "14px", color: t.textSecondary }}>
                     Información completa del usuario seleccionado
                   </p>
                 </div>
@@ -3069,17 +3070,16 @@ export default function UsersManagement({ isDark = true }: { isDark?: boolean })
               <button
                 onClick={() => setShowUserDetailsModal(false)}
                 style={{
-                  width: "36px",
-                  height: "36px",
-                  borderRadius: "10px",
-                  border: `1px solid ${t.border}`,
-                  background: t.innerBg,
+                  width: "44px",
+                  height: "44px",
+                  borderRadius: "12px",
+                  border: "none",
+                  background: "transparent",
                   color: t.textSecondary,
                   cursor: "pointer",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  flexShrink: 0,
                   transition: "all 0.2s",
                 }}
                 onMouseEnter={(e) => {
@@ -3087,119 +3087,436 @@ export default function UsersManagement({ isDark = true }: { isDark?: boolean })
                   (e.currentTarget as HTMLButtonElement).style.color = "#ef4444";
                 }}
                 onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.background = t.innerBg;
+                  (e.currentTarget as HTMLButtonElement).style.background = "transparent";
                   (e.currentTarget as HTMLButtonElement).style.color = t.textSecondary;
                 }}
               >
-                <X size={18} />
+                <X size={22} />
               </button>
             </div>
 
-            {/* Contenido - Responsivo */}
-            <div style={{ padding: "20px 16px" }}>
-              {/* Layout Responsivo: columna única en móvil, dos columnas en desktop */}
-              <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+            {/* Contenido Principal */}
+            <div style={{ padding: "32px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: "32px" }}>
                 
-                {/* Sección de Avatar y Info Principal */}
-                <div
-                  style={{
-                    background: t.innerBg,
-                    border: `1px solid ${t.border}`,
-                    borderRadius: "20px",
-                    padding: "20px",
-                    textAlign: "center",
-                  }}
-                >
-                  <img
-                    src={getUserAvatar(selectedUser)}
-                    alt={selectedUser.nombre_completo}
-                    style={{
-                      width: "120px",
-                      height: "120px",
-                      borderRadius: "50%",
-                      objectFit: "cover",
-                      border: `4px solid ${t.accent}`,
-                      boxShadow: `0 8px 24px ${t.accent}30`,
-                      marginBottom: "16px",
-                    }}
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src = getUserAvatar({ ...selectedUser, foto_perfil_url: "" });
-                    }}
-                  />
-                  <h3 style={{ fontSize: "18px", fontWeight: 700, color: t.textPrimary, marginBottom: "4px", wordBreak: "break-word" }}>
-                    {selectedUser.nombre_completo}
-                  </h3>
-                  <p style={{ fontSize: "13px", color: t.textSecondary, marginBottom: "12px", wordBreak: "break-word" }}>
-                    @{selectedUser.nombre_usuario}
-                  </p>
-                  <span
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "6px",
-                      padding: "8px 14px",
-                      borderRadius: "999px",
-                      background: selectedUser.estado_logico ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)",
-                      color: selectedUser.estado_logico ? "#22c55e" : "#ef4444",
-                      border: `1px solid ${selectedUser.estado_logico ? "rgba(34,197,94,0.3)" : "rgba(239,68,68,0.3)"}`,
-                      fontSize: "12px",
-                      fontWeight: 700,
-                    }}
-                  >
-                    <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: selectedUser.estado_logico ? "#22c55e" : "#ef4444" }} />
-                    {selectedUser.estado_logico ? "Activo" : "Inactivo"}
-                  </span>
+                {/* Columna Izquierda: Información del Usuario */}
+                <div style={{ display: "flex", flexDirection: "column", gap: "28px" }}>
+                  
+                  {/* Sección: Información de Cuenta */}
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "20px" }}>
+                      <div style={{ 
+                        width: "32px", 
+                        height: "32px", 
+                        borderRadius: "8px", 
+                        background: `${t.accent}15`, 
+                        display: "flex", 
+                        alignItems: "center", 
+                        justifyContent: "center" 
+                      }}>
+                        <Lock size={16} color={t.accent} />
+                      </div>
+                      <h3 style={{ fontSize: "16px", fontWeight: 700, color: t.textPrimary }}>
+                        Información de Cuenta
+                      </h3>
+                    </div>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                      {/* Email */}
+                      <div
+                        style={{
+                          background: t.innerBg,
+                          border: `1px solid ${t.border}`,
+                          borderRadius: "12px",
+                          padding: "16px",
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+                          <Mail size={16} color={t.accent} />
+                          <span style={{ fontSize: "11px", fontWeight: 700, color: t.textSecondary, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                            Email
+                          </span>
+                        </div>
+                        <p style={{ fontSize: "14px", fontWeight: 600, color: t.textPrimary, wordBreak: "break-word" }}>
+                          {selectedUser.email || "No registrado"}
+                        </p>
+                      </div>
+
+                      {/* ID Usuario */}
+                      <div
+                        style={{
+                          background: t.innerBg,
+                          border: `1px solid ${t.border}`,
+                          borderRadius: "12px",
+                          padding: "16px",
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+                          <User size={16} color={t.accent} />
+                          <span style={{ fontSize: "11px", fontWeight: 700, color: t.textSecondary, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                            ID Usuario
+                          </span>
+                        </div>
+                        <p style={{ fontSize: "14px", fontWeight: 600, color: t.textPrimary }}>
+                          #{selectedUser.id_usuario}
+                        </p>
+                      </div>
+
+                      {/* Rol */}
+                      <div
+                        style={{
+                          background: t.innerBg,
+                          border: `1px solid ${t.border}`,
+                          borderRadius: "12px",
+                          padding: "16px",
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+                          <Shield size={16} color={t.accent} />
+                          <span style={{ fontSize: "11px", fontWeight: 700, color: t.textSecondary, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                            Rol
+                          </span>
+                        </div>
+                        <p style={{ fontSize: "14px", fontWeight: 600, color: t.textPrimary }}>
+                          {selectedUser.rol?.nombre_rol || getRoleName(selectedUser.id_rol)}
+                        </p>
+                      </div>
+
+                      {/* ID Auth */}
+                      <div
+                        style={{
+                          background: t.innerBg,
+                          border: `1px solid ${t.border}`,
+                          borderRadius: "12px",
+                          padding: "16px",
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+                          <Lock size={16} color={t.accent} />
+                          <span style={{ fontSize: "11px", fontWeight: 700, color: t.textSecondary, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                            ID Auth
+                          </span>
+                        </div>
+                        <p style={{ fontSize: "12px", fontWeight: 600, color: t.textPrimary, wordBreak: "break-all" }}>
+                          {selectedUser.id_auth || "No registrado"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Separador */}
+                  <div style={{ height: "1px", background: t.border }} />
+
+                  {/* Sección: Información Personal */}
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "20px" }}>
+                      <div style={{ 
+                        width: "32px", 
+                        height: "32px", 
+                        borderRadius: "8px", 
+                        background: `${t.accent}15`, 
+                        display: "flex", 
+                        alignItems: "center", 
+                        justifyContent: "center" 
+                      }}>
+                        <User size={16} color={t.accent} />
+                      </div>
+                      <h3 style={{ fontSize: "16px", fontWeight: 700, color: t.textPrimary }}>
+                        Información Personal
+                      </h3>
+                    </div>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                      {/* DNI */}
+                      <div
+                        style={{
+                          background: t.innerBg,
+                          border: `1px solid ${t.border}`,
+                          borderRadius: "12px",
+                          padding: "16px",
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+                          <CreditCard size={16} color={t.accent} />
+                          <span style={{ fontSize: "11px", fontWeight: 700, color: t.textSecondary, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                            DNI
+                          </span>
+                        </div>
+                        <p style={{ fontSize: "14px", fontWeight: 600, color: t.textPrimary }}>
+                          {selectedUser.dni || "No registrado"}
+                        </p>
+                      </div>
+
+                      {/* Nombre de Usuario */}
+                      <div
+                        style={{
+                          background: t.innerBg,
+                          border: `1px solid ${t.border}`,
+                          borderRadius: "12px",
+                          padding: "16px",
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+                          <User size={16} color={t.accent} />
+                          <span style={{ fontSize: "11px", fontWeight: 700, color: t.textSecondary, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                            Nombre de Usuario
+                          </span>
+                        </div>
+                        <p style={{ fontSize: "14px", fontWeight: 600, color: t.textPrimary }}>
+                          @{selectedUser.nombre_usuario}
+                        </p>
+                      </div>
+
+                      {/* Nombre Completo */}
+                      <div
+                        style={{
+                          background: t.innerBg,
+                          border: `1px solid ${t.border}`,
+                          borderRadius: "12px",
+                          padding: "16px",
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+                          <User size={16} color={t.accent} />
+                          <span style={{ fontSize: "11px", fontWeight: 700, color: t.textSecondary, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                            Nombre Completo
+                          </span>
+                        </div>
+                        <p style={{ fontSize: "14px", fontWeight: 600, color: t.textPrimary }}>
+                          {selectedUser.nombre_completo}
+                        </p>
+                      </div>
+
+                      {/* Teléfono */}
+                      <div
+                        style={{
+                          background: t.innerBg,
+                          border: `1px solid ${t.border}`,
+                          borderRadius: "12px",
+                          padding: "16px",
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+                          <Phone size={16} color={t.accent} />
+                          <span style={{ fontSize: "11px", fontWeight: 700, color: t.textSecondary, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                            Teléfono
+                          </span>
+                        </div>
+                        <p style={{ fontSize: "14px", fontWeight: 600, color: t.textPrimary }}>
+                          {selectedUser.telefono || "No especificado"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Separador */}
+                  <div style={{ height: "1px", background: t.border }} />
+
+                  {/* Sección: Fechas y Estado */}
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "20px" }}>
+                      <div style={{ 
+                        width: "32px", 
+                        height: "32px", 
+                        borderRadius: "8px", 
+                        background: `${t.accent}15`, 
+                        display: "flex", 
+                        alignItems: "center", 
+                        justifyContent: "center" 
+                      }}>
+                        <Clock size={16} color={t.accent} />
+                      </div>
+                      <h3 style={{ fontSize: "16px", fontWeight: 700, color: t.textPrimary }}>
+                        Registro y Actividad
+                      </h3>
+                    </div>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                      {/* Fecha de Registro */}
+                      <div
+                        style={{
+                          background: t.innerBg,
+                          border: `1px solid ${t.border}`,
+                          borderRadius: "12px",
+                          padding: "16px",
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+                          <Clock size={16} color={t.accent} />
+                          <span style={{ fontSize: "11px", fontWeight: 700, color: t.textSecondary, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                            Fecha de Registro
+                          </span>
+                        </div>
+                        <p style={{ fontSize: "14px", fontWeight: 600, color: t.textPrimary }}>
+                          {formatDateTime(selectedUser.fecha_registro)}
+                        </p>
+                      </div>
+
+                      {/* Último Acceso */}
+                      <div
+                        style={{
+                          background: t.innerBg,
+                          border: `1px solid ${t.border}`,
+                          borderRadius: "12px",
+                          padding: "16px",
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+                          <Clock size={16} color={t.accent} />
+                          <span style={{ fontSize: "11px", fontWeight: 700, color: t.textSecondary, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                            Último Acceso
+                          </span>
+                        </div>
+                        <p style={{ fontSize: "14px", fontWeight: 600, color: t.textPrimary }}>
+                          {formatDateTime(selectedUser.ultimo_acceso)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
-                {/* Sección de Detalles - Grid Responsivo */}
-                <div style={{ 
-                  display: "grid", 
-                  gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-                  gap: "12px" 
-                }}>
-                  {[
-                    { label: "ID Usuario", value: `#${selectedUser.id_usuario}`, icon: <User size={16} color={t.accent} /> },
-                    { label: "DNI", value: selectedUser.dni || "No registrado", icon: <CreditCard size={16} color={t.accent} /> },
-                    { label: "Email", value: selectedUser.email || "No registrado", icon: <Mail size={16} color={t.accent} /> },
-                    { label: "Teléfono", value: selectedUser.telefono || "No registrado", icon: <Phone size={16} color={t.accent} /> },
-                    { label: "Rol", value: selectedUser.rol?.nombre_rol || getRoleName(selectedUser.id_rol), icon: <Shield size={16} color={t.accent} /> },
-                    { label: "ID Auth", value: selectedUser.id_auth || "No registrado", icon: <Lock size={16} color={t.accent} /> },
-                    { label: "Fecha de registro", value: formatDateTime(selectedUser.fecha_registro), icon: <Clock size={16} color={t.accent} /> },
-                    { label: "Último acceso", value: formatDateTime(selectedUser.ultimo_acceso), icon: <Clock size={16} color={t.accent} /> },
-                  ].map((item) => (
-                    <div
-                      key={item.label}
-                      style={{
-                        background: t.innerBg,
-                        border: `1px solid ${t.border}`,
-                        borderRadius: "14px",
-                        padding: "14px",
-                        minWidth: 0,
-                      }}
-                    >
-                      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
-                        {item.icon}
-                        <span style={{ fontSize: "11px", fontWeight: 700, color: t.textSecondary, textTransform: "uppercase", letterSpacing: "0.04em" }}>
-                          {item.label}
+                {/* Columna Derecha: Vista Previa del Perfil */}
+                <div>
+                  <div style={{ position: "sticky", top: "32px" }}>
+                    <div style={{ 
+                      background: t.innerBg, 
+                      borderRadius: "20px", 
+                      padding: "24px",
+                      border: `1px solid ${t.border}`,
+                    }}>
+                      <p style={{ fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "16px", textAlign: "center" }}>
+                        Perfil del Usuario
+                      </p>
+                      
+                      {/* Avatar */}
+                      <div style={{ 
+                        width: "180px", 
+                        height: "180px", 
+                        margin: "0 auto 20px",
+                        borderRadius: "50%",
+                        overflow: "hidden",
+                        border: `4px solid ${t.accent}`,
+                        boxShadow: `0 8px 24px ${t.accent}30`,
+                      }}>
+                        <img
+                          src={getUserAvatar(selectedUser)}
+                          alt="Avatar Preview"
+                          style={{
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "cover",
+                          }}
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = getUserAvatar({ ...selectedUser, foto_perfil_url: "" });
+                          }}
+                        />
+                      </div>
+
+                      {/* Info Preview */}
+                      <div style={{ textAlign: "center", marginBottom: "20px" }}>
+                        <p style={{ fontSize: "16px", fontWeight: 700, color: t.textPrimary, marginBottom: "4px" }}>
+                          {selectedUser.nombre_completo}
+                        </p>
+                        <p style={{ fontSize: "13px", color: t.textSecondary, marginBottom: "2px" }}>
+                          @{selectedUser.nombre_usuario}
+                        </p>
+                        <p style={{ fontSize: "12px", color: t.textMuted }}>
+                          {selectedUser.email}
+                        </p>
+                      </div>
+
+                      {/* Role Badge */}
+                      <div style={{ display: "flex", justifyContent: "center", marginBottom: "20px" }}>
+                        <span
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "6px",
+                            padding: "8px 16px",
+                            borderRadius: "999px",
+                            background: getRoleBadgeColors(selectedUser.id_rol, isDark).bg,
+                            color: getRoleBadgeColors(selectedUser.id_rol, isDark).text,
+                            border: `1px solid ${getRoleBadgeColors(selectedUser.id_rol, isDark).border}`,
+                            fontSize: "12px",
+                            fontWeight: 700,
+                            letterSpacing: "0.03em",
+                          }}
+                        >
+                          <span style={{ fontSize: "16px" }}>{getRoleBadgeColors(selectedUser.id_rol, isDark).icon}</span>
+                          {getRoleName(selectedUser.id_rol)}
                         </span>
                       </div>
-                      <p style={{ fontSize: "13px", fontWeight: 600, color: t.textPrimary, wordBreak: "break-word", lineHeight: "1.4" }}>
-                        {item.value}
-                      </p>
+
+                      {/* Estado */}
+                      <div style={{ 
+                        background: t.cardBg, 
+                        borderRadius: "12px", 
+                        padding: "16px",
+                        fontSize: "12px",
+                        color: t.textSecondary,
+                      }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+                          <CreditCard size={14} color={t.textMuted} />
+                          <span>DNI: {selectedUser.dni || "--------"}</span>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+                          <Phone size={14} color={t.textMuted} />
+                          <span>Tel: {selectedUser.telefono || "No especificado"}</span>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                          <div style={{ 
+                            width: "8px", 
+                            height: "8px", 
+                            borderRadius: "50%", 
+                            background: selectedUser.estado_logico ? "#22c55e" : "#ef4444"
+                          }} />
+                          <span>Estado: {selectedUser.estado_logico ? "Activo" : "Inactivo"}</span>
+                        </div>
+                      </div>
                     </div>
-                  ))}
+                  </div>
                 </div>
               </div>
 
-              {/* Botones del Footer - Responsivos */}
-              <div style={{ 
-                display: "flex", 
-                flexDirection: "column",
-                gap: "10px", 
-                marginTop: "24px", 
-                paddingTop: "20px", 
-                borderTop: `1px solid ${t.border}` 
-              }}>
+              {/* Botones del Footer */}
+              <div
+                style={{
+                  display: "flex",
+                  gap: "12px",
+                  justifyContent: "flex-end",
+                  marginTop: "32px",
+                  paddingTop: "24px",
+                  borderTop: `1px solid ${t.border}`,
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => setShowUserDetailsModal(false)}
+                  style={{
+                    padding: "12px 28px",
+                    borderRadius: "12px",
+                    border: `2px solid ${t.border}`,
+                    background: "transparent",
+                    color: t.textSecondary,
+                    fontSize: "14px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    fontFamily: "'Cairo', sans-serif",
+                    transition: "all 0.2s",
+                  }}
+                  onMouseEnter={(e) => {
+                    (e.currentTarget as HTMLButtonElement).style.background = t.hoverBg;
+                    (e.currentTarget as HTMLButtonElement).style.color = t.textPrimary;
+                    (e.currentTarget as HTMLButtonElement).style.borderColor = t.accent;
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLButtonElement).style.background = "transparent";
+                    (e.currentTarget as HTMLButtonElement).style.color = t.textSecondary;
+                    (e.currentTarget as HTMLButtonElement).style.borderColor = t.border;
+                  }}
+                >
+                  Cerrar
+                </button>
                 <button
                   type="button"
                   onClick={() => {
@@ -3207,67 +3524,36 @@ export default function UsersManagement({ isDark = true }: { isDark?: boolean })
                     handleOpenEditUser(selectedUser);
                   }}
                   style={{
-                    width: "100%",
-                    padding: "12px 20px",
+                    padding: "12px 32px",
                     borderRadius: "12px",
                     border: "none",
-                    background: "rgba(249,115,22,0.12)",
-                    color: "#fb923c",
+                    background: `linear-gradient(135deg, ${t.accent} 0%, ${t.accentHover} 100%)`,
+                    color: "#fff",
                     fontSize: "14px",
-                    fontWeight: 700,
+                    fontWeight: 600,
                     cursor: "pointer",
+                    fontFamily: "'Cairo', sans-serif",
+                    transition: "all 0.2s",
+                    boxShadow: `0 4px 16px ${t.accent}40`,
                     display: "flex",
                     alignItems: "center",
-                    justifyContent: "center",
                     gap: "8px",
-                    transition: "all 0.2s",
                   }}
                   onMouseEnter={(e) => {
-                    (e.currentTarget as HTMLButtonElement).style.background = "rgba(249,115,22,0.18)";
+                    (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)";
+                    (e.currentTarget as HTMLButtonElement).style.boxShadow = `0 6px 24px ${t.accent}50`;
                   }}
                   onMouseLeave={(e) => {
-                    (e.currentTarget as HTMLButtonElement).style.background = "rgba(249,115,22,0.12)";
+                    (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
+                    (e.currentTarget as HTMLButtonElement).style.boxShadow = `0 4px 16px ${t.accent}40`;
                   }}
                 >
                   <Edit2 size={18} />
-                  <span>Editar Usuario</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowUserDetailsModal(false)}
-                  style={{
-                    width: "100%",
-                    padding: "12px 20px",
-                    borderRadius: "12px",
-                    border: `2px solid ${t.border}`,
-                    background: "transparent",
-                    color: t.textSecondary,
-                    fontSize: "14px",
-                    fontWeight: 700,
-                    cursor: "pointer",
-                    transition: "all 0.2s",
-                  }}
-                  onMouseEnter={(e) => {
-                    (e.currentTarget as HTMLButtonElement).style.background = t.hoverBg;
-                    (e.currentTarget as HTMLButtonElement).style.color = t.textPrimary;
-                  }}
-                  onMouseLeave={(e) => {
-                    (e.currentTarget as HTMLButtonElement).style.background = "transparent";
-                    (e.currentTarget as HTMLButtonElement).style.color = t.textSecondary;
-                  }}
-                >
-                  Cerrar
+                  Editar Usuario
                 </button>
               </div>
             </div>
           </div>
-
-          {/* Media Query para pantallas más grandes */}
-          <style>{`
-            @media (min-width: 768px) {
-              /* Usar el selector de atributo data para aplicar estilos específicos en desktop */
-            }
-          `}</style>
         </div>
       )}
 
