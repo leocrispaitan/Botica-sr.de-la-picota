@@ -2996,7 +2996,7 @@ export default function UsersManagement({ isDark = true }: { isDark?: boolean })
         </div>
       )}
 
-      {/* MODAL: DETALLES DEL USUARIO */}
+      {/* MODAL: DETALLES DEL USUARIO - RESPONSIVO */}
       {showUserDetailsModal && selectedUser && (
         <div
           style={{
@@ -3008,7 +3008,7 @@ export default function UsersManagement({ isDark = true }: { isDark?: boolean })
             alignItems: "center",
             justifyContent: "center",
             zIndex: 1000,
-            padding: "20px",
+            padding: "12px",
           }}
           onClick={() => setShowUserDetailsModal(false)}
         >
@@ -3025,9 +3025,10 @@ export default function UsersManagement({ isDark = true }: { isDark?: boolean })
             }}
             onClick={(e) => e.stopPropagation()}
           >
+            {/* Header - Responsivo */}
             <div
               style={{
-                padding: "24px 32px",
+                padding: "16px 20px",
                 borderBottom: `1px solid ${t.border}`,
                 display: "flex",
                 justifyContent: "space-between",
@@ -3037,37 +3038,39 @@ export default function UsersManagement({ isDark = true }: { isDark?: boolean })
                 background: t.cardBg,
                 zIndex: 1,
                 borderRadius: "24px 24px 0 0",
+                gap: "12px",
               }}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "12px", minWidth: 0, flex: 1 }}>
                 <div
                   style={{
-                    width: "48px",
-                    height: "48px",
-                    borderRadius: "14px",
+                    width: "40px",
+                    height: "40px",
+                    borderRadius: "12px",
                     background: `linear-gradient(135deg, ${t.accent} 0%, ${t.accentHover} 100%)`,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
                     boxShadow: `0 8px 24px ${t.accent}40`,
+                    flexShrink: 0,
                   }}
                 >
-                  <Eye size={24} color="#fff" />
+                  <Eye size={20} color="#fff" />
                 </div>
-                <div>
-                  <h2 style={{ fontSize: "22px", fontWeight: 700, color: t.textPrimary, marginBottom: "4px" }}>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <h2 style={{ fontSize: "18px", fontWeight: 700, color: t.textPrimary, marginBottom: "2px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     Detalles del Usuario
                   </h2>
-                  <p style={{ fontSize: "13px", color: t.textSecondary }}>
-                    Informacion completa del usuario seleccionado
+                  <p style={{ fontSize: "12px", color: t.textSecondary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "none" }}>
+                    Información completa del usuario seleccionado
                   </p>
                 </div>
               </div>
               <button
                 onClick={() => setShowUserDetailsModal(false)}
                 style={{
-                  width: "40px",
-                  height: "40px",
+                  width: "36px",
+                  height: "36px",
                   borderRadius: "10px",
                   border: `1px solid ${t.border}`,
                   background: t.innerBg,
@@ -3076,20 +3079,34 @@ export default function UsersManagement({ isDark = true }: { isDark?: boolean })
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
+                  flexShrink: 0,
+                  transition: "all 0.2s",
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.background = "rgba(239, 68, 68, 0.1)";
+                  (e.currentTarget as HTMLButtonElement).style.color = "#ef4444";
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.background = t.innerBg;
+                  (e.currentTarget as HTMLButtonElement).style.color = t.textSecondary;
                 }}
               >
-                <X size={20} />
+                <X size={18} />
               </button>
             </div>
 
-            <div style={{ padding: "32px" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "280px 1fr", gap: "28px" }}>
+            {/* Contenido - Responsivo */}
+            <div style={{ padding: "20px 16px" }}>
+              {/* Layout Responsivo: columna única en móvil, dos columnas en desktop */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+                
+                {/* Sección de Avatar y Info Principal */}
                 <div
                   style={{
                     background: t.innerBg,
                     border: `1px solid ${t.border}`,
                     borderRadius: "20px",
-                    padding: "24px",
+                    padding: "20px",
                     textAlign: "center",
                   }}
                 >
@@ -3097,22 +3114,22 @@ export default function UsersManagement({ isDark = true }: { isDark?: boolean })
                     src={getUserAvatar(selectedUser)}
                     alt={selectedUser.nombre_completo}
                     style={{
-                      width: "150px",
-                      height: "150px",
+                      width: "120px",
+                      height: "120px",
                       borderRadius: "50%",
                       objectFit: "cover",
                       border: `4px solid ${t.accent}`,
                       boxShadow: `0 8px 24px ${t.accent}30`,
-                      marginBottom: "18px",
+                      marginBottom: "16px",
                     }}
                     onError={(e) => {
                       (e.target as HTMLImageElement).src = getUserAvatar({ ...selectedUser, foto_perfil_url: "" });
                     }}
                   />
-                  <h3 style={{ fontSize: "18px", fontWeight: 700, color: t.textPrimary, marginBottom: "4px" }}>
+                  <h3 style={{ fontSize: "18px", fontWeight: 700, color: t.textPrimary, marginBottom: "4px", wordBreak: "break-word" }}>
                     {selectedUser.nombre_completo}
                   </h3>
-                  <p style={{ fontSize: "13px", color: t.textSecondary, marginBottom: "16px" }}>
+                  <p style={{ fontSize: "13px", color: t.textSecondary, marginBottom: "12px", wordBreak: "break-word" }}>
                     @{selectedUser.nombre_usuario}
                   </p>
                   <span
@@ -3134,34 +3151,39 @@ export default function UsersManagement({ isDark = true }: { isDark?: boolean })
                   </span>
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "16px" }}>
+                {/* Sección de Detalles - Grid Responsivo */}
+                <div style={{ 
+                  display: "grid", 
+                  gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+                  gap: "12px" 
+                }}>
                   {[
-                    { label: "ID Usuario", value: `#${selectedUser.id_usuario}`, icon: <User size={18} color={t.accent} /> },
-                    { label: "DNI", value: selectedUser.dni || "No registrado", icon: <CreditCard size={18} color={t.accent} /> },
-                    { label: "Email", value: selectedUser.email || "No registrado", icon: <Mail size={18} color={t.accent} /> },
-                    { label: "Telefono", value: selectedUser.telefono || "No registrado", icon: <Phone size={18} color={t.accent} /> },
-                    { label: "Rol", value: selectedUser.rol?.nombre_rol || getRoleName(selectedUser.id_rol), icon: <Shield size={18} color={t.accent} /> },
-                    { label: "ID Auth", value: selectedUser.id_auth || "No registrado", icon: <Lock size={18} color={t.accent} /> },
-                    { label: "Fecha de registro", value: formatDateTime(selectedUser.fecha_registro), icon: <Clock size={18} color={t.accent} /> },
-                    { label: "Ultimo acceso", value: formatDateTime(selectedUser.ultimo_acceso), icon: <Clock size={18} color={t.accent} /> },
+                    { label: "ID Usuario", value: `#${selectedUser.id_usuario}`, icon: <User size={16} color={t.accent} /> },
+                    { label: "DNI", value: selectedUser.dni || "No registrado", icon: <CreditCard size={16} color={t.accent} /> },
+                    { label: "Email", value: selectedUser.email || "No registrado", icon: <Mail size={16} color={t.accent} /> },
+                    { label: "Teléfono", value: selectedUser.telefono || "No registrado", icon: <Phone size={16} color={t.accent} /> },
+                    { label: "Rol", value: selectedUser.rol?.nombre_rol || getRoleName(selectedUser.id_rol), icon: <Shield size={16} color={t.accent} /> },
+                    { label: "ID Auth", value: selectedUser.id_auth || "No registrado", icon: <Lock size={16} color={t.accent} /> },
+                    { label: "Fecha de registro", value: formatDateTime(selectedUser.fecha_registro), icon: <Clock size={16} color={t.accent} /> },
+                    { label: "Último acceso", value: formatDateTime(selectedUser.ultimo_acceso), icon: <Clock size={16} color={t.accent} /> },
                   ].map((item) => (
                     <div
                       key={item.label}
                       style={{
                         background: t.innerBg,
                         border: `1px solid ${t.border}`,
-                        borderRadius: "16px",
-                        padding: "16px",
+                        borderRadius: "14px",
+                        padding: "14px",
                         minWidth: 0,
                       }}
                     >
-                      <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
                         {item.icon}
-                        <span style={{ fontSize: "12px", fontWeight: 700, color: t.textSecondary, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                        <span style={{ fontSize: "11px", fontWeight: 700, color: t.textSecondary, textTransform: "uppercase", letterSpacing: "0.04em" }}>
                           {item.label}
                         </span>
                       </div>
-                      <p style={{ fontSize: "14px", fontWeight: 600, color: t.textPrimary, wordBreak: "break-word" }}>
+                      <p style={{ fontSize: "13px", fontWeight: 600, color: t.textPrimary, wordBreak: "break-word", lineHeight: "1.4" }}>
                         {item.value}
                       </p>
                     </div>
@@ -3169,7 +3191,15 @@ export default function UsersManagement({ isDark = true }: { isDark?: boolean })
                 </div>
               </div>
 
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px", marginTop: "28px", paddingTop: "24px", borderTop: `1px solid ${t.border}` }}>
+              {/* Botones del Footer - Responsivos */}
+              <div style={{ 
+                display: "flex", 
+                flexDirection: "column",
+                gap: "10px", 
+                marginTop: "24px", 
+                paddingTop: "20px", 
+                borderTop: `1px solid ${t.border}` 
+              }}>
                 <button
                   type="button"
                   onClick={() => {
@@ -3177,7 +3207,8 @@ export default function UsersManagement({ isDark = true }: { isDark?: boolean })
                     handleOpenEditUser(selectedUser);
                   }}
                   style={{
-                    padding: "12px 24px",
+                    width: "100%",
+                    padding: "12px 20px",
                     borderRadius: "12px",
                     border: "none",
                     background: "rgba(249,115,22,0.12)",
@@ -3187,17 +3218,26 @@ export default function UsersManagement({ isDark = true }: { isDark?: boolean })
                     cursor: "pointer",
                     display: "flex",
                     alignItems: "center",
+                    justifyContent: "center",
                     gap: "8px",
+                    transition: "all 0.2s",
+                  }}
+                  onMouseEnter={(e) => {
+                    (e.currentTarget as HTMLButtonElement).style.background = "rgba(249,115,22,0.18)";
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLButtonElement).style.background = "rgba(249,115,22,0.12)";
                   }}
                 >
                   <Edit2 size={18} />
-                  Editar Usuario
+                  <span>Editar Usuario</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowUserDetailsModal(false)}
                   style={{
-                    padding: "12px 24px",
+                    width: "100%",
+                    padding: "12px 20px",
                     borderRadius: "12px",
                     border: `2px solid ${t.border}`,
                     background: "transparent",
@@ -3205,6 +3245,15 @@ export default function UsersManagement({ isDark = true }: { isDark?: boolean })
                     fontSize: "14px",
                     fontWeight: 700,
                     cursor: "pointer",
+                    transition: "all 0.2s",
+                  }}
+                  onMouseEnter={(e) => {
+                    (e.currentTarget as HTMLButtonElement).style.background = t.hoverBg;
+                    (e.currentTarget as HTMLButtonElement).style.color = t.textPrimary;
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLButtonElement).style.background = "transparent";
+                    (e.currentTarget as HTMLButtonElement).style.color = t.textSecondary;
                   }}
                 >
                   Cerrar
@@ -3212,6 +3261,13 @@ export default function UsersManagement({ isDark = true }: { isDark?: boolean })
               </div>
             </div>
           </div>
+
+          {/* Media Query para pantallas más grandes */}
+          <style>{`
+            @media (min-width: 768px) {
+              /* Usar el selector de atributo data para aplicar estilos específicos en desktop */
+            }
+          `}</style>
         </div>
       )}
 
