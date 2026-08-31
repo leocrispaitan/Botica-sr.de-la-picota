@@ -22,7 +22,8 @@ export const PERMISOS_POR_ROL: Record<RoleName, {
       'Catálogos',
       'Reportes',
       'Usuarios',
-      'Configuración'
+      'Configuración',
+      'MiPerfil' // Acceso a su perfil personal
     ],
     submenuVisible: {
       'Inventario': ['Productos', 'Categorías', 'Lotes', 'Stock Crítico'],
@@ -38,7 +39,8 @@ export const PERMISOS_POR_ROL: Record<RoleName, {
   VENDEDOR: {
     menuVisible: [
       'Dashboard',
-      'Ventas'
+      'Ventas',
+      'MiPerfil' // Acceso a su perfil personal
     ],
     submenuVisible: {
       'Ventas': ['Nueva Venta', 'Historial', 'Clientes']
@@ -50,7 +52,8 @@ export const PERMISOS_POR_ROL: Record<RoleName, {
     menuVisible: [
       'Dashboard',
       'Inventario',
-      'Compras'
+      'Compras',
+      'MiPerfil' // Acceso a su perfil personal
     ],
     submenuVisible: {
       'Inventario': ['Productos', 'Categorías', 'Lotes', 'Stock Crítico'],

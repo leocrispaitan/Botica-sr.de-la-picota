@@ -591,6 +591,13 @@ export default function Dashboard({ onLogout }: { onLogout?: () => void }) {
         { name: "Roles", icon: Shield, path: "ConfigRoles" },
       ]
     },
+    // Menú especial - No se muestra en sidebar pero debe pasar validación de permisos
+    { 
+      name: "MiPerfil", 
+      icon: User,
+      path: "MiPerfil",
+      hidden: true // Marca para ocultar en el sidebar
+    },
   ];
 
   const toggleSubmenu = (menuName: string) => {
@@ -602,7 +609,7 @@ export default function Dashboard({ onLogout }: { onLogout?: () => void }) {
   };
 
   // ═══ Filtrar menú según permisos del usuario ═══
-  const menuItemsFiltrados = menuItems.filter(item => {
+  const menuItemsAutorizados = menuItems.filter(item => {
     // Verificar si el usuario tiene permiso para ver este menú
     return canViewMenu(item.name);
   }).map(item => {
@@ -625,6 +632,11 @@ export default function Dashboard({ onLogout }: { onLogout?: () => void }) {
     return item;
   }).filter((item): item is NonNullable<typeof item> => item !== null); // Type guard para eliminar nulls
 
+  const menuItemsFiltrados = menuItemsAutorizados.filter(item => {
+    // Excluir items marcados como hidden solo del sidebar, no de la validación de acceso
+    return !('hidden' in item && item.hidden);
+  });
+
   // ═══ Debug: Mostrar información de permisos (solo en desarrollo) ═══
   useEffect(() => {
     console.log('🔐 [Dashboard] Información de permisos:', {
@@ -635,14 +647,25 @@ export default function Dashboard({ onLogout }: { onLogout?: () => void }) {
       defaultMenu,
       activeMenu,
       menuItemsOriginales: menuItems.length,
+      menuItemsAutorizados: menuItemsAutorizados.length,
       menuItemsFiltrados: menuItemsFiltrados.length,
     });
-  }, [userRole, isAdmin, isVendedor, isAlmacenero]);
+  }, [
+    userRole,
+    isAdmin,
+    isVendedor,
+    isAlmacenero,
+    defaultMenu,
+    activeMenu,
+    menuItems.length,
+    menuItemsAutorizados.length,
+    menuItemsFiltrados.length,
+  ]);
 
   // ═══ Protección: Verificar si el usuario tiene acceso al menú activo ═══
   useEffect(() => {
     // Verificar si el activeMenu actual es accesible para el usuario
-    const tieneAcceso = menuItemsFiltrados.some(item => {
+    const tieneAcceso = menuItemsAutorizados.some(item => {
       // Verificar si es un item directo
       if ('path' in item && item.path === activeMenu) {
         return true;
@@ -663,7 +686,7 @@ export default function Dashboard({ onLogout }: { onLogout?: () => void }) {
       console.warn(`⚠️ Usuario sin acceso a "${activeMenu}", redirigiendo a "${defaultMenu}"`);
       setActiveMenu(defaultMenu);
     }
-  }, [activeMenu, menuItemsFiltrados, defaultMenu]);
+  }, [activeMenu, menuItemsAutorizados, defaultMenu]);
 
   return (
     <div
@@ -999,7 +1022,12 @@ export default function Dashboard({ onLogout }: { onLogout?: () => void }) {
                     colorBg: isDark ? "rgba(91,207,197,0.12)" : "rgba(91,207,197,0.08)",
                     hoverBg: isDark ? "rgba(91,207,197,0.08)" : "rgba(91,207,197,0.05)",
                     delay: "0.08s",
-                    action: () => { setProfileMenuOpen(false); setActiveMenu("MiPerfil"); },
+                    action: () => { 
+                      console.log('🔍 [Dashboard] Botón Mi Perfil clickeado');
+                      setProfileMenuOpen(false); 
+                      setActiveMenu("MiPerfil"); 
+                      console.log('✅ [Dashboard] activeMenu actualizado a: MiPerfil');
+                    },
                   },
                   {
                     icon: LogOut,
@@ -2134,7 +2162,10 @@ export default function Dashboard({ onLogout }: { onLogout?: () => void }) {
           
           {/* Render content based on activeMenu */}
           {activeMenu === "MiPerfil" ? (
-            <MiPerfil isDark={isDark} />
+            <>
+              {console.log('🔍 [Dashboard] Renderizando MiPerfil')}
+              <MiPerfil isDark={isDark} />
+            </>
           ) : activeMenu === "SolicitudesRegistro" ? (
             <SolicitudesRegistro isDark={isDark} />
           ) : activeMenu === "Usuarios" ? (
