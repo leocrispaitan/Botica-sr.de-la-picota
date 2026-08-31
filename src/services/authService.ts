@@ -116,6 +116,25 @@ export const authService = {
   isAlmacenero: (): boolean => {
     return authService.hasRole(3);
   },
+
+  /**
+   * Solicitar restablecimiento de contraseña
+   */
+  forgotPassword: async (email: string): Promise<{ success: boolean; message: string }> => {
+    const response = await api.post<{ success: boolean; message: string }>('/auth/forgot-password', { email });
+    return response.data;
+  },
+
+  /**
+   * Restablecer contraseña con token
+   */
+  resetPassword: async (access_token: string, new_password: string): Promise<{ success: boolean; message: string }> => {
+    const response = await api.post<{ success: boolean; message: string }>('/auth/reset-password', {
+      access_token,
+      new_password,
+    });
+    return response.data;
+  },
 };
 
 export default authService;

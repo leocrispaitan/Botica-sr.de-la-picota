@@ -1,6 +1,8 @@
 import { useEffect } from "react";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Dashboard from "./components/Dashboard";
 import Login from "./components/Login";
+import ResetPassword from "./components/ResetPassword";
 import { useAuth } from "./contexts/AuthContext";
 
 function App() {
@@ -51,15 +53,29 @@ function App() {
     );
   }
 
-  // Mostrar Login si no está autenticado
-  if (!isAuthenticated) {
-    console.log('🔓 [App] Not authenticated, showing Login');
-    return <Login onLoginSuccess={checkAuth} />;
-  }
-
-  // Mostrar Dashboard si está autenticado
-  console.log('🔒 [App] Authenticated, showing Dashboard');
-  return <Dashboard />;
+  return (
+    <BrowserRouter>
+      <Routes>
+        {/* Ruta pública para restablecer contraseña */}
+        <Route path="/reset-password" element={<ResetPassword />} />
+        
+        {/* Rutas protegidas */}
+        <Route
+          path="/"
+          element={
+            isAuthenticated ? (
+              <Dashboard />
+            ) : (
+              <Login onLoginSuccess={checkAuth} />
+            )
+          }
+        />
+        
+        {/* Redirigir cualquier otra ruta al inicio */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </BrowserRouter>
+  );
 }
 
 export default App;

@@ -18,6 +18,7 @@ import {
   UserPlus,
 } from "lucide-react";
 import authService from "../services/authService";
+import ForgotPassword from "./ForgotPassword";
 
 /* ─── Premium Light Theme ─────────────────────────── */
 const theme = {
@@ -94,7 +95,7 @@ export default function Login({ onLoginSuccess }: { onLoginSuccess?: () => void 
   const [showPassword, setShowPassword] = useState(false);
   const [showRegisterPassword, setShowRegisterPassword] = useState(false);
   const [showRegisterConfirm, setShowRegisterConfirm] = useState(false);
-  const [authView, setAuthView] = useState<"login" | "register">("login");
+  const [authView, setAuthView] = useState<"login" | "register" | "forgot">("login");
   const [remember, setRemember] = useState(false);
   const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
@@ -181,10 +182,21 @@ export default function Login({ onLoginSuccess }: { onLoginSuccess?: () => void 
     e.preventDefault();
   };
 
+  // Manejar cambio a vista de "Olvidaste tu contraseña"
+  const handleForgotPassword = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setAuthView("forgot");
+  };
+
   return (
     <>
-      {/* Global keyframes */}
-      <style>{`
+      {/* Si estamos en la vista de "forgot", mostrar el componente ForgotPassword */}
+      {authView === "forgot" ? (
+        <ForgotPassword onBack={() => setAuthView("login")} />
+      ) : (
+        <>
+          {/* Global keyframes */}
+          <style>{`
         @keyframes securePulse {
           0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.45); }
           70% { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
@@ -803,6 +815,7 @@ export default function Login({ onLoginSuccess }: { onLoginSuccess?: () => void 
                   </label>
                   <a
                     href="#"
+                    onClick={handleForgotPassword}
                     style={{
                       fontSize: "14px",
                       color: theme.accent,
@@ -1216,6 +1229,8 @@ export default function Login({ onLoginSuccess }: { onLoginSuccess?: () => void 
           }
         }
       `}</style>
+        </>
+      )}
     </>
   );
 }
