@@ -2037,12 +2037,6 @@ export default function Dashboard({ onLogout }: { onLogout?: () => void }) {
                 </span>
               </button>
               <button className="p-2.5 rounded-xl border transition-colors relative" style={{ color: t.textPrimary, background: t.innerBg, borderColor: t.borderSoft }}>
-                <MessageSquare size={18} />
-                <span className="absolute -top-1 -right-1 bg-[#5bcfc5] text-[#171622] text-[10px] font-bold rounded-full size-4 flex items-center justify-center">
-                  12
-                </span>
-              </button>
-              <button className="p-2.5 rounded-xl border transition-colors relative" style={{ color: t.textPrimary, background: t.innerBg, borderColor: t.borderSoft }}>
                 <Bell size={18} />
                 <span className="absolute -top-1 -right-1 bg-[#5bcfc5] text-[#171622] text-[10px] font-bold rounded-full size-4 flex items-center justify-center">
                   5
