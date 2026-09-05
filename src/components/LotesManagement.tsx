@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import {
   Search,
   Filter,
@@ -14,168 +14,14 @@ import {
   MapPin,
   AlertCircle,
   Box,
+  RefreshCw,
+  X,
+  Info,
+  CheckCircle2,
 } from "lucide-react";
-
-/* ─── Types ─────────────────────────────────────────────────────────── */
-interface Producto {
-  id_producto: number;
-  nombre_comercial: string;
-  nombre_generico: string;
-}
-
-interface Lote {
-  id_inventario: number;
-  id_producto: number;
-  numero_lote: string;
-  fecha_vencimiento: string;
-  fecha_ingreso: string;
-  costo_unitario_compra: number;
-  stock_lote: number;
-  ubicacion_estante: string;
-  producto: Producto;
-  dias_para_vencer: number;
-  estado_vencimiento: "vigente" | "proximo" | "vencido";
-}
-
-/* ─── Mock Data ───────────────────────────────────────────────────────── */
-const mockLotes: Lote[] = [
-  {
-    id_inventario: 1,
-    id_producto: 1,
-    numero_lote: "LOTE-A001",
-    fecha_vencimiento: "2027-01-15",
-    fecha_ingreso: "2026-01-10 08:30:00",
-    costo_unitario_compra: 7.00,
-    stock_lote: 50,
-    ubicacion_estante: "Estante A1",
-    dias_para_vencer: 512,
-    estado_vencimiento: "vigente",
-    producto: {
-      id_producto: 1,
-      nombre_comercial: "Panadol Jarabe",
-      nombre_generico: "Paracetamol",
-    },
-  },
-  {
-    id_inventario: 2,
-    id_producto: 2,
-    numero_lote: "LOTE-B002",
-    fecha_vencimiento: "2026-11-20",
-    fecha_ingreso: "2026-02-15 10:00:00",
-    costo_unitario_compra: 11.00,
-    stock_lote: 30,
-    ubicacion_estante: "Estante B2",
-    dias_para_vencer: 456,
-    estado_vencimiento: "vigente",
-    producto: {
-      id_producto: 2,
-      nombre_comercial: "Amoxil 500",
-      nombre_generico: "Amoxicilina",
-    },
-  },
-  {
-    id_inventario: 3,
-    id_producto: 3,
-    numero_lote: "LOTE-C003",
-    fecha_vencimiento: "2026-09-10",
-    fecha_ingreso: "2026-03-01 14:20:00",
-    costo_unitario_compra: 30.00,
-    stock_lote: 75,
-    ubicacion_estante: "Estante C1",
-    dias_para_vencer: 385,
-    estado_vencimiento: "vigente",
-    producto: {
-      id_producto: 3,
-      nombre_comercial: "Centrum Adultos",
-      nombre_generico: "Multivitamínico",
-    },
-  },
-  {
-    id_inventario: 4,
-    id_producto: 4,
-    numero_lote: "LOTE-D004",
-    fecha_vencimiento: "2026-10-05",
-    fecha_ingreso: "2026-04-10 09:15:00",
-    costo_unitario_compra: 4.50,
-    stock_lote: 120,
-    ubicacion_estante: "Estante D3",
-    dias_para_vencer: 410,
-    estado_vencimiento: "vigente",
-    producto: {
-      id_producto: 4,
-      nombre_comercial: "Ibuprofeno 400mg",
-      nombre_generico: "Ibuprofeno",
-    },
-  },
-  {
-    id_inventario: 5,
-    id_producto: 5,
-    numero_lote: "LOTE-E005",
-    fecha_vencimiento: "2026-09-25",
-    fecha_ingreso: "2026-05-20 11:45:00",
-    costo_unitario_compra: 9.00,
-    stock_lote: 8,
-    ubicacion_estante: "Estante E2",
-    dias_para_vencer: 400,
-    estado_vencimiento: "vigente",
-    producto: {
-      id_producto: 5,
-      nombre_comercial: "Crema Dermatológica",
-      nombre_generico: "Hidrocortisona",
-    },
-  },
-  {
-    id_inventario: 6,
-    id_producto: 1,
-    numero_lote: "LOTE-A002",
-    fecha_vencimiento: "2026-09-01",
-    fecha_ingreso: "2026-06-01 08:00:00",
-    costo_unitario_compra: 7.20,
-    stock_lote: 45,
-    ubicacion_estante: "Estante A2",
-    dias_para_vencer: 376,
-    estado_vencimiento: "proximo",
-    producto: {
-      id_producto: 1,
-      nombre_comercial: "Panadol Jarabe",
-      nombre_generico: "Paracetamol",
-    },
-  },
-  {
-    id_inventario: 7,
-    id_producto: 6,
-    numero_lote: "LOTE-F006",
-    fecha_vencimiento: "2026-08-25",
-    fecha_ingreso: "2026-07-10 16:30:00",
-    costo_unitario_compra: 3.50,
-    stock_lote: 95,
-    ubicacion_estante: "Estante F1",
-    dias_para_vencer: 369,
-    estado_vencimiento: "proximo",
-    producto: {
-      id_producto: 6,
-      nombre_comercial: "Aspirina 500mg",
-      nombre_generico: "Ácido Acetilsalicílico",
-    },
-  },
-  {
-    id_inventario: 8,
-    id_producto: 7,
-    numero_lote: "LOTE-G007",
-    fecha_vencimiento: "2025-12-31",
-    fecha_ingreso: "2025-11-01 10:00:00",
-    costo_unitario_compra: 3.00,
-    stock_lote: 15,
-    ubicacion_estante: "Estante G2",
-    dias_para_vencer: -232,
-    estado_vencimiento: "vencido",
-    producto: {
-      id_producto: 7,
-      nombre_comercial: "Loratadina 10mg",
-      nombre_generico: "Loratadina",
-    },
-  },
-];
+import toast, { Toaster } from "react-hot-toast";
+import { lotesService, type Lote } from "../services/lotesService";
+import { productsService, type Producto } from "../services/productsService";
 
 /* ─── Theme ────────────────────────────────────────────────────────── */
 function getTheme(isDark: boolean) {
@@ -211,6 +57,198 @@ function getTheme(isDark: boolean) {
   };
 }
 
+/* ─── Toasts ─────────────────────────────────────────────────────────── */
+const showLoteSuccessToast = (
+  lote: Lote,
+  isDark: boolean,
+  titulo: string,
+  descripcion: string
+) => {
+  toast.custom(
+    (t) => (
+      <div
+        style={{
+          background: isDark ? "#212130" : "#ffffff",
+          padding: "24px",
+          borderRadius: "20px",
+          boxShadow: "0 20px 60px rgba(0, 0, 0, 0.3)",
+          border: `2px solid ${isDark ? "rgba(91, 207, 197, 0.3)" : "rgba(91, 207, 197, 0.2)"}`,
+          maxWidth: "420px",
+          animation: t.visible ? "slideIn 0.4s ease-out forwards" : "slideOut 0.3s ease-in forwards",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "16px" }}>
+          <div
+            style={{
+              width: "56px",
+              height: "56px",
+              borderRadius: "50%",
+              background: "linear-gradient(135deg, #5bcfc5 0%, #4bc0b6 100%)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              boxShadow: "0 8px 24px rgba(91, 207, 197, 0.4)",
+              animation: "scaleIn 0.5s ease-out",
+              flexShrink: 0,
+            }}
+          >
+            <CheckCircle2 size={32} color="#fff" strokeWidth={2.5} />
+          </div>
+          <div style={{ flex: 1 }}>
+            <h3 style={{ fontSize: "18px", fontWeight: 700, color: "#5bcfc5", marginBottom: "4px", fontFamily: "'Cairo', sans-serif" }}>
+              {titulo}
+            </h3>
+            <p style={{ fontSize: "13px", color: isDark ? "#969ba0" : "#787f9e", fontFamily: "'Cairo', sans-serif" }}>
+              {descripcion}
+            </p>
+          </div>
+        </div>
+
+        <div style={{ background: isDark ? "#1e1d29" : "#f5f6fa", padding: "16px", borderRadius: "12px", marginBottom: "16px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <div style={{ width: "44px", height: "44px", borderRadius: "12px", background: "rgba(91, 207, 197, 0.12)", display: "flex", alignItems: "center", justifyContent: "center", border: "1px solid rgba(91, 207, 197, 0.3)", flexShrink: 0 }}>
+              <Box size={22} color="#5bcfc5" />
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <p style={{ fontSize: "15px", fontWeight: 600, color: isDark ? "#ffffff" : "#3d4465", marginBottom: "2px", fontFamily: "'Cairo', sans-serif" }}>
+                {lote.numero_lote}
+              </p>
+              <p style={{ fontSize: "12px", color: isDark ? "#828690" : "#787f9e", fontFamily: "'Cairo', sans-serif" }}>
+                {lote.producto.nombre_comercial} · {lote.stock_lote} unidades
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <button
+          onClick={() => toast.dismiss(t.id)}
+          style={{
+            width: "100%",
+            padding: "12px",
+            borderRadius: "12px",
+            border: "none",
+            background: "linear-gradient(135deg, #5bcfc5 0%, #4bc0b6 100%)",
+            color: "#fff",
+            fontSize: "14px",
+            fontWeight: 600,
+            cursor: "pointer",
+            fontFamily: "'Cairo', sans-serif",
+            transition: "all 0.2s",
+          }}
+          onMouseEnter={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.opacity = "0.9";
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.opacity = "1";
+          }}
+        >
+          Entendido
+        </button>
+      </div>
+    ),
+    { duration: 6000 }
+  );
+};
+
+const showLoteErrorToast = (mensaje: string, isDark: boolean, titulo: string) => {
+  toast.custom(
+    (t) => (
+      <div
+        style={{
+          background: isDark ? "#212130" : "#ffffff",
+          padding: "24px",
+          borderRadius: "20px",
+          boxShadow: "0 20px 60px rgba(0, 0, 0, 0.3)",
+          border: `2px solid ${isDark ? "rgba(239, 68, 68, 0.4)" : "rgba(239, 68, 68, 0.25)"}`,
+          maxWidth: "420px",
+          animation: t.visible ? "slideIn 0.4s ease-out forwards" : "slideOut 0.3s ease-in forwards",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "16px" }}>
+          <div
+            style={{
+              width: "56px",
+              height: "56px",
+              borderRadius: "50%",
+              background: "linear-gradient(135deg, #ef4444 0%, #f87171 100%)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              boxShadow: "0 8px 24px rgba(239, 68, 68, 0.4)",
+              animation: "scaleIn 0.5s ease-out",
+              flexShrink: 0,
+            }}
+          >
+            <AlertCircle size={32} color="#fff" strokeWidth={2.5} />
+          </div>
+          <div style={{ flex: 1 }}>
+            <h3 style={{ fontSize: "18px", fontWeight: 700, color: "#ef4444", marginBottom: "4px", fontFamily: "'Cairo', sans-serif" }}>
+              {titulo}
+            </h3>
+            <p style={{ fontSize: "13px", color: isDark ? "#969ba0" : "#787f9e", fontFamily: "'Cairo', sans-serif" }}>
+              {mensaje}
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={() => toast.dismiss(t.id)}
+          style={{
+            width: "100%",
+            padding: "12px",
+            borderRadius: "12px",
+            border: `2px solid ${isDark ? "rgba(239, 68, 68, 0.4)" : "rgba(239, 68, 68, 0.3)"}`,
+            background: "transparent",
+            color: "#ef4444",
+            fontSize: "14px",
+            fontWeight: 600,
+            cursor: "pointer",
+            fontFamily: "'Cairo', sans-serif",
+            transition: "all 0.2s",
+          }}
+          onMouseEnter={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.background = "rgba(239, 68, 68, 0.1)";
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.background = "transparent";
+          }}
+        >
+          Entendido
+        </button>
+      </div>
+    ),
+    { duration: 6000 }
+  );
+};
+
+/* ─── Formulario: Nuevo Lote ──────────────────────────────────────────── */
+interface NewLoteFormData {
+  id_producto: string;
+  numero_lote: string;
+  fecha_vencimiento: string;
+  costo_unitario_compra: string;
+  stock_lote: string;
+  ubicacion_estante: string;
+}
+
+interface NewLoteFormErrors {
+  id_producto?: string;
+  numero_lote?: string;
+  fecha_vencimiento?: string;
+  costo_unitario_compra?: string;
+  stock_lote?: string;
+  ubicacion_estante?: string;
+}
+
+const emptyNewLoteForm: NewLoteFormData = {
+  id_producto: "",
+  numero_lote: "",
+  fecha_vencimiento: "",
+  costo_unitario_compra: "",
+  stock_lote: "",
+  ubicacion_estante: "",
+};
+
+/* ─── Componente principal ────────────────────────────────────────────── */
 export default function LotesManagement({ isDark = true }: { isDark?: boolean }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [estadoFilter, setEstadoFilter] = useState<string | "all">("all");
@@ -218,21 +256,175 @@ export default function LotesManagement({ isDark = true }: { isDark?: boolean })
   const [showFilters, setShowFilters] = useState(false);
   const itemsPerPage = 6;
 
+  // ═══ Datos reales desde el backend ═══
+  const [lotes, setLotes] = useState<Lote[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // ═══ Modal: Nuevo Lote ═══
+  const [showNewModal, setShowNewModal] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [productos, setProductos] = useState<Producto[]>([]);
+  const [loadingProductos, setLoadingProductos] = useState(false);
+  const [formData, setFormData] = useState<NewLoteFormData>(emptyNewLoteForm);
+  const [formErrors, setFormErrors] = useState<NewLoteFormErrors>({});
+
   const t = getTheme(isDark);
 
+  const loadLotes = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await lotesService.getAllLotes();
+      setLotes(data);
+    } catch (err: any) {
+      console.error("❌ Error al cargar lotes:", err);
+      setError(
+        err?.response?.data?.message || "Error al cargar los lotes. Intenta nuevamente."
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadLotes();
+  }, [loadLotes]);
+
+  // ═══ Formulario: Nuevo Lote ═══
+  const handleOpenNewModal = async () => {
+    setFormData(emptyNewLoteForm);
+    setFormErrors({});
+    setShowNewModal(true);
+    if (productos.length === 0) {
+      setLoadingProductos(true);
+      try {
+        const data = await productsService.getAllProducts();
+        setProductos(data.filter((p) => p.estado_logico === true));
+      } catch (err) {
+        console.error("❌ Error al cargar productos:", err);
+        showLoteErrorToast(
+          "No se pudieron cargar los productos disponibles.",
+          isDark,
+          "Error al cargar productos"
+        );
+      } finally {
+        setLoadingProductos(false);
+      }
+    }
+  };
+
+  const handleInputChange = (field: keyof NewLoteFormData, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+    if (formErrors[field]) {
+      setFormErrors((prev) => ({ ...prev, [field]: undefined }));
+    }
+  };
+
+  const validateForm = (): boolean => {
+    const newErrors: NewLoteFormErrors = {};
+
+    if (!formData.id_producto) {
+      newErrors.id_producto = "Selecciona un producto.";
+    }
+
+    if (!formData.numero_lote.trim()) {
+      newErrors.numero_lote = "El número de lote es obligatorio.";
+    } else if (formData.numero_lote.trim().length > 50) {
+      newErrors.numero_lote = "El número de lote no puede superar los 50 caracteres.";
+    }
+
+    if (formData.fecha_vencimiento) {
+      const esValida = /^\d{4}-\d{2}-\d{2}$/.test(formData.fecha_vencimiento) && !Number.isNaN(new Date(`${formData.fecha_vencimiento}T00:00:00`).getTime());
+      if (!esValida) {
+        newErrors.fecha_vencimiento = "La fecha de vencimiento no es válida.";
+      }
+    }
+
+    const costo = Number(formData.costo_unitario_compra);
+    if (formData.costo_unitario_compra === "" || Number.isNaN(costo) || costo < 0) {
+      newErrors.costo_unitario_compra = "El costo unitario es obligatorio y debe ser mayor o igual a 0.";
+    }
+
+    const stock = Number(formData.stock_lote);
+    if (formData.stock_lote === "" || !Number.isInteger(stock) || stock < 0) {
+      newErrors.stock_lote = "El stock es obligatorio y debe ser un número entero mayor o igual a 0.";
+    }
+
+    if (formData.ubicacion_estante.trim().length > 50) {
+      newErrors.ubicacion_estante = "La ubicación no puede superar los 50 caracteres.";
+    }
+
+    setFormErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmitNew = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validateForm()) {
+      showLoteErrorToast(
+        "Revisa los campos marcados en rojo.",
+        isDark,
+        "Datos incompletos"
+      );
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const nuevoLote = await lotesService.createLote({
+        id_producto: Number(formData.id_producto),
+        numero_lote: formData.numero_lote.trim().toUpperCase(),
+        fecha_vencimiento: formData.fecha_vencimiento || null,
+        costo_unitario_compra: Number(formData.costo_unitario_compra),
+        stock_lote: Number(formData.stock_lote),
+        ubicacion_estante: formData.ubicacion_estante.trim() || null,
+      });
+
+      setShowNewModal(false);
+      setFormData(emptyNewLoteForm);
+      setFormErrors({});
+
+      setLotes((prev) =>
+        [...prev, nuevoLote].sort((a, b) => {
+          if (a.fecha_vencimiento !== b.fecha_vencimiento) {
+            if (a.fecha_vencimiento === null) return 1;
+            if (b.fecha_vencimiento === null) return -1;
+            return a.fecha_vencimiento.localeCompare(b.fecha_vencimiento);
+          }
+          return b.id_inventario - a.id_inventario;
+        })
+      );
+
+      showLoteSuccessToast(
+        nuevoLote,
+        isDark,
+        "¡Lote Registrado Exitosamente!",
+        `El lote ${nuevoLote.numero_lote} se registró para ${nuevoLote.producto.nombre_comercial}`
+      );
+    } catch (err: any) {
+      console.error("❌ Error al crear lote:", err);
+      const mensaje =
+        err?.response?.data?.message ||
+        "No se pudo registrar el lote. Intenta nuevamente.";
+      showLoteErrorToast(mensaje, isDark, "No se pudo registrar el lote");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const filteredLotes = useMemo(() => {
-    return mockLotes.filter((lote) => {
+    return lotes.filter((lote) => {
       const matchesSearch =
         lote.numero_lote.toLowerCase().includes(searchTerm.toLowerCase()) ||
         lote.producto.nombre_comercial.toLowerCase().includes(searchTerm.toLowerCase()) ||
         lote.producto.nombre_generico.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        lote.ubicacion_estante.toLowerCase().includes(searchTerm.toLowerCase());
+        (lote.ubicacion_estante || "").toLowerCase().includes(searchTerm.toLowerCase());
 
       const matchesEstado = estadoFilter === "all" || lote.estado_vencimiento === estadoFilter;
 
       return matchesSearch && matchesEstado;
     });
-  }, [searchTerm, estadoFilter]);
+  }, [lotes, searchTerm, estadoFilter]);
 
   const totalPages = Math.ceil(filteredLotes.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -243,16 +435,53 @@ export default function LotesManagement({ isDark = true }: { isDark?: boolean })
     setCurrentPage(1);
   };
 
-  const totalLotes = mockLotes.length;
-  const lotesVigentes = mockLotes.filter(l => l.estado_vencimiento === "vigente").length;
-  const lotesPorVencer = mockLotes.filter(l => l.estado_vencimiento === "proximo").length;
-  const lotesVencidos = mockLotes.filter(l => l.estado_vencimiento === "vencido").length;
+  const totalLotes = lotes.length;
+  const lotesVigentes = lotes.filter(l => l.estado_vencimiento === "vigente").length;
+  const lotesPorVencer = lotes.filter(l => l.estado_vencimiento === "proximo").length;
+  const lotesVencidos = lotes.filter(l => l.estado_vencimiento === "vencido").length;
 
   const getEstadoVencimientoColors = (estado: string) => {
     if (estado === "vigente") return { bg: "rgba(34,197,94,0.1)", text: "#22c55e", border: "rgba(34,197,94,0.3)", icon: "✓" };
     if (estado === "proximo") return { bg: "rgba(245,158,11,0.1)", text: "#f59e0b", border: "rgba(245,158,11,0.3)", icon: "⚠️" };
     return { bg: "rgba(239,68,68,0.1)", text: "#ef4444", border: "rgba(239,68,68,0.3)", icon: "✗" };
   };
+
+  const inputStyle = (hasError: boolean) => ({
+    width: "100%",
+    padding: "12px 14px 12px 44px",
+    borderRadius: "12px",
+    border: `2px solid ${hasError ? "#ef4444" : t.border}`,
+    background: t.inputBg,
+    color: t.textPrimary,
+    fontSize: "14px",
+    outline: "none",
+    fontFamily: "'Cairo', sans-serif",
+    transition: "all 0.2s",
+  });
+
+  const selectStyle = (hasError: boolean) => ({
+    ...inputStyle(hasError),
+    cursor: "pointer",
+  });
+
+  const handleFieldFocus = (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>, hasError: boolean) => {
+    if (!hasError) {
+      e.currentTarget.style.borderColor = t.accent;
+      e.currentTarget.style.boxShadow = `0 0 0 3px ${t.accent}15`;
+    }
+  };
+
+  const handleFieldBlur = (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>, hasError: boolean) => {
+    e.currentTarget.style.borderColor = hasError ? "#ef4444" : t.border;
+    e.currentTarget.style.boxShadow = "none";
+  };
+
+  const fieldError = (message?: string) =>
+    message ? (
+      <p style={{ fontSize: "12px", color: "#ef4444", marginTop: "6px", display: "flex", alignItems: "center", gap: "4px" }}>
+        <AlertCircle size={12} /> {message}
+      </p>
+    ) : null;
 
   return (
     <div style={{ padding: "24px", background: t.mainBg, minHeight: "100vh" }}>
@@ -327,7 +556,7 @@ export default function LotesManagement({ isDark = true }: { isDark?: boolean })
             <button onClick={() => setShowFilters(!showFilters)} style={{ padding: "12px 20px", borderRadius: "14px", border: `1px solid ${showFilters ? t.accent : t.border}`, background: showFilters ? `${t.accent}15` : t.inputBg, color: showFilters ? t.accent : t.textSecondary, fontSize: "14px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: "8px" }}>
               <Filter size={16} />Filtros
             </button>
-            <button style={{ padding: "12px 20px", borderRadius: "14px", border: "none", background: t.accent, color: "#fff", fontSize: "14px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: "8px", boxShadow: `0 4px 12px ${t.accent}40` }}>
+            <button onClick={handleOpenNewModal} style={{ padding: "12px 20px", borderRadius: "14px", border: "none", background: t.accent, color: "#fff", fontSize: "14px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: "8px", boxShadow: `0 4px 12px ${t.accent}40` }}>
               <Plus size={16} />Nuevo Lote
             </button>
           </div>
@@ -364,7 +593,28 @@ export default function LotesManagement({ isDark = true }: { isDark?: boolean })
               </tr>
             </thead>
             <tbody>
-              {currentLotes.length === 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan={6} style={{ padding: "60px 20px", textAlign: "center" }}>
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "12px" }}>
+                      <RefreshCw size={48} color={t.textMuted} style={{ animation: "spin 1s linear infinite" }} />
+                      <p style={{ fontSize: "16px", fontWeight: 600, color: t.textPrimary }}>Cargando lotes...</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : error ? (
+                <tr>
+                  <td colSpan={6} style={{ padding: "60px 20px", textAlign: "center" }}>
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "12px" }}>
+                      <AlertCircle size={48} color="#ef4444" />
+                      <p style={{ fontSize: "16px", fontWeight: 600, color: t.textPrimary }}>{error}</p>
+                      <button onClick={loadLotes} style={{ padding: "10px 20px", borderRadius: "10px", border: "none", background: t.accent, color: "#fff", fontSize: "13px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: "6px" }}>
+                        <RefreshCw size={14} /> Reintentar
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ) : currentLotes.length === 0 ? (
                 <tr><td colSpan={6} style={{ padding: "60px 20px", textAlign: "center" }}><Search size={48} color={t.textMuted} /><p style={{ fontSize: "16px", fontWeight: 600, color: t.textPrimary, marginTop: "12px" }}>No se encontraron lotes</p></td></tr>
               ) : (
                 currentLotes.map((lote, index) => {
@@ -385,9 +635,9 @@ export default function LotesManagement({ isDark = true }: { isDark?: boolean })
                         <div>
                           <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px" }}>
                             <Calendar size={14} color={t.textMuted} />
-                            <p style={{ fontSize: "13px", fontWeight: 600, color: t.textPrimary }}>{new Date(lote.fecha_vencimiento).toLocaleDateString("es-PE")}</p>
+                            <p style={{ fontSize: "13px", fontWeight: 600, color: t.textPrimary }}>{lote.fecha_vencimiento ? new Date(lote.fecha_vencimiento).toLocaleDateString("es-PE") : "Sin fecha"}</p>
                           </div>
-                          <p style={{ fontSize: "11px", color: t.textSecondary }}>{lote.dias_para_vencer > 0 ? `${lote.dias_para_vencer} días` : "Vencido"}</p>
+                          <p style={{ fontSize: "11px", color: t.textSecondary }}>{lote.dias_para_vencer == null ? "Sin fecha de vencimiento" : lote.dias_para_vencer > 0 ? `${lote.dias_para_vencer} días` : "Vencido"}</p>
                         </div>
                       </td>
                       <td style={{ padding: "16px 20px", textAlign: "center" }}>
@@ -400,7 +650,7 @@ export default function LotesManagement({ isDark = true }: { isDark?: boolean })
                       <td style={{ padding: "16px 20px" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                           <MapPin size={14} color={t.textMuted} />
-                          <span style={{ fontSize: "13px", color: t.textSecondary }}>{lote.ubicacion_estante}</span>
+                          <span style={{ fontSize: "13px", color: t.textSecondary }}>{lote.ubicacion_estante || "Sin ubicación"}</span>
                         </div>
                       </td>
                       <td style={{ padding: "16px 20px", textAlign: "center" }}>
@@ -437,6 +687,397 @@ export default function LotesManagement({ isDark = true }: { isDark?: boolean })
           </div>
         )}
       </div>
+
+      {/* ═══ Modal: Nuevo Lote ═══ */}
+      {showNewModal && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(0, 0, 0, 0.7)",
+            backdropFilter: "blur(4px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+            padding: "20px",
+          }}
+          onClick={() => {
+            if (!submitting) {
+              setShowNewModal(false);
+            }
+          }}
+        >
+          <div
+            style={{
+              background: t.cardBg,
+              borderRadius: "24px",
+              maxWidth: "640px",
+              width: "100%",
+              maxHeight: "90vh",
+              overflow: "auto",
+              boxShadow: "0 20px 60px rgba(0, 0, 0, 0.4)",
+              border: `1px solid ${t.borderCard}`,
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header del Modal */}
+            <div
+              style={{
+                padding: "24px 32px",
+                borderBottom: `1px solid ${t.border}`,
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                position: "sticky",
+                top: 0,
+                background: t.cardBg,
+                zIndex: 1,
+                borderRadius: "24px 24px 0 0",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+                <div
+                  style={{
+                    width: "56px",
+                    height: "56px",
+                    borderRadius: "16px",
+                    background: `linear-gradient(135deg, ${t.accent} 0%, ${t.accentHover} 100%)`,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    boxShadow: `0 8px 16px ${t.accent}40`,
+                  }}
+                >
+                  <Box size={28} color="#fff" strokeWidth={2.5} />
+                </div>
+                <div>
+                  <h2 style={{ fontSize: "24px", fontWeight: 700, color: t.textPrimary, marginBottom: "4px" }}>
+                    Nuevo Lote
+                  </h2>
+                  <p style={{ fontSize: "14px", color: t.textSecondary }}>
+                    Registra un nuevo lote para un producto del inventario
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowNewModal(false)}
+                disabled={submitting}
+                style={{
+                  width: "44px",
+                  height: "44px",
+                  borderRadius: "12px",
+                  border: "none",
+                  background: "transparent",
+                  color: t.textSecondary,
+                  cursor: submitting ? "not-allowed" : "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  transition: "all 0.2s",
+                  opacity: submitting ? 0.5 : 1,
+                }}
+                onMouseEnter={(e) => {
+                  if (!submitting) {
+                    (e.currentTarget as HTMLButtonElement).style.background = "rgba(239, 68, 68, 0.1)";
+                    (e.currentTarget as HTMLButtonElement).style.color = "#ef4444";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!submitting) {
+                    (e.currentTarget as HTMLButtonElement).style.background = "transparent";
+                    (e.currentTarget as HTMLButtonElement).style.color = t.textSecondary;
+                  }
+                }}
+              >
+                <X size={22} />
+              </button>
+            </div>
+
+            {/* Formulario */}
+            <form onSubmit={handleSubmitNew} style={{ padding: "32px" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "28px" }}>
+                {/* ─── Sección: Información del Lote ─── */}
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "20px" }}>
+                    <div style={{ width: "32px", height: "32px", borderRadius: "8px", background: `${t.accent}15`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <Info size={16} color={t.accent} />
+                    </div>
+                    <h3 style={{ fontSize: "16px", fontWeight: 700, color: t.textPrimary }}>
+                      Información del Lote
+                    </h3>
+                  </div>
+
+                  <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                    {/* Producto */}
+                    <div>
+                      <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px" }}>
+                        Producto <span style={{ color: "#ef4444" }}>*</span>
+                      </label>
+                      <div style={{ position: "relative" }}>
+                        <Package size={16} style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: t.textMuted }} />
+                        <select
+                          value={formData.id_producto}
+                          onChange={(e) => handleInputChange("id_producto", e.target.value)}
+                          style={selectStyle(!!formErrors.id_producto)}
+                          onFocus={(e) => handleFieldFocus(e, !!formErrors.id_producto)}
+                          onBlur={(e) => handleFieldBlur(e, !!formErrors.id_producto)}
+                        >
+                          <option value="">Selecciona un producto...</option>
+                          {loadingProductos && <option value="">Cargando productos...</option>}
+                          {productos.map((p) => (
+                            <option key={p.id_producto} value={p.id_producto}>
+                              {p.nombre_comercial} — {p.nombre_generico}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      {fieldError(formErrors.id_producto)}
+                    </div>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "16px" }}>
+                      {/* Número de Lote */}
+                      <div>
+                        <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px" }}>
+                          Número de Lote <span style={{ color: "#ef4444" }}>*</span>
+                        </label>
+                        <div style={{ position: "relative" }}>
+                          <Box size={16} style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: t.textMuted }} />
+                          <input
+                            type="text"
+                            value={formData.numero_lote}
+                            onChange={(e) => handleInputChange("numero_lote", e.target.value.toUpperCase())}
+                            placeholder="Ej. LOTE-A003"
+                            style={inputStyle(!!formErrors.numero_lote)}
+                            onFocus={(e) => handleFieldFocus(e, !!formErrors.numero_lote)}
+                            onBlur={(e) => handleFieldBlur(e, !!formErrors.numero_lote)}
+                          />
+                        </div>
+                        {fieldError(formErrors.numero_lote)}
+                        <p style={{ fontSize: "11px", color: t.textMuted, marginTop: "6px" }}>
+                          Se almacenará en mayúsculas automáticamente (máx. 50 caracteres)
+                        </p>
+                      </div>
+
+                      {/* Fecha de Vencimiento */}
+                      <div>
+                        <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px" }}>
+                          Fecha de Vencimiento <span style={{ fontSize: "11px", color: t.textMuted }}>(Opcional)</span>
+                        </label>
+                        <div style={{ position: "relative" }}>
+                          <Calendar size={16} style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: t.textMuted }} />
+                          <input
+                            type="date"
+                            value={formData.fecha_vencimiento}
+                            onChange={(e) => handleInputChange("fecha_vencimiento", e.target.value)}
+                            style={inputStyle(!!formErrors.fecha_vencimiento)}
+                            onFocus={(e) => handleFieldFocus(e, !!formErrors.fecha_vencimiento)}
+                            onBlur={(e) => handleFieldBlur(e, !!formErrors.fecha_vencimiento)}
+                          />
+                        </div>
+                        {fieldError(formErrors.fecha_vencimiento)}
+                      </div>
+                    </div>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "16px" }}>
+                      {/* Costo Unitario */}
+                      <div>
+                        <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px" }}>
+                          Costo Unitario (S/) <span style={{ color: "#ef4444" }}>*</span>
+                        </label>
+                        <div style={{ position: "relative" }}>
+                          <span style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: t.textMuted, fontSize: "17px", fontWeight: 700 }}>S/</span>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={formData.costo_unitario_compra}
+                            onChange={(e) => handleInputChange("costo_unitario_compra", e.target.value)}
+                            placeholder="Ej. 12.50"
+                            style={inputStyle(!!formErrors.costo_unitario_compra)}
+                            onFocus={(e) => handleFieldFocus(e, !!formErrors.costo_unitario_compra)}
+                            onBlur={(e) => handleFieldBlur(e, !!formErrors.costo_unitario_compra)}
+                          />
+                        </div>
+                        {fieldError(formErrors.costo_unitario_compra)}
+                      </div>
+
+                      {/* Stock */}
+                      <div>
+                        <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px" }}>
+                          Stock <span style={{ color: "#ef4444" }}>*</span>
+                        </label>
+                        <div style={{ position: "relative" }}>
+                          <Package size={16} style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: t.textMuted }} />
+                          <input
+                            type="number"
+                            min="0"
+                            step="1"
+                            value={formData.stock_lote}
+                            onChange={(e) => handleInputChange("stock_lote", e.target.value)}
+                            placeholder="Ej. 100"
+                            style={inputStyle(!!formErrors.stock_lote)}
+                            onFocus={(e) => handleFieldFocus(e, !!formErrors.stock_lote)}
+                            onBlur={(e) => handleFieldBlur(e, !!formErrors.stock_lote)}
+                          />
+                        </div>
+                        {fieldError(formErrors.stock_lote)}
+                      </div>
+                    </div>
+
+                    {/* Ubicación / Estante */}
+                    <div>
+                      <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px" }}>
+                        Ubicación / Estante <span style={{ fontSize: "11px", color: t.textMuted }}>(Opcional)</span>
+                      </label>
+                      <div style={{ position: "relative" }}>
+                        <MapPin size={16} style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: t.textMuted }} />
+                        <input
+                          type="text"
+                          value={formData.ubicacion_estante}
+                          onChange={(e) => handleInputChange("ubicacion_estante", e.target.value)}
+                          placeholder="Ej. Estante A3"
+                          style={inputStyle(!!formErrors.ubicacion_estante)}
+                          onFocus={(e) => handleFieldFocus(e, !!formErrors.ubicacion_estante)}
+                          onBlur={(e) => handleFieldBlur(e, !!formErrors.ubicacion_estante)}
+                        />
+                      </div>
+                      {fieldError(formErrors.ubicacion_estante)}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Botones del Footer */}
+              <div
+                style={{
+                  display: "flex",
+                  gap: "12px",
+                  justifyContent: "flex-end",
+                  marginTop: "32px",
+                  paddingTop: "24px",
+                  borderTop: `1px solid ${t.border}`,
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => setShowNewModal(false)}
+                  disabled={submitting}
+                  style={{
+                    padding: "12px 28px",
+                    borderRadius: "12px",
+                    border: `2px solid ${t.border}`,
+                    background: "transparent",
+                    color: submitting ? t.textMuted : t.textSecondary,
+                    fontSize: "14px",
+                    fontWeight: 600,
+                    cursor: submitting ? "not-allowed" : "pointer",
+                    fontFamily: "'Cairo', sans-serif",
+                    transition: "all 0.2s",
+                    opacity: submitting ? 0.5 : 1,
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!submitting) {
+                      (e.currentTarget as HTMLButtonElement).style.background = t.hoverBg;
+                      (e.currentTarget as HTMLButtonElement).style.color = t.textPrimary;
+                      (e.currentTarget as HTMLButtonElement).style.borderColor = t.accent;
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!submitting) {
+                      (e.currentTarget as HTMLButtonElement).style.background = "transparent";
+                      (e.currentTarget as HTMLButtonElement).style.color = t.textSecondary;
+                      (e.currentTarget as HTMLButtonElement).style.borderColor = t.border;
+                    }
+                  }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  style={{
+                    padding: "12px 32px",
+                    borderRadius: "12px",
+                    border: "none",
+                    background: submitting
+                      ? t.textMuted
+                      : `linear-gradient(135deg, ${t.accent} 0%, ${t.accentHover} 100%)`,
+                    color: "#fff",
+                    fontSize: "14px",
+                    fontWeight: 600,
+                    cursor: submitting ? "not-allowed" : "pointer",
+                    fontFamily: "'Cairo', sans-serif",
+                    transition: "all 0.2s",
+                    boxShadow: submitting ? "none" : `0 4px 16px ${t.accent}40`,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    opacity: submitting ? 0.6 : 1,
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!submitting) {
+                      (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)";
+                      (e.currentTarget as HTMLButtonElement).style.boxShadow = `0 6px 24px ${t.accent}50`;
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!submitting) {
+                      (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
+                      (e.currentTarget as HTMLButtonElement).style.boxShadow = `0 4px 16px ${t.accent}40`;
+                    }
+                  }}
+                >
+                  {submitting ? (
+                    <>
+                      <RefreshCw size={18} style={{ animation: "spin 1s linear infinite" }} />
+                      Registrando...
+                    </>
+                  ) : (
+                    <>
+                      <Plus size={18} />
+                      Registrar Lote
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+        @keyframes slideIn {
+          from { opacity: 0; transform: translateY(-20px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes slideOut {
+          from { opacity: 1; transform: translateY(0); }
+          to { opacity: 0; transform: translateY(-20px); }
+        }
+        @keyframes scaleIn {
+          from { transform: scale(0.8); opacity: 0; }
+          to { transform: scale(1); opacity: 1; }
+        }
+      `}</style>
+
+      {/* Toaster para notificaciones */}
+      <Toaster
+        position="top-center"
+        toastOptions={{
+          style: {
+            background: "transparent",
+            boxShadow: "none",
+            padding: 0,
+          },
+        }}
+      />
     </div>
   );
 }
