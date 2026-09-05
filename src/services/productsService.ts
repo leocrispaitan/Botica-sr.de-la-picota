@@ -119,6 +119,12 @@ interface CreateProductResponse {
   data: Producto;
 }
 
+interface DeleteProductResponse {
+  success: boolean;
+  message: string;
+  data: Producto;
+}
+
 export const productsService = {
   /**
    * Obtener todos los productos con stock real
@@ -149,6 +155,14 @@ export const productsService = {
    */
   updateProduct: async (id: number, producto: NewProductoInput): Promise<Producto> => {
     const response = await api.put<CreateProductResponse>(`/products/${id}`, producto);
+    return response.data.data;
+  },
+
+  /**
+   * Eliminar un producto (soft delete: estado_logico = false)
+   */
+  deleteProduct: async (id: number): Promise<Producto> => {
+    const response = await api.delete<DeleteProductResponse>(`/products/${id}`);
     return response.data.data;
   },
 };

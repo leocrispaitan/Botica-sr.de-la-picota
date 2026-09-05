@@ -35,7 +35,7 @@ import {
 import toast, { Toaster } from "react-hot-toast";
 import { productsService } from "../services/productsService";
 
-const { updateProduct } = productsService;
+const { updateProduct, deleteProduct } = productsService;
 import type {
   Categoria,
   CondicionVenta,
@@ -389,6 +389,83 @@ const showProductErrorToast = (mensaje: string, isDark: boolean, titulo: string)
   );
 };
 
+const showProductDeleteSuccessToast = (producto: Producto, isDark: boolean) => {
+  toast.custom(
+    (t) => (
+      <div
+        style={{
+          background: isDark ? "#212130" : "#ffffff",
+          padding: "24px",
+          borderRadius: "20px",
+          boxShadow: "0 20px 60px rgba(0, 0, 0, 0.3)",
+          border: `2px solid ${isDark ? "rgba(239, 68, 68, 0.4)" : "rgba(239, 68, 68, 0.25)"}`,
+          maxWidth: "420px",
+          animation: t.visible ? "slideIn 0.4s ease-out" : "slideOut 0.3s ease-in",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "16px" }}>
+          <div
+            style={{
+              width: "56px",
+              height: "56px",
+              borderRadius: "50%",
+              background: "linear-gradient(135deg, #ef4444 0%, #f87171 100%)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              boxShadow: "0 8px 24px rgba(239, 68, 68, 0.4)",
+              animation: "scaleIn 0.5s ease-out",
+              flexShrink: 0,
+            }}
+          >
+            <Trash2 size={28} color="#fff" strokeWidth={2.5} />
+          </div>
+          <div style={{ flex: 1 }}>
+            <h3 style={{ fontSize: "18px", fontWeight: 700, color: "#ef4444", marginBottom: "4px", fontFamily: "'Cairo', sans-serif" }}>
+              ¡Producto Eliminado!
+            </h3>
+            <p style={{ fontSize: "13px", color: isDark ? "#969ba0" : "#787f9e", fontFamily: "'Cairo', sans-serif" }}>
+              {producto.nombre_comercial} se desactivó del inventario
+            </p>
+          </div>
+        </div>
+        <div style={{ background: isDark ? "#1e1d29" : "#f5f6fa", padding: "12px 16px", borderRadius: "12px", display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", color: isDark ? "#969ba0" : "#787f9e", fontFamily: "'Cairo', sans-serif" }}>
+          <AlertCircle size={14} color="#ef4444" style={{ flexShrink: 0 }} />
+          <span>
+            El historial de compras y lotes se conserva; solo se desactiva el producto en el inventario.
+          </span>
+        </div>
+        <button
+          onClick={() => toast.dismiss(t.id)}
+          style={{
+            width: "100%",
+            padding: "12px",
+            borderRadius: "12px",
+            border: "none",
+            background: "linear-gradient(135deg, #ef4444 0%, #f87171 100%)",
+            color: "#fff",
+            fontSize: "14px",
+            fontWeight: 600,
+            cursor: "pointer",
+            fontFamily: "'Cairo', sans-serif",
+            transition: "all 0.2s",
+            marginTop: "16px",
+          }}
+          onMouseEnter={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.opacity = "0.9";
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.opacity = "1";
+          }}
+        >
+          Entendido
+        </button>
+      </div>
+    ),
+    { duration: 6000 }
+  );
+};
+
 /* ═══════════════════════════════════════════════════════════════════ */
 /*  PRODUCTS MANAGEMENT COMPONENT                                      */
 /* ═══════════════════════════════════════════════════════════════════ */
@@ -426,6 +503,11 @@ export default function ProductsManagement({ isDark = true }: { isDark?: boolean
   // ═══ Modal: Ver Producto ═══
   const [showViewModal, setShowViewModal] = useState(false);
   const [viewingProduct, setViewingProduct] = useState<Producto | null>(null);
+
+  // ═══ Modal: Eliminar Producto ═══
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [productToDelete, setProductToDelete] = useState<Producto | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const loadProducts = useCallback(async () => {
     setLoading(true);
@@ -609,6 +691,33 @@ export default function ProductsManagement({ isDark = true }: { isDark?: boolean
   const handleOpenViewModal = (product: Producto) => {
     setViewingProduct(product);
     setShowViewModal(true);
+  };
+
+  /* ─── Gestión: Eliminar Producto ─── */
+  const handleOpenDeleteModal = (product: Producto) => {
+    setProductToDelete(product);
+    setShowDeleteModal(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!productToDelete) return;
+    setDeleting(true);
+    try {
+      await deleteProduct(productToDelete.id_producto);
+      const eliminado = productToDelete;
+      setShowDeleteModal(false);
+      setProductToDelete(null);
+      await loadProducts();
+      showProductDeleteSuccessToast(eliminado, isDark);
+    } catch (err: any) {
+      console.error("❌ Error al eliminar producto:", err);
+      const mensaje =
+        err?.response?.data?.message ||
+        "No se pudo eliminar el producto. Intenta nuevamente.";
+      showProductErrorToast(mensaje, isDark, "No se pudo eliminar");
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const handleSubmitEditProduct = async (e: React.FormEvent) => {
@@ -1259,6 +1368,7 @@ export default function ProductsManagement({ isDark = true }: { isDark?: boolean
                               </button>
                               <button
                                 title="Eliminar producto"
+                                onClick={() => handleOpenDeleteModal(product)}
                                 style={{ padding: "8px", borderRadius: "8px", border: "none", background: "transparent", color: t.textSecondary, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }}
                                 onMouseEnter={(e) => {
                                   (e.currentTarget as HTMLButtonElement).style.background = "rgba(239,68,68,0.1)";
@@ -3254,6 +3364,259 @@ export default function ProductsManagement({ isDark = true }: { isDark?: boolean
                 >
                   <CheckCircle2 size={18} />
                   Cerrar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ Modal: Eliminar Producto ═══ */}
+      {showDeleteModal && productToDelete && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(0, 0, 0, 0.7)",
+            backdropFilter: "blur(4px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1200,
+            padding: "20px",
+          }}
+          onClick={() => {
+            if (!deleting) {
+              setShowDeleteModal(false);
+            }
+          }}
+        >
+          <div
+            style={{
+              background: t.cardBg,
+              borderRadius: "24px",
+              maxWidth: "520px",
+              width: "100%",
+              overflow: "auto",
+              boxShadow: "0 20px 60px rgba(0, 0, 0, 0.4)",
+              border: `1px solid ${t.borderCard}`,
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header del Modal */}
+            <div
+              style={{
+                padding: "24px 28px",
+                borderBottom: `1px solid ${t.border}`,
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+                <div
+                  style={{
+                    width: "52px",
+                    height: "52px",
+                    borderRadius: "16px",
+                    background: "linear-gradient(135deg, #ef4444 0%, #f87171 100%)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    boxShadow: "0 8px 16px rgba(239, 68, 68, 0.4)",
+                  }}
+                >
+                  <Trash2 size={26} color="#fff" strokeWidth={2.5} />
+                </div>
+                <div>
+                  <h2 style={{ fontSize: "20px", fontWeight: 700, color: t.textPrimary, marginBottom: "4px" }}>
+                    Eliminar Producto
+                  </h2>
+                  <p style={{ fontSize: "13px", color: t.textSecondary }}>
+                    Confirmación de eliminación
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                disabled={deleting}
+                style={{
+                  width: "40px",
+                  height: "40px",
+                  borderRadius: "12px",
+                  border: "none",
+                  background: "transparent",
+                  color: t.textSecondary,
+                  cursor: deleting ? "not-allowed" : "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  transition: "all 0.2s",
+                  opacity: deleting ? 0.5 : 1,
+                }}
+                onMouseEnter={(e) => {
+                  if (!deleting) {
+                    (e.currentTarget as HTMLButtonElement).style.background = "rgba(239, 68, 68, 0.1)";
+                    (e.currentTarget as HTMLButtonElement).style.color = "#ef4444";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!deleting) {
+                    (e.currentTarget as HTMLButtonElement).style.background = "transparent";
+                    (e.currentTarget as HTMLButtonElement).style.color = t.textSecondary;
+                  }
+                }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Contenido */}
+            <div style={{ padding: "28px" }}>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "16px", marginBottom: "24px" }}>
+                <div
+                  style={{
+                    width: "72px",
+                    height: "72px",
+                    borderRadius: "50%",
+                    background: "rgba(239, 68, 68, 0.1)",
+                    border: "2px solid rgba(239, 68, 68, 0.3)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    animation: "scaleIn 0.5s ease-out",
+                  }}
+                >
+                  <AlertTriangle size={36} color="#ef4444" />
+                </div>
+                <div style={{ textAlign: "center" }}>
+                  <h3 style={{ fontSize: "18px", fontWeight: 700, color: t.textPrimary, marginBottom: "8px" }}>
+                    ¿Eliminar "{productToDelete.nombre_comercial}"?
+                  </h3>
+                  <p style={{ fontSize: "14px", color: t.textSecondary, lineHeight: 1.5 }}>
+                    Esta acción desactivará el producto del inventario. Los registros históricos
+                    (lotes, compras y ventas) se conservarán.
+                  </p>
+                </div>
+              </div>
+
+              {/* Producto a eliminar */}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "12px",
+                  padding: "12px 16px",
+                  borderRadius: "12px",
+                  background: t.innerBg,
+                  border: `1px solid ${t.border}`,
+                  marginBottom: "24px",
+                }}
+              >
+                <img
+                  src={productToDelete.imagen_url || DEFAULT_PRODUCT_IMAGE}
+                  alt={productToDelete.nombre_comercial}
+                  style={{ width: "44px", height: "44px", borderRadius: "10px", objectFit: "cover", border: `2px solid ${t.border}`, flexShrink: 0 }}
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).src = DEFAULT_PRODUCT_IMAGE;
+                  }}
+                />
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <p style={{ fontSize: "14px", fontWeight: 600, color: t.textPrimary, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    {productToDelete.nombre_comercial}
+                  </p>
+                  <p style={{ fontSize: "12px", color: t.textSecondary }}>
+                    {productToDelete.nombre_generico}
+                  </p>
+                </div>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "5px 10px", borderRadius: "8px", background: "rgba(239,68,68,0.1)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.3)", fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", flexShrink: 0 }}>
+                  <AlertCircle size={12} />
+                  {productToDelete.estado_logico ? "Activo" : "Inactivo"}
+                </span>
+              </div>
+
+              {/* Botones */}
+              <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end" }}>
+                <button
+                  onClick={() => setShowDeleteModal(false)}
+                  disabled={deleting}
+                  style={{
+                    padding: "12px 24px",
+                    borderRadius: "12px",
+                    border: `2px solid ${t.border}`,
+                    background: "transparent",
+                    color: deleting ? t.textMuted : t.textSecondary,
+                    fontSize: "14px",
+                    fontWeight: 600,
+                    cursor: deleting ? "not-allowed" : "pointer",
+                    fontFamily: "'Cairo', sans-serif",
+                    transition: "all 0.2s",
+                    opacity: deleting ? 0.5 : 1,
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!deleting) {
+                      (e.currentTarget as HTMLButtonElement).style.background = t.hoverBg;
+                      (e.currentTarget as HTMLButtonElement).style.color = t.textPrimary;
+                      (e.currentTarget as HTMLButtonElement).style.borderColor = t.accent;
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!deleting) {
+                      (e.currentTarget as HTMLButtonElement).style.background = "transparent";
+                      (e.currentTarget as HTMLButtonElement).style.color = t.textSecondary;
+                      (e.currentTarget as HTMLButtonElement).style.borderColor = t.border;
+                    }
+                  }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleConfirmDelete}
+                  disabled={deleting}
+                  style={{
+                    padding: "12px 28px",
+                    borderRadius: "12px",
+                    border: "none",
+                    background: deleting ? t.textMuted : "linear-gradient(135deg, #ef4444 0%, #f87171 100%)",
+                    color: "#fff",
+                    fontSize: "14px",
+                    fontWeight: 600,
+                    cursor: deleting ? "not-allowed" : "pointer",
+                    fontFamily: "'Cairo', sans-serif",
+                    transition: "all 0.2s",
+                    boxShadow: deleting ? "none" : "0 4px 16px rgba(239, 68, 68, 0.4)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    opacity: deleting ? 0.6 : 1,
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!deleting) {
+                      (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)";
+                      (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 6px 24px rgba(239, 68, 68, 0.5)";
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!deleting) {
+                      (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
+                      (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 4px 16px rgba(239, 68, 68, 0.4)";
+                    }
+                  }}
+                >
+                  {deleting ? (
+                    <>
+                      <RefreshCw size={18} style={{ animation: "spin 1s linear infinite" }} />
+                      Eliminando...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 size={18} />
+                      Eliminar
+                    </>
+                  )}
                 </button>
               </div>
             </div>
