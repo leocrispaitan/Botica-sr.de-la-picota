@@ -225,7 +225,7 @@ const showProductSuccessToast = (
           boxShadow: "0 20px 60px rgba(0, 0, 0, 0.3)",
           border: `2px solid ${isDark ? "rgba(91, 207, 197, 0.3)" : "rgba(91, 207, 197, 0.2)"}`,
           maxWidth: "420px",
-          animation: t.visible ? "slideIn 0.4s ease-out" : "slideOut 0.3s ease-in",
+          animation: t.visible ? "slideIn 0.4s ease-out forwards" : "slideOut 0.3s ease-in forwards",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "16px" }}>
@@ -330,7 +330,7 @@ const showProductErrorToast = (mensaje: string, isDark: boolean, titulo: string)
           boxShadow: "0 20px 60px rgba(0, 0, 0, 0.3)",
           border: `2px solid ${isDark ? "rgba(239, 68, 68, 0.4)" : "rgba(239, 68, 68, 0.25)"}`,
           maxWidth: "420px",
-          animation: t.visible ? "slideIn 0.4s ease-out" : "slideOut 0.3s ease-in",
+          animation: t.visible ? "slideIn 0.4s ease-out forwards" : "slideOut 0.3s ease-in forwards",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "16px" }}>
@@ -400,7 +400,7 @@ const showProductDeleteSuccessToast = (producto: Producto, isDark: boolean) => {
           boxShadow: "0 20px 60px rgba(0, 0, 0, 0.3)",
           border: `2px solid ${isDark ? "rgba(239, 68, 68, 0.4)" : "rgba(239, 68, 68, 0.25)"}`,
           maxWidth: "420px",
-          animation: t.visible ? "slideIn 0.4s ease-out" : "slideOut 0.3s ease-in",
+          animation: t.visible ? "slideIn 0.4s ease-out forwards" : "slideOut 0.3s ease-in forwards",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "16px" }}>
