@@ -353,7 +353,9 @@ export default function CategoriesManagement({ isDark = true }: { isDark?: boole
       setFormData(emptyNewCategoriaForm);
       setFormErrors({});
 
-      await loadCategories();
+      setCategorias((prev) =>
+        [...prev, nuevaCategoria].sort((a, b) => a.nombre_categoria.localeCompare(b.nombre_categoria))
+      );
 
       showCategoriaSuccessToast(
         nuevaCategoria,
@@ -429,7 +431,11 @@ export default function CategoriesManagement({ isDark = true }: { isDark?: boole
       setEditFormData(emptyNewCategoriaForm);
       setEditFormErrors({});
 
-      await loadCategories();
+      setCategorias((prev) =>
+        prev
+          .map((cat) => (cat.id_categoria === actualizada.id_categoria ? actualizada : cat))
+          .sort((a, b) => a.nombre_categoria.localeCompare(b.nombre_categoria))
+      );
 
       showCategoriaSuccessToast(
         actualizada,
@@ -461,7 +467,13 @@ export default function CategoriesManagement({ isDark = true }: { isDark?: boole
       const eliminada = await categoriesService.deleteCategory(categoryToDelete.id_categoria);
       setShowDeleteModal(false);
       setCategoryToDelete(null);
-      await loadCategories();
+      setCategorias((prev) =>
+        prev.map((cat) =>
+          cat.id_categoria === eliminada.id_categoria
+            ? { ...eliminada, total_productos: cat.total_productos }
+            : cat
+        )
+      );
       showCategoriaSuccessToast(
         eliminada,
         isDark,
@@ -496,7 +508,9 @@ export default function CategoriesManagement({ isDark = true }: { isDark?: boole
       });
       setShowReactivateModal(false);
       setCategoryToReactivate(null);
-      await loadCategories();
+      setCategorias((prev) =>
+        prev.map((cat) => (cat.id_categoria === reactivada.id_categoria ? reactivada : cat))
+      );
       showCategoriaSuccessToast(
         reactivada,
         isDark,
