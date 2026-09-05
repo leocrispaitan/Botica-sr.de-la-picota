@@ -31,6 +31,7 @@ import {
   Info,
   HeartPulse,
   Calendar,
+  RotateCcw,
 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import { productsService } from "../services/productsService";
@@ -508,6 +509,9 @@ export default function ProductsManagement({ isDark = true }: { isDark?: boolean
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [productToDelete, setProductToDelete] = useState<Producto | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [showReactivateModal, setShowReactivateModal] = useState(false);
+  const [productToReactivate, setProductToReactivate] = useState<Producto | null>(null);
+  const [reactivating, setReactivating] = useState(false);
 
   const loadProducts = useCallback(async () => {
     setLoading(true);
@@ -717,6 +721,57 @@ export default function ProductsManagement({ isDark = true }: { isDark?: boolean
       showProductErrorToast(mensaje, isDark, "No se pudo eliminar");
     } finally {
       setDeleting(false);
+    }
+  };
+
+  /* ─── Gestión: Reactivar Producto ─── */
+  const handleOpenReactivateModal = (product: Producto) => {
+    setProductToReactivate(product);
+    setShowReactivateModal(true);
+  };
+
+  const handleConfirmReactivate = async () => {
+    if (!productToReactivate) return;
+    setReactivating(true);
+    try {
+      const reactivado = await updateProduct(productToReactivate.id_producto, {
+        nombre_comercial: productToReactivate.nombre_comercial,
+        nombre_generico: productToReactivate.nombre_generico,
+        unidad_medida: productToReactivate.unidad_medida,
+        composicion: productToReactivate.composicion || "",
+        presentacion: productToReactivate.presentacion || "",
+        imagen_url: productToReactivate.imagen_url || "",
+        id_categoria: productToReactivate.id_categoria,
+        id_proveedor: productToReactivate.id_proveedor,
+        id_forma_farmaceutica: productToReactivate.id_forma_farmaceutica ?? undefined,
+        id_via_administracion: productToReactivate.id_via_administracion ?? undefined,
+        id_condicion_venta: productToReactivate.id_condicion_venta ?? undefined,
+        codigo_atc: productToReactivate.codigo_atc || "",
+        id_laboratorio_titular: productToReactivate.id_laboratorio_titular ?? undefined,
+        id_fabricante: productToReactivate.id_fabricante ?? undefined,
+        precio_venta: Number(productToReactivate.precio_venta),
+        costo_referencial: Number(productToReactivate.costo_referencial),
+        stock_minimo_alerta: Number(productToReactivate.stock_minimo_alerta),
+        estado_logico: true,
+      });
+      setShowReactivateModal(false);
+      setProductToReactivate(null);
+      await loadProducts();
+      showProductSuccessToast(
+        reactivado,
+        categorias,
+        isDark,
+        "¡Producto Reactivado!",
+        `${reactivado.nombre_comercial} se activó nuevamente en el inventario`
+      );
+    } catch (err: any) {
+      console.error("❌ Error al reactivar producto:", err);
+      const mensaje =
+        err?.response?.data?.message ||
+        "No se pudo reactivar el producto. Intenta nuevamente.";
+      showProductErrorToast(mensaje, isDark, "No se pudo reactivar el producto");
+    } finally {
+      setReactivating(false);
     }
   };
 
@@ -1367,33 +1422,46 @@ export default function ProductsManagement({ isDark = true }: { isDark?: boolean
                                 <Edit2 size={16} />
                               </button>
                               <button
-                                title="Eliminar producto"
+                                title={product.estado_logico ? "Eliminar producto" : "Producto inactivo - no se puede eliminar"}
                                 onClick={() => handleOpenDeleteModal(product)}
-                                style={{ padding: "8px", borderRadius: "8px", border: "none", background: "transparent", color: t.textSecondary, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }}
+                                disabled={!product.estado_logico}
+                                style={{ padding: "8px", borderRadius: "8px", border: "none", background: "transparent", color: product.estado_logico ? t.textSecondary : t.textMuted, cursor: product.estado_logico ? "pointer" : "not-allowed", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s", opacity: product.estado_logico ? 1 : 0.4 }}
                                 onMouseEnter={(e) => {
-                                  (e.currentTarget as HTMLButtonElement).style.background = "rgba(239,68,68,0.1)";
-                                  (e.currentTarget as HTMLButtonElement).style.color = "#ef4444";
+                                  if (product.estado_logico) {
+                                    (e.currentTarget as HTMLButtonElement).style.background = "rgba(239,68,68,0.1)";
+                                    (e.currentTarget as HTMLButtonElement).style.color = "#ef4444";
+                                  }
                                 }}
                                 onMouseLeave={(e) => {
                                   (e.currentTarget as HTMLButtonElement).style.background = "transparent";
-                                  (e.currentTarget as HTMLButtonElement).style.color = t.textSecondary;
+                                  (e.currentTarget as HTMLButtonElement).style.color = product.estado_logico ? t.textSecondary : t.textMuted;
                                 }}
                               >
                                 <Trash2 size={16} />
                               </button>
                               <button
-                                title="Más opciones"
-                                style={{ padding: "8px", borderRadius: "8px", border: "none", background: "transparent", color: t.textSecondary, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }}
+                                title={product.estado_logico ? "Más opciones" : "Reactivar producto"}
+                                onClick={() => {
+                                  if (!product.estado_logico) {
+                                    handleOpenReactivateModal(product);
+                                  }
+                                }}
+                                style={{ padding: "8px", borderRadius: "8px", border: "none", background: "transparent", color: product.estado_logico ? t.textSecondary : "#22c55e", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }}
                                 onMouseEnter={(e) => {
-                                  (e.currentTarget as HTMLButtonElement).style.background = t.hoverBg;
-                                  (e.currentTarget as HTMLButtonElement).style.color = t.textPrimary;
+                                  if (product.estado_logico) {
+                                    (e.currentTarget as HTMLButtonElement).style.background = t.hoverBg;
+                                    (e.currentTarget as HTMLButtonElement).style.color = t.textPrimary;
+                                  } else {
+                                    (e.currentTarget as HTMLButtonElement).style.background = "rgba(34,197,94,0.12)";
+                                    (e.currentTarget as HTMLButtonElement).style.color = "#4ade80";
+                                  }
                                 }}
                                 onMouseLeave={(e) => {
                                   (e.currentTarget as HTMLButtonElement).style.background = "transparent";
-                                  (e.currentTarget as HTMLButtonElement).style.color = t.textSecondary;
+                                  (e.currentTarget as HTMLButtonElement).style.color = product.estado_logico ? t.textSecondary : "#22c55e";
                                 }}
                               >
-                                <MoreVertical size={16} />
+                                {product.estado_logico ? <MoreVertical size={16} /> : <RotateCcw size={16} />}
                               </button>
                             </div>
                           </td>
@@ -3615,6 +3683,258 @@ export default function ProductsManagement({ isDark = true }: { isDark?: boolean
                     <>
                       <Trash2 size={18} />
                       Eliminar
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showReactivateModal && productToReactivate && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(0, 0, 0, 0.7)",
+            backdropFilter: "blur(4px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1200,
+            padding: "20px",
+          }}
+          onClick={() => {
+            if (!reactivating) {
+              setShowReactivateModal(false);
+            }
+          }}
+        >
+          <div
+            style={{
+              background: t.cardBg,
+              borderRadius: "24px",
+              maxWidth: "520px",
+              width: "100%",
+              overflow: "auto",
+              boxShadow: "0 20px 60px rgba(0, 0, 0, 0.4)",
+              border: `1px solid ${t.borderCard}`,
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header del Modal */}
+            <div
+              style={{
+                padding: "24px 28px",
+                borderBottom: `1px solid ${t.border}`,
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+                <div
+                  style={{
+                    width: "52px",
+                    height: "52px",
+                    borderRadius: "16px",
+                    background: "linear-gradient(135deg, #22c55e 0%, #4ade80 100%)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    boxShadow: "0 8px 16px rgba(34, 197, 94, 0.4)",
+                  }}
+                >
+                  <RotateCcw size={26} color="#fff" strokeWidth={2.5} />
+                </div>
+                <div>
+                  <h2 style={{ fontSize: "20px", fontWeight: 700, color: t.textPrimary, marginBottom: "4px" }}>
+                    Reactivar Producto
+                  </h2>
+                  <p style={{ fontSize: "13px", color: t.textSecondary }}>
+                    Confirmación de reactivación
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowReactivateModal(false)}
+                disabled={reactivating}
+                style={{
+                  width: "40px",
+                  height: "40px",
+                  borderRadius: "12px",
+                  border: "none",
+                  background: "transparent",
+                  color: t.textSecondary,
+                  cursor: reactivating ? "not-allowed" : "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  transition: "all 0.2s",
+                  opacity: reactivating ? 0.5 : 1,
+                }}
+                onMouseEnter={(e) => {
+                  if (!reactivating) {
+                    (e.currentTarget as HTMLButtonElement).style.background = "rgba(34, 197, 94, 0.1)";
+                    (e.currentTarget as HTMLButtonElement).style.color = "#22c55e";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!reactivating) {
+                    (e.currentTarget as HTMLButtonElement).style.background = "transparent";
+                    (e.currentTarget as HTMLButtonElement).style.color = t.textSecondary;
+                  }
+                }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Contenido */}
+            <div style={{ padding: "28px" }}>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "16px", marginBottom: "24px" }}>
+                <div
+                  style={{
+                    width: "72px",
+                    height: "72px",
+                    borderRadius: "50%",
+                    background: "rgba(34, 197, 94, 0.1)",
+                    border: "2px solid rgba(34, 197, 94, 0.3)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    animation: "scaleIn 0.5s ease-out",
+                  }}
+                >
+                  <RotateCcw size={36} color="#22c55e" />
+                </div>
+                <div style={{ textAlign: "center" }}>
+                  <h3 style={{ fontSize: "18px", fontWeight: 700, color: t.textPrimary, marginBottom: "8px" }}>
+                    ¿Reactivar "{productToReactivate.nombre_comercial}"?
+                  </h3>
+                  <p style={{ fontSize: "14px", color: t.textSecondary, lineHeight: 1.5 }}>
+                    Esta acción volverá a activar el producto en el inventario para
+                    nuevas compras, ventas y lotes.
+                  </p>
+                </div>
+              </div>
+
+              {/* Producto a reactivar */}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "12px",
+                  padding: "12px 16px",
+                  borderRadius: "12px",
+                  background: t.innerBg,
+                  border: `1px solid ${t.border}`,
+                  marginBottom: "24px",
+                }}
+              >
+                <img
+                  src={productToReactivate.imagen_url || DEFAULT_PRODUCT_IMAGE}
+                  alt={productToReactivate.nombre_comercial}
+                  style={{ width: "44px", height: "44px", borderRadius: "10px", objectFit: "cover", border: `2px solid ${t.border}`, flexShrink: 0 }}
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).src = DEFAULT_PRODUCT_IMAGE;
+                  }}
+                />
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <p style={{ fontSize: "14px", fontWeight: 600, color: t.textPrimary, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    {productToReactivate.nombre_comercial}
+                  </p>
+                  <p style={{ fontSize: "12px", color: t.textSecondary }}>
+                    {productToReactivate.nombre_generico}
+                  </p>
+                </div>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "5px 10px", borderRadius: "8px", background: "rgba(239,68,68,0.1)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.3)", fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em", flexShrink: 0 }}>
+                  <AlertCircle size={12} />
+                  Inactivo
+                </span>
+              </div>
+
+              {/* Botones */}
+              <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end" }}>
+                <button
+                  onClick={() => setShowReactivateModal(false)}
+                  disabled={reactivating}
+                  style={{
+                    padding: "12px 24px",
+                    borderRadius: "12px",
+                    border: `2px solid ${t.border}`,
+                    background: "transparent",
+                    color: reactivating ? t.textMuted : t.textSecondary,
+                    fontSize: "14px",
+                    fontWeight: 600,
+                    cursor: reactivating ? "not-allowed" : "pointer",
+                    fontFamily: "'Cairo', sans-serif",
+                    transition: "all 0.2s",
+                    opacity: reactivating ? 0.5 : 1,
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!reactivating) {
+                      (e.currentTarget as HTMLButtonElement).style.background = t.hoverBg;
+                      (e.currentTarget as HTMLButtonElement).style.color = t.textPrimary;
+                      (e.currentTarget as HTMLButtonElement).style.borderColor = t.accent;
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!reactivating) {
+                      (e.currentTarget as HTMLButtonElement).style.background = "transparent";
+                      (e.currentTarget as HTMLButtonElement).style.color = t.textSecondary;
+                      (e.currentTarget as HTMLButtonElement).style.borderColor = t.border;
+                    }
+                  }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleConfirmReactivate}
+                  disabled={reactivating}
+                  style={{
+                    padding: "12px 28px",
+                    borderRadius: "12px",
+                    border: "none",
+                    background: reactivating ? t.textMuted : "linear-gradient(135deg, #22c55e 0%, #4ade80 100%)",
+                    color: "#fff",
+                    fontSize: "14px",
+                    fontWeight: 600,
+                    cursor: reactivating ? "not-allowed" : "pointer",
+                    fontFamily: "'Cairo', sans-serif",
+                    transition: "all 0.2s",
+                    boxShadow: reactivating ? "none" : "0 4px 16px rgba(34, 197, 94, 0.4)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    opacity: reactivating ? 0.6 : 1,
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!reactivating) {
+                      (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)";
+                      (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 6px 24px rgba(34, 197, 94, 0.5)";
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!reactivating) {
+                      (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
+                      (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 4px 16px rgba(34, 197, 94, 0.4)";
+                    }
+                  }}
+                >
+                  {reactivating ? (
+                    <>
+                      <RefreshCw size={18} style={{ animation: "spin 1s linear infinite" }} />
+                      Reactivando...
+                    </>
+                  ) : (
+                    <>
+                      <RotateCcw size={18} />
+                      Reactivar
                     </>
                   )}
                 </button>

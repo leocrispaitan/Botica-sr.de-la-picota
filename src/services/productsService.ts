@@ -99,6 +99,7 @@ export interface NewProductoInput {
   codigo_atc?: string;
   id_laboratorio_titular?: number;
   id_fabricante?: number;
+  estado_logico?: boolean;
 }
 
 interface GetProductsResponse {
