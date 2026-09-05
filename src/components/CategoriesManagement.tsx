@@ -849,16 +849,50 @@ export default function CategoriesManagement({ isDark = true }: { isDark?: boole
                       </td>
                       <td style={{ padding: "16px 20px" }}>
                         <div style={{ display: "flex", justifyContent: "center", gap: "4px" }}>
-                          <button title="Ver detalles" onClick={() => handleOpenViewModal(cat)} style={{ padding: "8px", borderRadius: "8px", border: "none", background: "transparent", color: t.textSecondary, cursor: "pointer" }}>
+                          <button
+                            title="Ver detalles"
+                            onClick={() => handleOpenViewModal(cat)}
+                            style={{ padding: "8px", borderRadius: "8px", border: "none", background: "transparent", color: t.textSecondary, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }}
+                            onMouseEnter={(e) => {
+                              (e.currentTarget as HTMLButtonElement).style.background = `${t.accent}15`;
+                              (e.currentTarget as HTMLButtonElement).style.color = t.accent;
+                            }}
+                            onMouseLeave={(e) => {
+                              (e.currentTarget as HTMLButtonElement).style.background = "transparent";
+                              (e.currentTarget as HTMLButtonElement).style.color = t.textSecondary;
+                            }}
+                          >
                             <Eye size={16} />
                           </button>
-                          <button title="Editar" onClick={() => handleOpenEditModal(cat)} style={{ padding: "8px", borderRadius: "8px", border: "none", background: "transparent", color: t.textSecondary, cursor: "pointer" }}>
+                          <button
+                            title="Editar"
+                            onClick={() => handleOpenEditModal(cat)}
+                            style={{ padding: "8px", borderRadius: "8px", border: "none", background: "transparent", color: t.textSecondary, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }}
+                            onMouseEnter={(e) => {
+                              (e.currentTarget as HTMLButtonElement).style.background = "rgba(249,115,22,0.1)";
+                              (e.currentTarget as HTMLButtonElement).style.color = "#fb923c";
+                            }}
+                            onMouseLeave={(e) => {
+                              (e.currentTarget as HTMLButtonElement).style.background = "transparent";
+                              (e.currentTarget as HTMLButtonElement).style.color = t.textSecondary;
+                            }}
+                          >
                             <Edit2 size={16} />
                           </button>
                           <button
                             title={cat.estado_logico ? "Eliminar" : "Categoría inactiva - no se puede eliminar"}
                             onClick={() => cat.estado_logico && handleOpenDeleteModal(cat)}
                             style={{ padding: "8px", borderRadius: "8px", border: "none", background: "transparent", color: cat.estado_logico ? t.textSecondary : t.textMuted, cursor: cat.estado_logico ? "pointer" : "not-allowed", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s", opacity: cat.estado_logico ? 1 : 0.4 }}
+                            onMouseEnter={(e) => {
+                              if (cat.estado_logico) {
+                                (e.currentTarget as HTMLButtonElement).style.background = "rgba(239,68,68,0.1)";
+                                (e.currentTarget as HTMLButtonElement).style.color = "#ef4444";
+                              }
+                            }}
+                            onMouseLeave={(e) => {
+                              (e.currentTarget as HTMLButtonElement).style.background = "transparent";
+                              (e.currentTarget as HTMLButtonElement).style.color = cat.estado_logico ? t.textSecondary : t.textMuted;
+                            }}
                           >
                             <Trash2 size={16} />
                           </button>
@@ -2358,7 +2392,20 @@ export default function CategoriesManagement({ isDark = true }: { isDark?: boole
         }
       `}</style>
 
-      <Toaster position="top-right" />
+      {/* Toaster para notificaciones */}
+      <Toaster
+        position="top-center"
+        reverseOrder={false}
+        gutter={8}
+        toastOptions={{
+          duration: 5000,
+          style: {
+            background: "transparent",
+            boxShadow: "none",
+            padding: 0,
+          },
+        }}
+      />
     </div>
   );
 }
