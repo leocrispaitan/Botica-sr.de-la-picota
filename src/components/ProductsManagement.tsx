@@ -29,6 +29,8 @@ import {
   Archive,
   Building2,
   Info,
+  HeartPulse,
+  Calendar,
 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import { productsService } from "../services/productsService";
@@ -421,6 +423,10 @@ export default function ProductsManagement({ isDark = true }: { isDark?: boolean
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingProductId, setEditingProductId] = useState<number | null>(null);
 
+  // ═══ Modal: Ver Producto ═══
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [viewingProduct, setViewingProduct] = useState<Producto | null>(null);
+
   const loadProducts = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -597,6 +603,12 @@ export default function ProductsManagement({ isDark = true }: { isDark?: boolean
     });
     setFormErrors({});
     setShowEditModal(true);
+  };
+
+  /* ─── Gestión: Ver Producto ─── */
+  const handleOpenViewModal = (product: Producto) => {
+    setViewingProduct(product);
+    setShowViewModal(true);
   };
 
   const handleSubmitEditProduct = async (e: React.FormEvent) => {
@@ -1217,6 +1229,7 @@ export default function ProductsManagement({ isDark = true }: { isDark?: boolean
                             <div style={{ display: "flex", justifyContent: "center", gap: "4px" }}>
                               <button
                                 title="Ver detalles"
+                                onClick={() => handleOpenViewModal(product)}
                                 style={{ padding: "8px", borderRadius: "8px", border: "none", background: "transparent", color: t.textSecondary, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }}
                                 onMouseEnter={(e) => {
                                   (e.currentTarget as HTMLButtonElement).style.background = `${t.accent}15`;
@@ -2699,6 +2712,551 @@ export default function ProductsManagement({ isDark = true }: { isDark?: boolean
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ Modal: Ver Producto ═══ */}
+      {showViewModal && viewingProduct && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(0, 0, 0, 0.7)",
+            backdropFilter: "blur(4px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1100,
+            padding: "20px",
+          }}
+          onClick={() => setShowViewModal(false)}
+        >
+          <div
+            style={{
+              background: t.cardBg,
+              borderRadius: "24px",
+              maxWidth: "1000px",
+              width: "100%",
+              maxHeight: "90vh",
+              overflow: "auto",
+              boxShadow: "0 20px 60px rgba(0, 0, 0, 0.4)",
+              border: `1px solid ${t.borderCard}`,
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header del Modal */}
+            <div
+              style={{
+                padding: "24px 32px",
+                borderBottom: `1px solid ${t.border}`,
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                position: "sticky",
+                top: 0,
+                background: t.cardBg,
+                zIndex: 1,
+                borderRadius: "24px 24px 0 0",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+                <div
+                  style={{
+                    width: "56px",
+                    height: "56px",
+                    borderRadius: "16px",
+                    background: "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    boxShadow: "0 8px 16px rgba(59, 130, 246, 0.4)",
+                  }}
+                >
+                  <Eye size={28} color="#fff" strokeWidth={2.5} />
+                </div>
+                <div>
+                  <h2 style={{ fontSize: "24px", fontWeight: 700, color: t.textPrimary, marginBottom: "4px" }}>
+                    Detalle del Producto
+                  </h2>
+                  <p style={{ fontSize: "14px", color: t.textSecondary }}>
+                    Información completa del producto farmacéutico
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowViewModal(false)}
+                style={{
+                  width: "44px",
+                  height: "44px",
+                  borderRadius: "12px",
+                  border: "none",
+                  background: "transparent",
+                  color: t.textSecondary,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  transition: "all 0.2s",
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.background = "rgba(239, 68, 68, 0.1)";
+                  (e.currentTarget as HTMLButtonElement).style.color = "#ef4444";
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.background = "transparent";
+                  (e.currentTarget as HTMLButtonElement).style.color = t.textSecondary;
+                }}
+              >
+                <X size={22} />
+              </button>
+            </div>
+
+            {/* Contenido */}
+            <div style={{ padding: "32px" }}>
+              {/* Hero: Imagen + nombres + badges */}
+              <div
+                style={{
+                  display: "flex",
+                  gap: "24px",
+                  alignItems: "center",
+                  padding: "20px",
+                  borderRadius: "16px",
+                  background: t.innerBg,
+                  border: `1px solid ${t.border}`,
+                  marginBottom: "28px",
+                  flexWrap: "wrap",
+                }}
+              >
+                <div style={{ position: "relative", flexShrink: 0 }}>
+                  <img
+                    src={viewingProduct.imagen_url || DEFAULT_PRODUCT_IMAGE}
+                    alt={viewingProduct.nombre_comercial}
+                    style={{ width: "120px", height: "120px", borderRadius: "16px", objectFit: "cover", border: `2px solid ${t.accent}` }}
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).src = DEFAULT_PRODUCT_IMAGE;
+                    }}
+                  />
+                  <div
+                    style={{
+                      position: "absolute",
+                      bottom: "-8px",
+                      right: "-8px",
+                      width: "36px",
+                      height: "36px",
+                      borderRadius: "12px",
+                      background: `linear-gradient(135deg, ${t.accent} 0%, ${t.accentHover} 100%)`,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      boxShadow: `0 6px 14px ${t.accent}40`,
+                    }}
+                  >
+                    <Pill size={18} color="#fff" />
+                  </div>
+                </div>
+                <div style={{ flex: 1, minWidth: 200 }}>
+                  <h2 style={{ fontSize: "24px", fontWeight: 700, color: t.textPrimary, marginBottom: "4px" }}>
+                    {viewingProduct.nombre_comercial}
+                  </h2>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "14px", flexWrap: "wrap" }}>
+                    <HeartPulse size={16} color={t.accent} />
+                    <p style={{ fontSize: "15px", fontWeight: 500, color: t.textSecondary }}>
+                      {viewingProduct.nombre_generico}
+                    </p>
+                  </div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "7px 14px", borderRadius: "10px", background: getCategoryBadgeColors(viewingProduct.id_categoria, isDark).bg, color: getCategoryBadgeColors(viewingProduct.id_categoria, isDark).text, border: `1px solid ${getCategoryBadgeColors(viewingProduct.id_categoria, isDark).border}`, fontSize: "12px", fontWeight: 700 }}>
+                      <span style={{ fontSize: "14px" }}>{getCategoryBadgeColors(viewingProduct.id_categoria, isDark).icon}</span>
+                      {viewingProduct.categoria?.nombre_categoria || "Sin categoría"}
+                    </span>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "7px 14px", borderRadius: "10px", background: viewingProduct.condicion_venta?.requiere_receta ? "rgba(239,68,68,0.1)" : "rgba(34,197,94,0.1)", color: viewingProduct.condicion_venta?.requiere_receta ? "#ef4444" : "#22c55e", border: `1px solid ${viewingProduct.condicion_venta?.requiere_receta ? "rgba(239,68,68,0.3)" : "rgba(34,197,94,0.3)"}`, fontSize: "12px", fontWeight: 700 }}>
+                      <span style={{ fontSize: "14px" }}>{viewingProduct.condicion_venta?.requiere_receta ? "🔒" : "🆓"}</span>
+                      {viewingProduct.condicion_venta?.requiere_receta ? "Con Receta" : "Venta Libre"}
+                    </span>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "7px 14px", borderRadius: "999px", background: viewingProduct.estado_logico ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)", color: viewingProduct.estado_logico ? "#22c55e" : "#ef4444", border: `1px solid ${viewingProduct.estado_logico ? "rgba(34,197,94,0.3)" : "rgba(239,68,68,0.3)"}`, fontSize: "12px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: viewingProduct.estado_logico ? "#22c55e" : "#ef4444" }} />
+                      {viewingProduct.estado_logico ? "Activo" : "Inactivo"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* ─── Sección: Información General ─── */}
+              <div style={{ marginBottom: "28px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px" }}>
+                  <div style={{ width: "32px", height: "32px", borderRadius: "8px", background: `${t.accent}15`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <Info size={16} color={t.accent} />
+                  </div>
+                  <h3 style={{ fontSize: "16px", fontWeight: 700, color: t.textPrimary }}>
+                    Información General
+                  </h3>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                  <div style={{ background: t.innerBg, border: `1px solid ${t.border}`, borderRadius: "12px", padding: "14px 16px", display: "flex", alignItems: "center", gap: "12px" }}>
+                    <div style={{ width: "40px", height: "40px", borderRadius: "10px", background: `${t.accent}15`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <Package size={18} color={t.accent} />
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                      <p style={{ fontSize: "11px", fontWeight: 700, color: t.textMuted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "2px" }}>
+                        Nombre Comercial
+                      </p>
+                      <p style={{ fontSize: "14px", fontWeight: 600, color: t.textPrimary }}>
+                        {viewingProduct.nombre_comercial || "—"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div style={{ background: t.innerBg, border: `1px solid ${t.border}`, borderRadius: "12px", padding: "14px 16px", display: "flex", alignItems: "center", gap: "12px" }}>
+                    <div style={{ width: "40px", height: "40px", borderRadius: "10px", background: `${t.accent}15`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <HeartPulse size={18} color={t.accent} />
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                      <p style={{ fontSize: "11px", fontWeight: 700, color: t.textMuted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "2px" }}>
+                        Nombre Genérico
+                      </p>
+                      <p style={{ fontSize: "14px", fontWeight: 600, color: t.textPrimary }}>
+                        {viewingProduct.nombre_generico || "—"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div style={{ background: t.innerBg, border: `1px solid ${t.border}`, borderRadius: "12px", padding: "14px 16px", display: "flex", alignItems: "center", gap: "12px" }}>
+                    <div style={{ width: "40px", height: "40px", borderRadius: "10px", background: `${t.accent}15`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <Layers size={18} color={t.accent} />
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                      <p style={{ fontSize: "11px", fontWeight: 700, color: t.textMuted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "2px" }}>
+                        Unidad de Medida
+                      </p>
+                      <p style={{ fontSize: "14px", fontWeight: 600, color: t.textPrimary }}>
+                        {viewingProduct.unidad_medida || "—"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div style={{ background: t.innerBg, border: `1px solid ${t.border}`, borderRadius: "12px", padding: "14px 16px", display: "flex", alignItems: "center", gap: "12px" }}>
+                    <div style={{ width: "40px", height: "40px", borderRadius: "10px", background: `${t.accent}15`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <Info size={18} color={t.accent} />
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                      <p style={{ fontSize: "11px", fontWeight: 700, color: t.textMuted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "2px" }}>
+                        Presentación
+                      </p>
+                      <p style={{ fontSize: "14px", fontWeight: 600, color: t.textPrimary }}>
+                        {viewingProduct.presentacion || "—"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div style={{ gridColumn: "1 / -1", background: t.innerBg, border: `1px solid ${t.border}`, borderRadius: "12px", padding: "14px 16px", display: "flex", alignItems: "center", gap: "12px" }}>
+                    <div style={{ width: "40px", height: "40px", borderRadius: "10px", background: `${t.accent}15`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <AlignLeft size={18} color={t.accent} />
+                    </div>
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <p style={{ fontSize: "11px", fontWeight: 700, color: t.textMuted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "2px" }}>
+                        Composición
+                      </p>
+                      <p style={{ fontSize: "14px", fontWeight: 600, color: t.textPrimary, lineHeight: 1.5 }}>
+                        {viewingProduct.composicion || "—"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* ─── Sección: Clasificación ─── */}
+              <div style={{ marginBottom: "28px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px" }}>
+                  <div style={{ width: "32px", height: "32px", borderRadius: "8px", background: `${t.accent}15`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <Tag size={16} color={t.accent} />
+                  </div>
+                  <h3 style={{ fontSize: "16px", fontWeight: 700, color: t.textPrimary }}>
+                    Clasificación
+                  </h3>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                  <div style={{ background: t.innerBg, border: `1px solid ${t.border}`, borderRadius: "12px", padding: "14px 16px", display: "flex", alignItems: "center", gap: "12px" }}>
+                    <div style={{ width: "40px", height: "40px", borderRadius: "10px", background: `${t.accent}15`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <Tag size={18} color={t.accent} />
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                      <p style={{ fontSize: "11px", fontWeight: 700, color: t.textMuted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "2px" }}>
+                        Categoría
+                      </p>
+                      <p style={{ fontSize: "14px", fontWeight: 600, color: t.textPrimary }}>
+                        {viewingProduct.categoria?.nombre_categoria || "—"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div style={{ background: t.innerBg, border: `1px solid ${t.border}`, borderRadius: "12px", padding: "14px 16px", display: "flex", alignItems: "center", gap: "12px" }}>
+                    <div style={{ width: "40px", height: "40px", borderRadius: "10px", background: `${t.accent}15`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <Shield size={18} color={t.accent} />
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                      <p style={{ fontSize: "11px", fontWeight: 700, color: t.textMuted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "2px" }}>
+                        Condición de Venta
+                      </p>
+                      <p style={{ fontSize: "14px", fontWeight: 600, color: t.textPrimary }}>
+                        {viewingProduct.condicion_venta
+                          ? `${viewingProduct.condicion_venta.requiere_receta ? "🔒" : "🆓"} ${viewingProduct.condicion_venta.nombre}`
+                          : "—"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div style={{ background: t.innerBg, border: `1px solid ${t.border}`, borderRadius: "12px", padding: "14px 16px", display: "flex", alignItems: "center", gap: "12px" }}>
+                    <div style={{ width: "40px", height: "40px", borderRadius: "10px", background: `${t.accent}15`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <Pill size={18} color={t.accent} />
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                      <p style={{ fontSize: "11px", fontWeight: 700, color: t.textMuted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "2px" }}>
+                        Forma Farmacéutica
+                      </p>
+                      <p style={{ fontSize: "14px", fontWeight: 600, color: t.textPrimary }}>
+                        {viewingProduct.forma_farmaceutica?.nombre || "—"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div style={{ background: t.innerBg, border: `1px solid ${t.border}`, borderRadius: "12px", padding: "14px 16px", display: "flex", alignItems: "center", gap: "12px" }}>
+                    <div style={{ width: "40px", height: "40px", borderRadius: "10px", background: `${t.accent}15`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <Route size={18} color={t.accent} />
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                      <p style={{ fontSize: "11px", fontWeight: 700, color: t.textMuted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "2px" }}>
+                        Vía de Administración
+                      </p>
+                      <p style={{ fontSize: "14px", fontWeight: 600, color: t.textPrimary }}>
+                        {viewingProduct.via_administracion?.nombre || "—"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div style={{ gridColumn: "1 / -1", background: t.innerBg, border: `1px solid ${t.border}`, borderRadius: "12px", padding: "14px 16px", display: "flex", alignItems: "center", gap: "12px" }}>
+                    <div style={{ width: "40px", height: "40px", borderRadius: "10px", background: `${t.accent}15`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <Hash size={18} color={t.accent} />
+                    </div>
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <p style={{ fontSize: "11px", fontWeight: 700, color: t.textMuted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "2px" }}>
+                        Clasificación ATC
+                      </p>
+                      <p style={{ fontSize: "14px", fontWeight: 600, color: t.textPrimary }}>
+                        {viewingProduct.codigo_atc ? (
+                          <span>
+                            <span style={{ display: "inline-flex", alignItems: "center", padding: "3px 10px", borderRadius: "8px", background: `${t.accent}15`, border: `1px solid ${t.accent}30`, color: t.accent, fontWeight: 700, marginRight: "8px" }}>
+                              {viewingProduct.codigo_atc}
+                            </span>
+                            {viewingProduct.clasificacion_atc?.descripcion || ""}
+                          </span>
+                        ) : (
+                          "—"
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* ─── Sección: Precios y Stock ─── */}
+              <div style={{ marginBottom: "28px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px" }}>
+                  <div style={{ width: "32px", height: "32px", borderRadius: "8px", background: `${t.accent}15`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <DollarSign size={16} color={t.accent} />
+                  </div>
+                  <h3 style={{ fontSize: "16px", fontWeight: 700, color: t.textPrimary }}>
+                    Precios y Stock
+                  </h3>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                  <div style={{ background: t.innerBg, border: `1px solid ${t.border}`, borderRadius: "12px", padding: "14px 16px", display: "flex", alignItems: "center", gap: "12px" }}>
+                    <div style={{ width: "40px", height: "40px", borderRadius: "10px", background: `${t.accent}15`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <DollarSign size={18} color={t.accent} />
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                      <p style={{ fontSize: "11px", fontWeight: 700, color: t.textMuted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "2px" }}>
+                        Precio de Venta
+                      </p>
+                      <p style={{ fontSize: "16px", fontWeight: 700, color: t.accent }}>
+                        S/ {Number(viewingProduct.precio_venta).toFixed(2)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div style={{ background: t.innerBg, border: `1px solid ${t.border}`, borderRadius: "12px", padding: "14px 16px", display: "flex", alignItems: "center", gap: "12px" }}>
+                    <div style={{ width: "40px", height: "40px", borderRadius: "10px", background: `${t.accent}15`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <Coins size={18} color={t.accent} />
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                      <p style={{ fontSize: "11px", fontWeight: 700, color: t.textMuted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "2px" }}>
+                        Costo Referencial
+                      </p>
+                      <p style={{ fontSize: "16px", fontWeight: 700, color: t.textPrimary }}>
+                        S/ {Number(viewingProduct.costo_referencial).toFixed(2)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div style={{ background: t.innerBg, border: `1px solid ${t.border}`, borderRadius: "12px", padding: "14px 16px", display: "flex", alignItems: "center", gap: "12px" }}>
+                    <div style={{ width: "40px", height: "40px", borderRadius: "10px", background: `${t.accent}15`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <Package size={18} color={(Number(viewingProduct.stock_actual) || 0) <= (Number(viewingProduct.stock_minimo_alerta) || 0) ? "#ef4444" : t.accent} />
+                    </div>
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <p style={{ fontSize: "11px", fontWeight: 700, color: t.textMuted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "2px" }}>
+                        Stock Actual
+                      </p>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                        <p style={{ fontSize: "16px", fontWeight: 700, color: t.textPrimary }}>
+                          {Number(viewingProduct.stock_actual) || 0} {viewingProduct.unidad_medida}
+                        </p>
+                        {(() => {
+                          const stockVal = Number(viewingProduct.stock_actual) || 0;
+                          const minVal = Number(viewingProduct.stock_minimo_alerta) || 0;
+                          if (stockVal === 0) {
+                            return (
+                              <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "4px 10px", borderRadius: "999px", background: "rgba(239,68,68,0.12)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.3)", fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                                Sin Stock
+                              </span>
+                            );
+                          }
+                          if (stockVal <= minVal) {
+                            return (
+                              <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "4px 10px", borderRadius: "999px", background: "rgba(249,115,22,0.12)", color: "#fb923c", border: "1px solid rgba(249,115,22,0.3)", fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                                Stock Bajo
+                              </span>
+                            );
+                          }
+                          return (
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "4px 10px", borderRadius: "999px", background: "rgba(34,197,94,0.12)", color: "#22c55e", border: "1px solid rgba(34,197,94,0.3)", fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                              Suficiente
+                            </span>
+                          );
+                        })()}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ background: t.innerBg, border: `1px solid ${t.border}`, borderRadius: "12px", padding: "14px 16px", display: "flex", alignItems: "center", gap: "12px" }}>
+                    <div style={{ width: "40px", height: "40px", borderRadius: "10px", background: `${t.accent}15`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <Archive size={18} color={t.accent} />
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                      <p style={{ fontSize: "11px", fontWeight: 700, color: t.textMuted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "2px" }}>
+                        Stock Mínimo de Alerta
+                      </p>
+                      <p style={{ fontSize: "16px", fontWeight: 700, color: t.textPrimary }}>
+                        {Number(viewingProduct.stock_minimo_alerta) || 0} {viewingProduct.unidad_medida}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* ─── Sección: Fabricación ─── */}
+              <div style={{ marginBottom: "28px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px" }}>
+                  <div style={{ width: "32px", height: "32px", borderRadius: "8px", background: `${t.accent}15`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <Building2 size={16} color={t.accent} />
+                  </div>
+                  <h3 style={{ fontSize: "16px", fontWeight: 700, color: t.textPrimary }}>
+                    Fabricación
+                  </h3>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                  <div style={{ background: t.innerBg, border: `1px solid ${t.border}`, borderRadius: "12px", padding: "14px 16px", display: "flex", alignItems: "center", gap: "12px" }}>
+                    <div style={{ width: "40px", height: "40px", borderRadius: "10px", background: `${t.accent}15`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <Building2 size={18} color={t.accent} />
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                      <p style={{ fontSize: "11px", fontWeight: 700, color: t.textMuted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "2px" }}>
+                        Laboratorio Titular
+                      </p>
+                      <p style={{ fontSize: "14px", fontWeight: 600, color: t.textPrimary }}>
+                        {viewingProduct.laboratorio_titular?.nombre || "—"}
+                      </p>
+                      {viewingProduct.laboratorio_titular?.pais && (
+                        <p style={{ fontSize: "12px", color: t.textMuted }}>
+                          {viewingProduct.laboratorio_titular.pais}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div style={{ background: t.innerBg, border: `1px solid ${t.border}`, borderRadius: "12px", padding: "14px 16px", display: "flex", alignItems: "center", gap: "12px" }}>
+                    <div style={{ width: "40px", height: "40px", borderRadius: "10px", background: `${t.accent}15`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <Building2 size={18} color={t.accent} />
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                      <p style={{ fontSize: "11px", fontWeight: 700, color: t.textMuted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "2px" }}>
+                        Fabricante
+                      </p>
+                      <p style={{ fontSize: "14px", fontWeight: 600, color: t.textPrimary }}>
+                        {viewingProduct.fabricante?.nombre || "—"}
+                      </p>
+                      {viewingProduct.fabricante?.pais && (
+                        <p style={{ fontSize: "12px", color: t.textMuted }}>
+                          {viewingProduct.fabricante.pais}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div style={{ gridColumn: "1 / -1", background: t.innerBg, border: `1px solid ${t.border}`, borderRadius: "12px", padding: "14px 16px", display: "flex", alignItems: "center", gap: "12px" }}>
+                    <div style={{ width: "40px", height: "40px", borderRadius: "10px", background: `${t.accent}15`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <Calendar size={18} color={t.accent} />
+                    </div>
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <p style={{ fontSize: "11px", fontWeight: 700, color: t.textMuted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "2px" }}>
+                        Fecha de Registro
+                      </p>
+                      <p style={{ fontSize: "14px", fontWeight: 600, color: t.textPrimary }}>
+                        {viewingProduct.fecha_registro
+                          ? new Date(viewingProduct.fecha_registro).toLocaleDateString("es-PE", { year: "numeric", month: "long", day: "numeric" })
+                          : "—"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div style={{ display: "flex", justifyContent: "flex-end", paddingTop: "24px", borderTop: `1px solid ${t.border}` }}>
+                <button
+                  onClick={() => setShowViewModal(false)}
+                  style={{
+                    padding: "12px 32px",
+                    borderRadius: "12px",
+                    border: "none",
+                    background: `linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)`,
+                    color: "#fff",
+                    fontSize: "14px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    fontFamily: "'Cairo', sans-serif",
+                    transition: "all 0.2s",
+                    boxShadow: "0 4px 16px rgba(59, 130, 246, 0.4)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                  }}
+                  onMouseEnter={(e) => {
+                    (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)";
+                    (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 6px 24px rgba(59, 130, 246, 0.5)";
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
+                    (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 4px 16px rgba(59, 130, 246, 0.4)";
+                  }}
+                >
+                  <CheckCircle2 size={18} />
+                  Cerrar
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
