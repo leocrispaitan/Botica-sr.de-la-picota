@@ -143,6 +143,14 @@ export const productsService = {
     const response = await api.post<CreateProductResponse>('/products', producto);
     return response.data.data;
   },
+
+  /**
+   * Actualizar un producto existente
+   */
+  updateProduct: async (id: number, producto: NewProductoInput): Promise<Producto> => {
+    const response = await api.put<CreateProductResponse>(`/products/${id}`, producto);
+    return response.data.data;
+  },
 };
 
 export default productsService;

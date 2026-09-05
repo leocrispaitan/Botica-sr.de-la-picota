@@ -32,6 +32,8 @@ import {
 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import { productsService } from "../services/productsService";
+
+const { updateProduct } = productsService;
 import type {
   Categoria,
   CondicionVenta,
@@ -165,6 +167,226 @@ const emptyNewProductForm: NewProductFormData = {
 const findCategoriaNombre = (id: number, categorias: Categoria[]) =>
   categorias.find((c) => c.id_categoria === id)?.nombre_categoria || "";
 
+/* ─── Construcción del payload de producto ──────────────────────── */
+const buildProductPayload = (formData: NewProductFormData): NewProductoInput => ({
+  nombre_comercial: String(formData.nombre_comercial).trim(),
+  nombre_generico: String(formData.nombre_generico).trim(),
+  unidad_medida: String(formData.unidad_medida).trim(),
+  ...(String(formData.presentacion || "").trim() && {
+    presentacion: String(formData.presentacion).trim(),
+  }),
+  ...(String(formData.composicion || "").trim() && {
+    composicion: String(formData.composicion).trim(),
+  }),
+  ...(String(formData.imagen_url || "").trim() && {
+    imagen_url: String(formData.imagen_url).trim(),
+  }),
+  id_categoria: Number(formData.id_categoria),
+  id_proveedor: Number(formData.id_proveedor),
+  ...(formData.id_forma_farmaceutica !== "" && {
+    id_forma_farmaceutica: Number(formData.id_forma_farmaceutica),
+  }),
+  ...(formData.id_via_administracion !== "" && {
+    id_via_administracion: Number(formData.id_via_administracion),
+  }),
+  ...(formData.id_condicion_venta !== "" && {
+    id_condicion_venta: Number(formData.id_condicion_venta),
+  }),
+  ...(formData.codigo_atc && { codigo_atc: formData.codigo_atc }),
+  ...(formData.id_laboratorio_titular !== "" && {
+    id_laboratorio_titular: Number(formData.id_laboratorio_titular),
+  }),
+  ...(formData.id_fabricante !== "" && {
+    id_fabricante: Number(formData.id_fabricante),
+  }),
+  precio_venta: Number(formData.precio_venta),
+  costo_referencial: Number(formData.costo_referencial),
+  stock_minimo_alerta: Number(formData.stock_minimo_alerta),
+});
+
+/* ─── Toast de éxito / error para productos ──────────────────────── */
+const showProductSuccessToast = (
+  producto: Producto,
+  categorias: Categoria[],
+  isDark: boolean,
+  titulo: string,
+  descripcion: string
+) => {
+  const categoriaNombre = findCategoriaNombre(producto.id_categoria, categorias);
+  toast.custom(
+    (t) => (
+      <div
+        style={{
+          background: isDark ? "#212130" : "#ffffff",
+          padding: "24px",
+          borderRadius: "20px",
+          boxShadow: "0 20px 60px rgba(0, 0, 0, 0.3)",
+          border: `2px solid ${isDark ? "rgba(91, 207, 197, 0.3)" : "rgba(91, 207, 197, 0.2)"}`,
+          maxWidth: "420px",
+          animation: t.visible ? "slideIn 0.4s ease-out" : "slideOut 0.3s ease-in",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "16px" }}>
+          <div
+            style={{
+              width: "56px",
+              height: "56px",
+              borderRadius: "50%",
+              background: "linear-gradient(135deg, #5bcfc5 0%, #4bc0b6 100%)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              boxShadow: "0 8px 24px rgba(91, 207, 197, 0.4)",
+              animation: "scaleIn 0.5s ease-out",
+              flexShrink: 0,
+            }}
+          >
+            <CheckCircle2 size={32} color="#fff" strokeWidth={2.5} />
+          </div>
+          <div style={{ flex: 1 }}>
+            <h3 style={{ fontSize: "18px", fontWeight: 700, color: "#5bcfc5", marginBottom: "4px", fontFamily: "'Cairo', sans-serif" }}>
+              {titulo}
+            </h3>
+            <p style={{ fontSize: "13px", color: isDark ? "#969ba0" : "#787f9e", fontFamily: "'Cairo', sans-serif" }}>
+              {descripcion}
+            </p>
+          </div>
+        </div>
+
+        <div style={{ background: isDark ? "#1e1d29" : "#f5f6fa", padding: "16px", borderRadius: "12px", marginBottom: "16px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
+            <img
+              src={producto.imagen_url || DEFAULT_PRODUCT_IMAGE}
+              alt={producto.nombre_comercial}
+              style={{ width: "48px", height: "48px", borderRadius: "12px", objectFit: "cover", border: "2px solid #5bcfc5" }}
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = DEFAULT_PRODUCT_IMAGE;
+              }}
+            />
+            <div style={{ minWidth: 0 }}>
+              <p style={{ fontSize: "15px", fontWeight: 600, color: isDark ? "#ffffff" : "#3d4465", marginBottom: "2px", fontFamily: "'Cairo', sans-serif" }}>
+                {producto.nombre_comercial}
+              </p>
+              <p style={{ fontSize: "12px", color: isDark ? "#828690" : "#787f9e", fontFamily: "'Cairo', sans-serif" }}>
+                {producto.nombre_generico}
+              </p>
+            </div>
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+            {categoriaNombre && (
+              <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "6px 12px", borderRadius: "8px", background: "rgba(91, 207, 197, 0.12)", color: "#5bcfc5", border: "1px solid rgba(91, 207, 197, 0.3)", fontSize: "12px", fontWeight: 700 }}>
+                {categoriaNombre}
+              </span>
+            )}
+            <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "6px 12px", borderRadius: "8px", background: isDark ? "#212130" : "#ffffff", color: isDark ? "#fff" : "#3d4465", border: `1px solid ${isDark ? "rgba(46,46,66,0.5)" : "rgba(220,222,235,0.9)"}`, fontSize: "12px", fontWeight: 700 }}>
+              S/ {Number(producto.precio_venta).toFixed(2)}
+            </span>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "6px 12px", borderRadius: "8px", background: isDark ? "#212130" : "#ffffff", color: isDark ? "#fff" : "#3d4465", border: `1px solid ${isDark ? "rgba(46,46,66,0.5)" : "rgba(220,222,235,0.9)"}`, fontSize: "12px", fontWeight: 700 }}>
+              Stock: {Number(producto.stock_actual) || 0}
+            </span>
+          </div>
+        </div>
+
+        <button
+          onClick={() => toast.dismiss(t.id)}
+          style={{
+            width: "100%",
+            padding: "12px",
+            borderRadius: "12px",
+            border: "none",
+            background: "linear-gradient(135deg, #5bcfc5 0%, #4bc0b6 100%)",
+            color: "#fff",
+            fontSize: "14px",
+            fontWeight: 600,
+            cursor: "pointer",
+            fontFamily: "'Cairo', sans-serif",
+            transition: "all 0.2s",
+          }}
+          onMouseEnter={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.opacity = "0.9";
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.opacity = "1";
+          }}
+        >
+          Entendido
+        </button>
+      </div>
+    ),
+    { duration: 6000 }
+  );
+};
+
+const showProductErrorToast = (mensaje: string, isDark: boolean, titulo: string) => {
+  toast.custom(
+    (t) => (
+      <div
+        style={{
+          background: isDark ? "#212130" : "#ffffff",
+          padding: "24px",
+          borderRadius: "20px",
+          boxShadow: "0 20px 60px rgba(0, 0, 0, 0.3)",
+          border: `2px solid ${isDark ? "rgba(239, 68, 68, 0.4)" : "rgba(239, 68, 68, 0.25)"}`,
+          maxWidth: "420px",
+          animation: t.visible ? "slideIn 0.4s ease-out" : "slideOut 0.3s ease-in",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "16px" }}>
+          <div
+            style={{
+              width: "56px",
+              height: "56px",
+              borderRadius: "50%",
+              background: "linear-gradient(135deg, #ef4444 0%, #f87171 100%)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              boxShadow: "0 8px 24px rgba(239, 68, 68, 0.4)",
+              animation: "scaleIn 0.5s ease-out",
+              flexShrink: 0,
+            }}
+          >
+            <AlertCircle size={32} color="#fff" strokeWidth={2.5} />
+          </div>
+          <div style={{ flex: 1 }}>
+            <h3 style={{ fontSize: "18px", fontWeight: 700, color: "#ef4444", marginBottom: "4px", fontFamily: "'Cairo', sans-serif" }}>
+              {titulo}
+            </h3>
+            <p style={{ fontSize: "13px", color: isDark ? "#969ba0" : "#787f9e", fontFamily: "'Cairo', sans-serif" }}>
+              {mensaje}
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={() => toast.dismiss(t.id)}
+          style={{
+            width: "100%",
+            padding: "12px",
+            borderRadius: "12px",
+            border: `2px solid ${isDark ? "rgba(239, 68, 68, 0.4)" : "rgba(239, 68, 68, 0.3)"}`,
+            background: "transparent",
+            color: "#ef4444",
+            fontSize: "14px",
+            fontWeight: 600,
+            cursor: "pointer",
+            fontFamily: "'Cairo', sans-serif",
+            transition: "all 0.2s",
+          }}
+          onMouseEnter={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.background = "rgba(239, 68, 68, 0.1)";
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.background = "transparent";
+          }}
+        >
+          Cerrar
+        </button>
+      </div>
+    ),
+    { duration: 6000 }
+  );
+};
+
 /* ═══════════════════════════════════════════════════════════════════ */
 /*  PRODUCTS MANAGEMENT COMPONENT                                      */
 /* ═══════════════════════════════════════════════════════════════════ */
@@ -194,6 +416,10 @@ export default function ProductsManagement({ isDark = true }: { isDark?: boolean
   const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState<NewProductFormData>(emptyNewProductForm);
   const [formErrors, setFormErrors] = useState<NewProductFormErrors>({});
+
+  // ═══ Modal: Editar Producto ═══
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingProductId, setEditingProductId] = useState<number | null>(null);
 
   const loadProducts = useCallback(async () => {
     setLoading(true);
@@ -315,41 +541,7 @@ export default function ProductsManagement({ isDark = true }: { isDark?: boolean
     }
     setSubmitting(true);
     try {
-      const payload: NewProductoInput = {
-        nombre_comercial: String(formData.nombre_comercial).trim(),
-        nombre_generico: String(formData.nombre_generico).trim(),
-        unidad_medida: String(formData.unidad_medida).trim(),
-        ...(String(formData.presentacion || "").trim() && {
-          presentacion: String(formData.presentacion).trim(),
-        }),
-        ...(String(formData.composicion || "").trim() && {
-          composicion: String(formData.composicion).trim(),
-        }),
-        ...(String(formData.imagen_url || "").trim() && {
-          imagen_url: String(formData.imagen_url).trim(),
-        }),
-        id_categoria: Number(formData.id_categoria),
-        id_proveedor: Number(formData.id_proveedor),
-        ...(formData.id_forma_farmaceutica !== "" && {
-          id_forma_farmaceutica: Number(formData.id_forma_farmaceutica),
-        }),
-        ...(formData.id_via_administracion !== "" && {
-          id_via_administracion: Number(formData.id_via_administracion),
-        }),
-        ...(formData.id_condicion_venta !== "" && {
-          id_condicion_venta: Number(formData.id_condicion_venta),
-        }),
-        ...(formData.codigo_atc && { codigo_atc: formData.codigo_atc }),
-        ...(formData.id_laboratorio_titular !== "" && {
-          id_laboratorio_titular: Number(formData.id_laboratorio_titular),
-        }),
-        ...(formData.id_fabricante !== "" && {
-          id_fabricante: Number(formData.id_fabricante),
-        }),
-        precio_venta: Number(formData.precio_venta),
-        costo_referencial: Number(formData.costo_referencial),
-        stock_minimo_alerta: Number(formData.stock_minimo_alerta),
-      };
+      const payload = buildProductPayload(formData);
 
       console.log("📤 Enviando nuevo producto al backend:", payload);
 
@@ -363,182 +555,80 @@ export default function ProductsManagement({ isDark = true }: { isDark?: boolean
 
       await loadProducts();
 
-      const categoriaNombre = findCategoriaNombre(nuevoProducto.id_categoria, categorias);
-
-      toast.custom(
-        (t) => (
-          <div
-            style={{
-              background: isDark ? "#212130" : "#ffffff",
-              padding: "24px",
-              borderRadius: "20px",
-              boxShadow: "0 20px 60px rgba(0, 0, 0, 0.3)",
-              border: `2px solid ${isDark ? "rgba(91, 207, 197, 0.3)" : "rgba(91, 207, 197, 0.2)"}`,
-              maxWidth: "420px",
-              animation: t.visible ? "slideIn 0.4s ease-out" : "slideOut 0.3s ease-in",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "16px" }}>
-              <div
-                style={{
-                  width: "56px",
-                  height: "56px",
-                  borderRadius: "50%",
-                  background: "linear-gradient(135deg, #5bcfc5 0%, #4bc0b6 100%)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  boxShadow: "0 8px 24px rgba(91, 207, 197, 0.4)",
-                  animation: "scaleIn 0.5s ease-out",
-                  flexShrink: 0,
-                }}
-              >
-                <CheckCircle2 size={32} color="#fff" strokeWidth={2.5} />
-              </div>
-              <div style={{ flex: 1 }}>
-                <h3 style={{ fontSize: "18px", fontWeight: 700, color: "#5bcfc5", marginBottom: "4px", fontFamily: "'Cairo', sans-serif" }}>
-                  ¡Producto Creado Exitosamente!
-                </h3>
-                <p style={{ fontSize: "13px", color: isDark ? "#969ba0" : "#787f9e", fontFamily: "'Cairo', sans-serif" }}>
-                  {nuevoProducto.nombre_comercial} se agregó al inventario
-                </p>
-              </div>
-            </div>
-
-            <div style={{ background: isDark ? "#1e1d29" : "#f5f6fa", padding: "16px", borderRadius: "12px", marginBottom: "16px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
-                <img
-                  src={nuevoProducto.imagen_url || DEFAULT_PRODUCT_IMAGE}
-                  alt={nuevoProducto.nombre_comercial}
-                  style={{ width: "48px", height: "48px", borderRadius: "12px", objectFit: "cover", border: "2px solid #5bcfc5" }}
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src = DEFAULT_PRODUCT_IMAGE;
-                  }}
-                />
-                <div style={{ minWidth: 0 }}>
-                  <p style={{ fontSize: "15px", fontWeight: 600, color: isDark ? "#ffffff" : "#3d4465", marginBottom: "2px", fontFamily: "'Cairo', sans-serif" }}>
-                    {nuevoProducto.nombre_comercial}
-                  </p>
-                  <p style={{ fontSize: "12px", color: isDark ? "#828690" : "#787f9e", fontFamily: "'Cairo', sans-serif" }}>
-                    {nuevoProducto.nombre_generico}
-                  </p>
-                </div>
-              </div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
-                {categoriaNombre && (
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "6px 12px", borderRadius: "8px", background: "rgba(91, 207, 197, 0.12)", color: "#5bcfc5", border: "1px solid rgba(91, 207, 197, 0.3)", fontSize: "12px", fontWeight: 700 }}>
-                    {categoriaNombre}
-                  </span>
-                )}
-                <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "6px 12px", borderRadius: "8px", background: isDark ? "#212130" : "#ffffff", color: isDark ? "#fff" : "#3d4465", border: `1px solid ${isDark ? "rgba(46,46,66,0.5)" : "rgba(220,222,235,0.9)"}`, fontSize: "12px", fontWeight: 700 }}>
-                  S/ {Number(nuevoProducto.precio_venta).toFixed(2)}
-                </span>
-                <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "6px 12px", borderRadius: "8px", background: isDark ? "#212130" : "#ffffff", color: isDark ? "#fff" : "#3d4465", border: `1px solid ${isDark ? "rgba(46,46,66,0.5)" : "rgba(220,222,235,0.9)"}`, fontSize: "12px", fontWeight: 700 }}>
-                  Stock: {Number(nuevoProducto.stock_actual) || 0}
-                </span>
-              </div>
-            </div>
-
-            <button
-              onClick={() => toast.dismiss(t.id)}
-              style={{
-                width: "100%",
-                padding: "12px",
-                borderRadius: "12px",
-                border: "none",
-                background: "linear-gradient(135deg, #5bcfc5 0%, #4bc0b6 100%)",
-                color: "#fff",
-                fontSize: "14px",
-                fontWeight: 600,
-                cursor: "pointer",
-                fontFamily: "'Cairo', sans-serif",
-                transition: "all 0.2s",
-              }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.opacity = "0.9";
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.opacity = "1";
-              }}
-            >
-              Entendido
-            </button>
-          </div>
-        ),
-        { duration: 6000 }
+      showProductSuccessToast(
+        nuevoProducto,
+        categorias,
+        isDark,
+        "¡Producto Creado Exitosamente!",
+        `${nuevoProducto.nombre_comercial} se agregó al inventario`
       );
     } catch (err: any) {
       console.error("❌ Error al crear producto:", err);
       const mensaje =
         err?.response?.data?.message ||
         "No se pudo crear el producto. Intenta nuevamente.";
-      toast.custom(
-        (t) => (
-          <div
-            style={{
-              background: isDark ? "#212130" : "#ffffff",
-              padding: "24px",
-              borderRadius: "20px",
-              boxShadow: "0 20px 60px rgba(0, 0, 0, 0.3)",
-              border: `2px solid ${isDark ? "rgba(239, 68, 68, 0.4)" : "rgba(239, 68, 68, 0.25)"}`,
-              maxWidth: "420px",
-              animation: t.visible ? "slideIn 0.4s ease-out" : "slideOut 0.3s ease-in",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "16px" }}>
-              <div
-                style={{
-                  width: "56px",
-                  height: "56px",
-                  borderRadius: "50%",
-                  background: "linear-gradient(135deg, #ef4444 0%, #f87171 100%)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  boxShadow: "0 8px 24px rgba(239, 68, 68, 0.4)",
-                  animation: "scaleIn 0.5s ease-out",
-                  flexShrink: 0,
-                }}
-              >
-                <AlertCircle size={32} color="#fff" strokeWidth={2.5} />
-              </div>
-              <div style={{ flex: 1 }}>
-                <h3 style={{ fontSize: "18px", fontWeight: 700, color: "#ef4444", marginBottom: "4px", fontFamily: "'Cairo', sans-serif" }}>
-                  No se pudo crear el producto
-                </h3>
-                <p style={{ fontSize: "13px", color: isDark ? "#969ba0" : "#787f9e", fontFamily: "'Cairo', sans-serif" }}>
-                  {mensaje}
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={() => toast.dismiss(t.id)}
-              style={{
-                width: "100%",
-                padding: "12px",
-                borderRadius: "12px",
-                border: `2px solid ${isDark ? "rgba(239, 68, 68, 0.4)" : "rgba(239, 68, 68, 0.3)"}`,
-                background: "transparent",
-                color: "#ef4444",
-                fontSize: "14px",
-                fontWeight: 600,
-                cursor: "pointer",
-                fontFamily: "'Cairo', sans-serif",
-                transition: "all 0.2s",
-              }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.background = "rgba(239, 68, 68, 0.1)";
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.background = "transparent";
-              }}
-            >
-              Cerrar
-            </button>
-          </div>
-        ),
-        { duration: 6000 }
+      showProductErrorToast(mensaje, isDark, "No se pudo crear el producto");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  /* ─── Gestión: Editar Producto ─── */
+  const handleOpenEditModal = (product: Producto) => {
+    setEditingProductId(product.id_producto);
+    setFormData({
+      nombre_comercial: product.nombre_comercial || "",
+      nombre_generico: product.nombre_generico || "",
+      unidad_medida: product.unidad_medida || "",
+      presentacion: product.presentacion || "",
+      composicion: product.composicion || "",
+      imagen_url: product.imagen_url || "",
+      id_categoria: product.id_categoria ?? "",
+      id_proveedor: product.id_proveedor ?? "",
+      id_forma_farmaceutica: product.id_forma_farmaceutica ?? "",
+      id_via_administracion: product.id_via_administracion ?? "",
+      id_condicion_venta: product.id_condicion_venta ?? "",
+      codigo_atc: product.codigo_atc || "",
+      id_laboratorio_titular: product.laboratorio_titular?.id_laboratorio ?? "",
+      id_fabricante: product.fabricante?.id_laboratorio ?? "",
+      precio_venta: product.precio_venta != null ? String(product.precio_venta) : "",
+      costo_referencial: product.costo_referencial != null ? String(product.costo_referencial) : "",
+      stock_minimo_alerta: product.stock_minimo_alerta != null ? String(product.stock_minimo_alerta) : "",
+    });
+    setFormErrors({});
+    setShowEditModal(true);
+  };
+
+  const handleSubmitEditProduct = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (editingProductId == null) {
+      showProductErrorToast("No se pudo identificar el producto a editar.", isDark, "Error");
+      return;
+    }
+
+    if (!validateNewProductForm()) {
+      showProductErrorToast("Revisa los campos marcados en rojo.", isDark, "Datos incompletos");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const product = await updateProduct(editingProductId, buildProductPayload(formData));
+      setShowEditModal(false);
+      await loadProducts();
+      showProductSuccessToast(
+        product,
+        categorias,
+        isDark,
+        "¡Producto Actualizado Exitosamente!",
+        `${product.nombre_comercial} se actualizó correctamente`
       );
+    } catch (err: any) {
+      console.error("❌ Error al actualizar producto:", err);
+      const mensaje =
+        err?.response?.data?.message ||
+        "No se pudo actualizar el producto. Intenta nuevamente.";
+      showProductErrorToast(mensaje, isDark, "No se pudo actualizar el producto");
     } finally {
       setSubmitting(false);
     }
@@ -1141,6 +1231,7 @@ export default function ProductsManagement({ isDark = true }: { isDark?: boolean
                               </button>
                               <button
                                 title="Editar producto"
+                                onClick={() => handleOpenEditModal(product)}
                                 style={{ padding: "8px", borderRadius: "8px", border: "none", background: "transparent", color: t.textSecondary, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }}
                                 onMouseEnter={(e) => {
                                   (e.currentTarget as HTMLButtonElement).style.background = "rgba(249,115,22,0.1)";
@@ -1932,6 +2023,677 @@ export default function ProductsManagement({ isDark = true }: { isDark?: boolean
                     <>
                       <Plus size={18} />
                       Crear Producto
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ Modal: Editar Producto ═══ */}
+      {showEditModal && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(0, 0, 0, 0.7)",
+            backdropFilter: "blur(4px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+            padding: "20px",
+          }}
+          onClick={() => {
+            if (!submitting) {
+              setShowEditModal(false);
+            }
+          }}
+        >
+          <div
+            style={{
+              background: t.cardBg,
+              borderRadius: "24px",
+              maxWidth: "1100px",
+              width: "100%",
+              maxHeight: "90vh",
+              overflow: "auto",
+              boxShadow: "0 20px 60px rgba(0, 0, 0, 0.4)",
+              border: `1px solid ${t.borderCard}`,
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header del Modal */}
+            <div
+              style={{
+                padding: "24px 32px",
+                borderBottom: `1px solid ${t.border}`,
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                position: "sticky",
+                top: 0,
+                background: t.cardBg,
+                zIndex: 1,
+                borderRadius: "24px 24px 0 0",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+                <div
+                  style={{
+                    width: "56px",
+                    height: "56px",
+                    borderRadius: "16px",
+                    background: "linear-gradient(135deg, #f97316 0%, #ea580c 100%)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    boxShadow: "0 8px 16px rgba(249, 115, 22, 0.4)",
+                  }}
+                >
+                  <Edit2 size={28} color="#fff" strokeWidth={2.5} />
+                </div>
+                <div>
+                  <h2 style={{ fontSize: "24px", fontWeight: 700, color: t.textPrimary, marginBottom: "4px" }}>
+                    Editar Producto
+                  </h2>
+                  <p style={{ fontSize: "14px", color: t.textSecondary }}>
+                    Modifica la información del producto farmacéutico
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowEditModal(false)}
+                disabled={submitting}
+                style={{
+                  width: "44px",
+                  height: "44px",
+                  borderRadius: "12px",
+                  border: "none",
+                  background: "transparent",
+                  color: t.textSecondary,
+                  cursor: submitting ? "not-allowed" : "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  transition: "all 0.2s",
+                  opacity: submitting ? 0.5 : 1,
+                }}
+                onMouseEnter={(e) => {
+                  if (!submitting) {
+                    (e.currentTarget as HTMLButtonElement).style.background = "rgba(239, 68, 68, 0.1)";
+                    (e.currentTarget as HTMLButtonElement).style.color = "#ef4444";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!submitting) {
+                    (e.currentTarget as HTMLButtonElement).style.background = "transparent";
+                    (e.currentTarget as HTMLButtonElement).style.color = t.textSecondary;
+                  }
+                }}
+              >
+                <X size={22} />
+              </button>
+            </div>
+
+            {/* Formulario */}
+            <form onSubmit={handleSubmitEditProduct} style={{ padding: "32px" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "28px" }}>
+                {/* ─── Sección: Información General ─── */}
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "20px" }}>
+                    <div style={{ width: "32px", height: "32px", borderRadius: "8px", background: `${t.accent}15`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <Info size={16} color={t.accent} />
+                    </div>
+                    <h3 style={{ fontSize: "16px", fontWeight: 700, color: t.textPrimary }}>
+                      Información General
+                    </h3>
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                    {/* Nombre Comercial */}
+                    <div>
+                      <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px" }}>
+                        Nombre Comercial <span style={{ color: "#ef4444" }}>*</span>
+                      </label>
+                      <div style={{ position: "relative" }}>
+                        <Package size={16} style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: t.textMuted }} />
+                        <input
+                          type="text"
+                          value={formData.nombre_comercial}
+                          onChange={(e) => handleInputChange("nombre_comercial", e.target.value)}
+                          placeholder="Ej. Panadol Jarabe"
+                          style={inputStyle(!!formErrors.nombre_comercial)}
+                          onFocus={(e) => handleFieldFocus(e, !!formErrors.nombre_comercial)}
+                          onBlur={(e) => handleFieldBlur(e, !!formErrors.nombre_comercial)}
+                        />
+                      </div>
+                      {fieldError(formErrors.nombre_comercial)}
+                    </div>
+
+                    {/* Nombre Genérico */}
+                    <div>
+                      <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px" }}>
+                        Nombre Genérico <span style={{ color: "#ef4444" }}>*</span>
+                      </label>
+                      <div style={{ position: "relative" }}>
+                        <Pill size={16} style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: t.textMuted }} />
+                        <input
+                          type="text"
+                          value={formData.nombre_generico}
+                          onChange={(e) => handleInputChange("nombre_generico", e.target.value)}
+                          placeholder="Ej. Paracetamol"
+                          style={inputStyle(!!formErrors.nombre_generico)}
+                          onFocus={(e) => handleFieldFocus(e, !!formErrors.nombre_generico)}
+                          onBlur={(e) => handleFieldBlur(e, !!formErrors.nombre_generico)}
+                        />
+                      </div>
+                      {fieldError(formErrors.nombre_generico)}
+                    </div>
+
+                    {/* Unidad de Medida */}
+                    <div>
+                      <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px" }}>
+                        Unidad de Medida <span style={{ color: "#ef4444" }}>*</span>
+                      </label>
+                      <div style={{ position: "relative" }}>
+                        <Layers size={16} style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: t.textMuted, zIndex: 1 }} />
+                        <select
+                          value={formData.unidad_medida}
+                          onChange={(e) => handleInputChange("unidad_medida", e.target.value)}
+                          style={selectStyle(!!formErrors.unidad_medida)}
+                          onFocus={(e) => handleFieldFocus(e, !!formErrors.unidad_medida)}
+                          onBlur={(e) => handleFieldBlur(e, !!formErrors.unidad_medida)}
+                        >
+                          {UNIDADES_MEDIDA.map((um) => (
+                            <option key={um} value={um}>
+                              {um}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      {fieldError(formErrors.unidad_medida)}
+                    </div>
+
+                    {/* Presentación */}
+                    <div>
+                      <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px" }}>
+                        Presentación <span style={{ fontSize: "11px", color: t.textMuted }}>(Opcional)</span>
+                      </label>
+                      <div style={{ position: "relative" }}>
+                        <Info size={16} style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: t.textMuted }} />
+                        <input
+                          type="text"
+                          value={formData.presentacion}
+                          onChange={(e) => handleInputChange("presentacion", e.target.value)}
+                          placeholder="Ej. Caja de cartón con frasco x 60 mL"
+                          style={inputStyle(false)}
+                          onFocus={(e) => handleFieldFocus(e, false)}
+                          onBlur={(e) => handleFieldBlur(e, false)}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Composición */}
+                    <div style={{ gridColumn: "1 / -1" }}>
+                      <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px" }}>
+                        Composición <span style={{ fontSize: "11px", color: t.textMuted }}>(Opcional)</span>
+                      </label>
+                      <div style={{ position: "relative" }}>
+                        <AlignLeft size={16} style={{ position: "absolute", left: "14px", top: "14px", color: t.textMuted }} />
+                        <textarea
+                          value={formData.composicion}
+                          onChange={(e) => handleInputChange("composicion", e.target.value)}
+                          placeholder='Ej. Cada 5 mL contiene PARACETAMOL 160 mg'
+                          rows={3}
+                          style={{ ...inputStyle(false), resize: "vertical", minHeight: "84px" }}
+                          onFocus={(e) => handleFieldFocus(e, false)}
+                          onBlur={(e) => handleFieldBlur(e, false)}
+                        />
+                      </div>
+                    </div>
+
+                    {/* URL de Imagen */}
+                    <div style={{ gridColumn: "1 / -1" }}>
+                      <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px" }}>
+                        URL de Imagen <span style={{ fontSize: "11px", color: t.textMuted }}>(Opcional)</span>
+                      </label>
+                      <div style={{ position: "relative" }}>
+                        <Image size={16} style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: t.textMuted }} />
+                        <input
+                          type="text"
+                          value={formData.imagen_url}
+                          onChange={(e) => handleInputChange("imagen_url", e.target.value)}
+                          placeholder="https://ejemplo.com/producto.jpg"
+                          style={inputStyle(!!formErrors.imagen_url)}
+                          onFocus={(e) => handleFieldFocus(e, !!formErrors.imagen_url)}
+                          onBlur={(e) => handleFieldBlur(e, !!formErrors.imagen_url)}
+                        />
+                      </div>
+                      {fieldError(formErrors.imagen_url)}
+                      <p style={{ fontSize: "11px", color: t.textMuted, marginTop: "6px" }}>
+                        Deja vacío para usar una imagen por defecto
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Separador */}
+                <div style={{ height: "1px", background: t.border }} />
+
+                {/* ─── Sección: Clasificación ─── */}
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "20px" }}>
+                    <div style={{ width: "32px", height: "32px", borderRadius: "8px", background: `${t.accent}15`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <Tag size={16} color={t.accent} />
+                    </div>
+                    <h3 style={{ fontSize: "16px", fontWeight: 700, color: t.textPrimary }}>
+                      Clasificación
+                    </h3>
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                    {/* Categoría */}
+                    <div>
+                      <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px" }}>
+                        Categoría <span style={{ color: "#ef4444" }}>*</span>
+                      </label>
+                      <div style={{ position: "relative" }}>
+                        <Tag size={16} style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: t.textMuted, zIndex: 1 }} />
+                        <select
+                          value={formData.id_categoria === "" ? "" : String(formData.id_categoria)}
+                          onChange={(e) => handleSelectChange("id_categoria", e.target.value)}
+                          style={selectStyle(!!formErrors.id_categoria)}
+                          onFocus={(e) => handleFieldFocus(e, !!formErrors.id_categoria)}
+                          onBlur={(e) => handleFieldBlur(e, !!formErrors.id_categoria)}
+                        >
+                          <option value="">Selecciona una categoría</option>
+                          {categorias.map((cat) => (
+                            <option key={cat.id_categoria} value={cat.id_categoria}>
+                              {cat.nombre_categoria} — {cat.descripcion}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      {fieldError(formErrors.id_categoria)}
+                    </div>
+
+                    {/* Proveedor */}
+                    <div>
+                      <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px" }}>
+                        Proveedor <span style={{ color: "#ef4444" }}>*</span>
+                      </label>
+                      <div style={{ position: "relative" }}>
+                        <Truck size={16} style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: t.textMuted, zIndex: 1 }} />
+                        <select
+                          value={formData.id_proveedor === "" ? "" : String(formData.id_proveedor)}
+                          onChange={(e) => handleSelectChange("id_proveedor", e.target.value)}
+                          style={selectStyle(!!formErrors.id_proveedor)}
+                          onFocus={(e) => handleFieldFocus(e, !!formErrors.id_proveedor)}
+                          onBlur={(e) => handleFieldBlur(e, !!formErrors.id_proveedor)}
+                        >
+                          <option value="">Selecciona un proveedor</option>
+                          {proveedores.map((prov) => (
+                            <option key={prov.id_proveedor} value={prov.id_proveedor}>
+                              {prov.nombre_proveedor}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      {fieldError(formErrors.id_proveedor)}
+                    </div>
+
+                    {/* Forma Farmacéutica */}
+                    <div>
+                      <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px" }}>
+                        Forma Farmacéutica <span style={{ fontSize: "11px", color: t.textMuted }}>(Opcional)</span>
+                      </label>
+                      <div style={{ position: "relative" }}>
+                        <Pill size={16} style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: t.textMuted, zIndex: 1 }} />
+                        <select
+                          value={formData.id_forma_farmaceutica === "" ? "" : String(formData.id_forma_farmaceutica)}
+                          onChange={(e) => handleSelectChange("id_forma_farmaceutica", e.target.value)}
+                          style={selectStyle(false)}
+                          onFocus={(e) => handleFieldFocus(e, false)}
+                          onBlur={(e) => handleFieldBlur(e, false)}
+                        >
+                          <option value="">Selecciona una forma</option>
+                          {formasFarmaceuticas.map((ff) => (
+                            <option key={ff.id_forma_farmaceutica} value={ff.id_forma_farmaceutica}>
+                              {ff.nombre}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Vía de Administración */}
+                    <div>
+                      <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px" }}>
+                        Vía de Administración <span style={{ fontSize: "11px", color: t.textMuted }}>(Opcional)</span>
+                      </label>
+                      <div style={{ position: "relative" }}>
+                        <Route size={16} style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: t.textMuted, zIndex: 1 }} />
+                        <select
+                          value={formData.id_via_administracion === "" ? "" : String(formData.id_via_administracion)}
+                          onChange={(e) => handleSelectChange("id_via_administracion", e.target.value)}
+                          style={selectStyle(false)}
+                          onFocus={(e) => handleFieldFocus(e, false)}
+                          onBlur={(e) => handleFieldBlur(e, false)}
+                        >
+                          <option value="">Selecciona una vía</option>
+                          {viasAdministracion.map((via) => (
+                            <option key={via.id_via_administracion} value={via.id_via_administracion}>
+                              {via.nombre}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Condición de Venta */}
+                    <div>
+                      <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px" }}>
+                        Condición de Venta <span style={{ fontSize: "11px", color: t.textMuted }}>(Opcional)</span>
+                      </label>
+                      <div style={{ position: "relative" }}>
+                        <Shield size={16} style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: t.textMuted, zIndex: 1 }} />
+                        <select
+                          value={formData.id_condicion_venta === "" ? "" : String(formData.id_condicion_venta)}
+                          onChange={(e) => handleSelectChange("id_condicion_venta", e.target.value)}
+                          style={selectStyle(false)}
+                          onFocus={(e) => handleFieldFocus(e, false)}
+                          onBlur={(e) => handleFieldBlur(e, false)}
+                        >
+                          <option value="">Selecciona una condición</option>
+                          {condicionesVenta.map((cv) => (
+                            <option key={cv.id_condicion_venta} value={cv.id_condicion_venta}>
+                              {cv.requiere_receta ? "🔒" : "🆓"} {cv.nombre}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Código ATC */}
+                    <div>
+                      <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px" }}>
+                        Clasificación ATC <span style={{ fontSize: "11px", color: t.textMuted }}>(Opcional)</span>
+                      </label>
+                      <div style={{ position: "relative" }}>
+                        <Hash size={16} style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: t.textMuted, zIndex: 1 }} />
+                        <select
+                          value={formData.codigo_atc}
+                          onChange={(e) => handleInputChange("codigo_atc", e.target.value)}
+                          style={selectStyle(false)}
+                          onFocus={(e) => handleFieldFocus(e, false)}
+                          onBlur={(e) => handleFieldBlur(e, false)}
+                        >
+                          <option value="">Selecciona un código</option>
+                          {clasificacionesAtc.map((atc) => (
+                            <option key={atc.codigo_atc} value={atc.codigo_atc}>
+                              {atc.codigo_atc} — {atc.descripcion}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Separador */}
+                <div style={{ height: "1px", background: t.border }} />
+
+                {/* ─── Sección: Precios y Stock ─── */}
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "20px" }}>
+                    <div style={{ width: "32px", height: "32px", borderRadius: "8px", background: `${t.accent}15`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <DollarSign size={16} color={t.accent} />
+                    </div>
+                    <h3 style={{ fontSize: "16px", fontWeight: 700, color: t.textPrimary }}>
+                      Precios y Stock
+                    </h3>
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                    {/* Precio de Venta */}
+                    <div>
+                      <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px" }}>
+                        Precio de Venta (S/) <span style={{ color: "#ef4444" }}>*</span>
+                      </label>
+                      <div style={{ position: "relative" }}>
+                        <DollarSign size={16} style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: t.textMuted }} />
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={formData.precio_venta}
+                          onChange={(e) => handleInputChange("precio_venta", e.target.value)}
+                          placeholder="0.00"
+                          style={inputStyle(!!formErrors.precio_venta)}
+                          onFocus={(e) => handleFieldFocus(e, !!formErrors.precio_venta)}
+                          onBlur={(e) => handleFieldBlur(e, !!formErrors.precio_venta)}
+                        />
+                      </div>
+                      {fieldError(formErrors.precio_venta)}
+                    </div>
+
+                    {/* Costo Referencial */}
+                    <div>
+                      <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px" }}>
+                        Costo Referencial (S/) <span style={{ color: "#ef4444" }}>*</span>
+                      </label>
+                      <div style={{ position: "relative" }}>
+                        <Coins size={16} style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: t.textMuted }} />
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={formData.costo_referencial}
+                          onChange={(e) => handleInputChange("costo_referencial", e.target.value)}
+                          placeholder="0.00"
+                          style={inputStyle(!!formErrors.costo_referencial)}
+                          onFocus={(e) => handleFieldFocus(e, !!formErrors.costo_referencial)}
+                          onBlur={(e) => handleFieldBlur(e, !!formErrors.costo_referencial)}
+                        />
+                      </div>
+                      {fieldError(formErrors.costo_referencial)}
+                    </div>
+
+                    {/* Stock Mínimo */}
+                    <div>
+                      <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px" }}>
+                        Stock Mínimo de Alerta <span style={{ color: "#ef4444" }}>*</span>
+                      </label>
+                      <div style={{ position: "relative" }}>
+                        <Archive size={16} style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: t.textMuted }} />
+                        <input
+                          type="number"
+                          min="0"
+                          step="1"
+                          value={formData.stock_minimo_alerta}
+                          onChange={(e) => handleInputChange("stock_minimo_alerta", e.target.value)}
+                          placeholder="Ej. 10"
+                          style={inputStyle(!!formErrors.stock_minimo_alerta)}
+                          onFocus={(e) => handleFieldFocus(e, !!formErrors.stock_minimo_alerta)}
+                          onBlur={(e) => handleFieldBlur(e, !!formErrors.stock_minimo_alerta)}
+                        />
+                      </div>
+                      {fieldError(formErrors.stock_minimo_alerta)}
+                    </div>
+
+                    {/* Nota */}
+                    <div style={{ gridColumn: "1 / -1" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "12px 16px", borderRadius: "12px", background: `${t.accent}10`, border: `1px solid ${t.accent}30`, fontSize: "12px", color: t.textSecondary }}>
+                        <Info size={16} color={t.accent} style={{ flexShrink: 0 }} />
+                        <span>
+                          El stock inicial del producto se registrará al ingresar una compra o lote desde el módulo de compras.
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Separador */}
+                <div style={{ height: "1px", background: t.border }} />
+
+                {/* ─── Sección: Fabricación ─── */}
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "20px" }}>
+                    <div style={{ width: "32px", height: "32px", borderRadius: "8px", background: `${t.accent}15`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <Building2 size={16} color={t.accent} />
+                    </div>
+                    <h3 style={{ fontSize: "16px", fontWeight: 700, color: t.textPrimary }}>
+                      Fabricación <span style={{ fontSize: "12px", fontWeight: 500, color: t.textMuted }}>(Opcional)</span>
+                    </h3>
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                    {/* Laboratorio Titular */}
+                    <div>
+                      <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px" }}>
+                        Laboratorio Titular <span style={{ fontSize: "11px", color: t.textMuted }}>(Opcional)</span>
+                      </label>
+                      <div style={{ position: "relative" }}>
+                        <Building2 size={16} style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: t.textMuted, zIndex: 1 }} />
+                        <select
+                          value={formData.id_laboratorio_titular === "" ? "" : String(formData.id_laboratorio_titular)}
+                          onChange={(e) => handleSelectChange("id_laboratorio_titular", e.target.value)}
+                          style={selectStyle(false)}
+                          onFocus={(e) => handleFieldFocus(e, false)}
+                          onBlur={(e) => handleFieldBlur(e, false)}
+                        >
+                          <option value="">Selecciona un laboratorio</option>
+                          {laboratorios.map((lab) => (
+                            <option key={lab.id_laboratorio} value={lab.id_laboratorio}>
+                              {lab.nombre}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Fabricante */}
+                    <div>
+                      <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px" }}>
+                        Fabricante <span style={{ fontSize: "11px", color: t.textMuted }}>(Opcional)</span>
+                      </label>
+                      <div style={{ position: "relative" }}>
+                        <Building2 size={16} style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: t.textMuted, zIndex: 1 }} />
+                        <select
+                          value={formData.id_fabricante === "" ? "" : String(formData.id_fabricante)}
+                          onChange={(e) => handleSelectChange("id_fabricante", e.target.value)}
+                          style={selectStyle(false)}
+                          onFocus={(e) => handleFieldFocus(e, false)}
+                          onBlur={(e) => handleFieldBlur(e, false)}
+                        >
+                          <option value="">Selecciona un fabricante</option>
+                          {laboratorios.map((lab) => (
+                            <option key={lab.id_laboratorio} value={lab.id_laboratorio}>
+                              {lab.nombre}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Botones del Footer */}
+              <div
+                style={{
+                  display: "flex",
+                  gap: "12px",
+                  justifyContent: "flex-end",
+                  marginTop: "32px",
+                  paddingTop: "24px",
+                  borderTop: `1px solid ${t.border}`,
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => setShowEditModal(false)}
+                  disabled={submitting}
+                  style={{
+                    padding: "12px 28px",
+                    borderRadius: "12px",
+                    border: `2px solid ${t.border}`,
+                    background: "transparent",
+                    color: submitting ? t.textMuted : t.textSecondary,
+                    fontSize: "14px",
+                    fontWeight: 600,
+                    cursor: submitting ? "not-allowed" : "pointer",
+                    fontFamily: "'Cairo', sans-serif",
+                    transition: "all 0.2s",
+                    opacity: submitting ? 0.5 : 1,
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!submitting) {
+                      (e.currentTarget as HTMLButtonElement).style.background = t.hoverBg;
+                      (e.currentTarget as HTMLButtonElement).style.color = t.textPrimary;
+                      (e.currentTarget as HTMLButtonElement).style.borderColor = t.accent;
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!submitting) {
+                      (e.currentTarget as HTMLButtonElement).style.background = "transparent";
+                      (e.currentTarget as HTMLButtonElement).style.color = t.textSecondary;
+                      (e.currentTarget as HTMLButtonElement).style.borderColor = t.border;
+                    }
+                  }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  style={{
+                    padding: "12px 32px",
+                    borderRadius: "12px",
+                    border: "none",
+                    background: submitting
+                      ? t.textMuted
+                      : "linear-gradient(135deg, #f97316 0%, #ea580c 100%)",
+                    color: "#fff",
+                    fontSize: "14px",
+                    fontWeight: 600,
+                    cursor: submitting ? "not-allowed" : "pointer",
+                    fontFamily: "'Cairo', sans-serif",
+                    transition: "all 0.2s",
+                    boxShadow: submitting ? "none" : "0 4px 16px rgba(249, 115, 22, 0.4)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    opacity: submitting ? 0.6 : 1,
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!submitting) {
+                      (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)";
+                      (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 6px 24px rgba(249, 115, 22, 0.5)";
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!submitting) {
+                      (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
+                      (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 4px 16px rgba(249, 115, 22, 0.4)";
+                    }
+                  }}
+                >
+                  {submitting ? (
+                    <>
+                      <RefreshCw size={18} style={{ animation: "spin 1s linear infinite" }} />
+                      Guardando...
+                    </>
+                  ) : (
+                    <>
+                      <Edit2 size={18} />
+                      Guardar Cambios
                     </>
                   )}
                 </button>
