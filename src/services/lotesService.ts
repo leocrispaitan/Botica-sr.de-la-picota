@@ -17,6 +17,7 @@ export interface Lote {
   costo_unitario_compra: number;
   stock_lote: number;
   ubicacion_estante: string | null;
+  estado_logico: boolean;
   producto: ProductoEnLote;
   dias_para_vencer: number | null;
   estado_vencimiento: EstadoVencimiento;
@@ -35,6 +36,7 @@ export interface NewLoteInput {
   costo_unitario_compra: number;
   stock_lote: number;
   ubicacion_estante?: string | null;
+  estado_logico?: boolean;
 }
 
 interface CreateLotesResponse {
@@ -53,10 +55,34 @@ export const lotesService = {
   },
 
   /**
+   * Obtener un lote por su ID
+   */
+  getLoteById: async (id: number): Promise<Lote> => {
+    const response = await api.get<CreateLotesResponse>(`/lotes/${id}`);
+    return response.data.data;
+  },
+
+  /**
    * Registrar un nuevo lote en el inventario
    */
   createLote: async (input: NewLoteInput): Promise<Lote> => {
     const response = await api.post<CreateLotesResponse>('/lotes', input);
+    return response.data.data;
+  },
+
+  /**
+   * Actualizar un lote existente
+   */
+  updateLote: async (id: number, input: NewLoteInput): Promise<Lote> => {
+    const response = await api.put<CreateLotesResponse>(`/lotes/${id}`, input);
+    return response.data.data;
+  },
+
+  /**
+   * Desactivar un lote (soft delete: estado_logico = false)
+   */
+  deleteLote: async (id: number): Promise<Lote> => {
+    const response = await api.delete<CreateLotesResponse>(`/lotes/${id}`);
     return response.data.data;
   },
 };
