@@ -645,7 +645,7 @@ export default function ProductsManagement({ isDark = true }: { isDark?: boolean
       setFormData(emptyNewProductForm);
       setFormErrors({});
 
-      await loadProducts();
+      setProductos((prev) => [nuevoProducto, ...prev]);
 
       showProductSuccessToast(
         nuevoProducto,
@@ -711,7 +711,9 @@ export default function ProductsManagement({ isDark = true }: { isDark?: boolean
       const eliminado = productToDelete;
       setShowDeleteModal(false);
       setProductToDelete(null);
-      await loadProducts();
+      setProductos((prev) =>
+        prev.map((p) => (p.id_producto === eliminado.id_producto ? { ...p, estado_logico: false } : p))
+      );
       showProductDeleteSuccessToast(eliminado, isDark);
     } catch (err: any) {
       console.error("❌ Error al eliminar producto:", err);
@@ -756,7 +758,9 @@ export default function ProductsManagement({ isDark = true }: { isDark?: boolean
       });
       setShowReactivateModal(false);
       setProductToReactivate(null);
-      await loadProducts();
+      setProductos((prev) =>
+        prev.map((p) => (p.id_producto === reactivado.id_producto ? reactivado : p))
+      );
       showProductSuccessToast(
         reactivado,
         categorias,
@@ -791,7 +795,9 @@ export default function ProductsManagement({ isDark = true }: { isDark?: boolean
     try {
       const product = await updateProduct(editingProductId, buildProductPayload(formData));
       setShowEditModal(false);
-      await loadProducts();
+      setProductos((prev) =>
+        prev.map((p) => (p.id_producto === product.id_producto ? product : p))
+      );
       showProductSuccessToast(
         product,
         categorias,
