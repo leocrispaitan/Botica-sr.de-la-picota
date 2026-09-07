@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Search,
   Filter,
@@ -14,335 +14,66 @@ import {
   ShoppingBag,
   X,
   Truck,
+  Loader2,
+  RefreshCw,
+  AlertCircle,
 } from "lucide-react";
+import { purchasesService, type CompraHistorial as Purchase } from "../services/purchasesService";
+import {
+  exportPurchaseComprobante,
+  exportPurchaseHistoryReport,
+  type ComprobanteDetail,
+} from "../utils/pdfUtils";
+import toast, { Toaster } from "react-hot-toast";
 
-/* ─── Types ─────────────────────────────────────────────────────────── */
+/* ─── Tipo para el detalle completo (getPurchaseById) ────────────────── */
 interface PurchaseDetail {
-  id_detalle: number;
-  nombre_producto: string;
-  cantidad: number;
-  precio_unitario: number;
-  subtotal: number;
-  numero_lote: string;
-  fecha_vencimiento: string;
-}
-
-interface Purchase {
   id_movimiento: number;
-  fecha_compra: string;
-  numero_factura: string;
+  tipo_movimiento: string;
+  fecha_hora: string;
+  numero_documento: string | null;
+  subtotal: number;
+  igv: number;
+  total: number;
+  motivo_ajuste: string | null;
   proveedor: {
     id_proveedor: number;
     nombre_proveedor: string;
     ruc: string;
-  };
+    telefono: string | null;
+    email: string | null;
+  } | null;
   usuario: {
     id_usuario: number;
     nombre_completo: string;
-  };
-  subtotal: number;
-  igv: number;
-  total: number;
-  cantidad_productos: number;
-  estado: "REGISTRADA" | "RECIBIDA" | "CANCELADA";
-  detalles: PurchaseDetail[];
+    dni: string | null;
+  } | null;
+  detalle_movimiento: {
+    id_detalle_mov: number;
+    cantidad: number;
+    costo_unitario: number;
+    producto: {
+      id_producto: number;
+      nombre_comercial: string;
+      nombre_generico: string;
+      unidad_medida: string;
+    } | null;
+    inventario_lote: {
+      id_inventario: number;
+      numero_lote: string;
+      fecha_vencimiento: string | null;
+    } | null;
+  }[];
 }
-
-/* ─── Mock Data ───────────────────────────────────────────────────────── */
-const mockPurchases: Purchase[] = [
-  {
-    id_movimiento: 1,
-    fecha_compra: "2026-08-27 10:30:00",
-    numero_factura: "F001-00001234",
-    proveedor: {
-      id_proveedor: 1,
-      nombre_proveedor: "Distribuidora Farmacéutica Lima S.A.",
-      ruc: "20123456789",
-    },
-    usuario: {
-      id_usuario: 3,
-      nombre_completo: "Roberto Silva Vargas",
-    },
-    subtotal: 1500.00,
-    igv: 270.00,
-    total: 1770.00,
-    cantidad_productos: 5,
-    estado: "RECIBIDA",
-    detalles: [
-      {
-        id_detalle: 1,
-        nombre_producto: "Paracetamol 500mg",
-        cantidad: 500,
-        precio_unitario: 0.50,
-        subtotal: 250.00,
-        numero_lote: "L2026001",
-        fecha_vencimiento: "2027-12-31",
-      },
-      {
-        id_detalle: 2,
-        nombre_producto: "Ibuprofeno 400mg",
-        cantidad: 300,
-        precio_unitario: 0.80,
-        subtotal: 240.00,
-        numero_lote: "L2026002",
-        fecha_vencimiento: "2027-11-30",
-      },
-      {
-        id_detalle: 3,
-        nombre_producto: "Amoxicilina 500mg",
-        cantidad: 200,
-        precio_unitario: 1.20,
-        subtotal: 240.00,
-        numero_lote: "L2026003",
-        fecha_vencimiento: "2027-10-31",
-      },
-      {
-        id_detalle: 4,
-        nombre_producto: "Omeprazol 20mg",
-        cantidad: 400,
-        precio_unitario: 1.50,
-        subtotal: 600.00,
-        numero_lote: "L2026004",
-        fecha_vencimiento: "2028-01-31",
-      },
-      {
-        id_detalle: 5,
-        nombre_producto: "Loratadina 10mg",
-        cantidad: 300,
-        precio_unitario: 0.60,
-        subtotal: 180.00,
-        numero_lote: "L2026005",
-        fecha_vencimiento: "2027-09-30",
-      },
-    ],
-  },
-  {
-    id_movimiento: 2,
-    fecha_compra: "2026-08-25 14:15:00",
-    numero_factura: "F001-00001220",
-    proveedor: {
-      id_proveedor: 2,
-      nombre_proveedor: "MediFarma Distribuciones",
-      ruc: "20987654321",
-    },
-    usuario: {
-      id_usuario: 3,
-      nombre_completo: "Roberto Silva Vargas",
-    },
-    subtotal: 2800.00,
-    igv: 504.00,
-    total: 3304.00,
-    cantidad_productos: 4,
-    estado: "RECIBIDA",
-    detalles: [
-      {
-        id_detalle: 6,
-        nombre_producto: "Salbutamol Inhalador 100mcg",
-        cantidad: 50,
-        precio_unitario: 25.00,
-        subtotal: 1250.00,
-        numero_lote: "L2026006",
-        fecha_vencimiento: "2027-08-31",
-      },
-      {
-        id_detalle: 7,
-        nombre_producto: "Metformina 850mg",
-        cantidad: 600,
-        precio_unitario: 0.90,
-        subtotal: 540.00,
-        numero_lote: "L2026007",
-        fecha_vencimiento: "2028-02-28",
-      },
-      {
-        id_detalle: 8,
-        nombre_producto: "Atorvastatina 20mg",
-        cantidad: 400,
-        precio_unitario: 1.80,
-        subtotal: 720.00,
-        numero_lote: "L2026008",
-        fecha_vencimiento: "2027-12-31",
-      },
-      {
-        id_detalle: 9,
-        nombre_producto: "Losartán 50mg",
-        cantidad: 350,
-        precio_unitario: 0.85,
-        subtotal: 297.50,
-        numero_lote: "L2026009",
-        fecha_vencimiento: "2027-11-30",
-      },
-    ],
-  },
-  {
-    id_movimiento: 3,
-    fecha_compra: "2026-08-22 09:00:00",
-    numero_factura: "F001-00001198",
-    proveedor: {
-      id_proveedor: 3,
-      nombre_proveedor: "Droguería El Sol",
-      ruc: "20456789123",
-    },
-    usuario: {
-      id_usuario: 1,
-      nombre_completo: "Juan Pérez Gómez",
-    },
-    subtotal: 950.00,
-    igv: 171.00,
-    total: 1121.00,
-    cantidad_productos: 3,
-    estado: "REGISTRADA",
-    detalles: [
-      {
-        id_detalle: 10,
-        nombre_producto: "Diclofenaco 50mg",
-        cantidad: 400,
-        precio_unitario: 0.70,
-        subtotal: 280.00,
-        numero_lote: "L2026010",
-        fecha_vencimiento: "2027-10-31",
-      },
-      {
-        id_detalle: 11,
-        nombre_producto: "Ranitidina 150mg",
-        cantidad: 300,
-        precio_unitario: 0.90,
-        subtotal: 270.00,
-        numero_lote: "L2026011",
-        fecha_vencimiento: "2027-09-30",
-      },
-      {
-        id_detalle: 12,
-        nombre_producto: "Ciprofloxacino 500mg",
-        cantidad: 200,
-        precio_unitario: 2.00,
-        subtotal: 400.00,
-        numero_lote: "L2026012",
-        fecha_vencimiento: "2028-03-31",
-      },
-    ],
-  },
-  {
-    id_movimiento: 4,
-    fecha_compra: "2026-08-20 16:45:00",
-    numero_factura: "F001-00001185",
-    proveedor: {
-      id_proveedor: 1,
-      nombre_proveedor: "Distribuidora Farmacéutica Lima S.A.",
-      ruc: "20123456789",
-    },
-    usuario: {
-      id_usuario: 3,
-      nombre_completo: "Roberto Silva Vargas",
-    },
-    subtotal: 1200.00,
-    igv: 216.00,
-    total: 1416.00,
-    cantidad_productos: 4,
-    estado: "RECIBIDA",
-    detalles: [
-      {
-        id_detalle: 13,
-        nombre_producto: "Captopril 25mg",
-        cantidad: 500,
-        precio_unitario: 0.60,
-        subtotal: 300.00,
-        numero_lote: "L2026013",
-        fecha_vencimiento: "2027-11-30",
-      },
-      {
-        id_detalle: 14,
-        nombre_producto: "Enalapril 10mg",
-        cantidad: 400,
-        precio_unitario: 0.75,
-        subtotal: 300.00,
-        numero_lote: "L2026014",
-        fecha_vencimiento: "2028-01-31",
-      },
-      {
-        id_detalle: 15,
-        nombre_producto: "Hidroclorotiazida 25mg",
-        cantidad: 600,
-        precio_unitario: 0.50,
-        subtotal: 300.00,
-        numero_lote: "L2026015",
-        fecha_vencimiento: "2027-12-31",
-      },
-      {
-        id_detalle: 16,
-        nombre_producto: "Amlodipino 5mg",
-        cantidad: 400,
-        precio_unitario: 0.75,
-        subtotal: 300.00,
-        numero_lote: "L2026016",
-        fecha_vencimiento: "2028-02-28",
-      },
-    ],
-  },
-  {
-    id_movimiento: 5,
-    fecha_compra: "2026-08-18 11:20:00",
-    numero_factura: "F001-00001172",
-    proveedor: {
-      id_proveedor: 4,
-      nombre_proveedor: "Farmacéutica Universal",
-      ruc: "20654321987",
-    },
-    usuario: {
-      id_usuario: 3,
-      nombre_completo: "Roberto Silva Vargas",
-    },
-    subtotal: 750.00,
-    igv: 135.00,
-    total: 885.00,
-    cantidad_productos: 2,
-    estado: "RECIBIDA",
-    detalles: [
-      {
-        id_detalle: 17,
-        nombre_producto: "Acetilcisteína 600mg",
-        cantidad: 300,
-        precio_unitario: 1.50,
-        subtotal: 450.00,
-        numero_lote: "L2026017",
-        fecha_vencimiento: "2027-10-31",
-      },
-      {
-        id_detalle: 18,
-        nombre_producto: "Dextrometorfano Jarabe",
-        cantidad: 100,
-        precio_unitario: 3.00,
-        subtotal: 300.00,
-        numero_lote: "L2026018",
-        fecha_vencimiento: "2027-09-30",
-      },
-    ],
-  },
-];
 
 /* ─── Estado Badge Colors ───────────────────────────────────────────── */
 const getStatusBadgeColors = (status: string, isDark: boolean) => {
-  if (status === "RECIBIDA") {
+  if (status === "COMPRA") {
     return {
       bg: isDark ? "rgba(34, 197, 94, 0.12)" : "rgba(34, 197, 94, 0.08)",
       text: "#4ade80",
       border: isDark ? "rgba(34, 197, 94, 0.3)" : "rgba(34, 197, 94, 0.25)",
       icon: "✓",
-    };
-  }
-  if (status === "REGISTRADA") {
-    return {
-      bg: isDark ? "rgba(249, 115, 22, 0.12)" : "rgba(249, 115, 22, 0.08)",
-      text: "#fb923c",
-      border: isDark ? "rgba(249, 115, 22, 0.3)" : "rgba(249, 115, 22, 0.25)",
-      icon: "⏳",
-    };
-  }
-  if (status === "CANCELADA") {
-    return {
-      bg: isDark ? "rgba(239, 68, 68, 0.12)" : "rgba(239, 68, 68, 0.08)",
-      text: "#ef4444",
-      border: isDark ? "rgba(239, 68, 68, 0.3)" : "rgba(239, 68, 68, 0.25)",
-      icon: "✗",
     };
   }
   return {
@@ -391,6 +122,9 @@ function getTheme(isDark: boolean) {
 /*  PURCHASE HISTORY COMPONENT                                         */
 /* ═══════════════════════════════════════════════════════════════════ */
 export default function PurchaseHistory({ isDark = true }: { isDark?: boolean }) {
+  const itemsPerPage = 10;
+
+  // Filter state (client controls para enviar al servidor)
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | "all">("all");
   const [providerFilter, setProviderFilter] = useState<number | "all">("all");
@@ -398,64 +132,293 @@ export default function PurchaseHistory({ isDark = true }: { isDark?: boolean })
   const [dateTo, setDateTo] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
+
+  // Detail modal state
   const [selectedPurchase, setSelectedPurchase] = useState<Purchase | null>(null);
+  const [detailData, setDetailData] = useState<PurchaseDetail | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
-  const itemsPerPage = 10;
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
+
+  // API data state
+  const [purchases, setPurchases] = useState<Purchase[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCompras, setTotalCompras] = useState(0);
+  const [totalMonto, setTotalMonto] = useState(0);
+  const [totalProductos, setTotalProductos] = useState(0);
+  const [totalProveedores, setTotalProveedores] = useState(0);
 
   const t = getTheme(isDark);
 
-  // Get unique providers
-  const providers = Array.from(
-    new Set(mockPurchases.map((p) => JSON.stringify(p.proveedor)))
-  ).map((p) => JSON.parse(p));
+  // Debounce de la búsqueda (200ms)
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchTerm), 200);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
-  // Filtered purchases
-  const filteredPurchases = useMemo(() => {
-    return mockPurchases.filter((purchase) => {
-      const matchesSearch =
-        purchase.numero_factura.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        purchase.proveedor.nombre_proveedor.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        purchase.proveedor.ruc.includes(searchTerm);
+  // Al cambiar el término debounced o filtros, volver a la página 1
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch, providerFilter, dateFrom, dateTo]);
 
-      const matchesStatus = statusFilter === "all" || purchase.estado === statusFilter;
-      const matchesProvider = providerFilter === "all" || purchase.proveedor.id_proveedor === providerFilter;
+  // ─── Fetch compras desde la API (paginación + filtros server-side) ───
+  const fetchPurchases = useCallback(async () => {
+    setLoading(true);
+    setErrorMsg(null);
+    try {
+      const data = await purchasesService.getPurchaseHistory({
+        page: currentPage,
+        limit: itemsPerPage,
+        search: debouncedSearch || undefined,
+        proveedor: providerFilter === "all" ? undefined : providerFilter,
+        desde: dateFrom || undefined,
+        hasta: dateTo || undefined,
+      });
+      setPurchases(data.compras);
+      setTotalPages(data.pagination.totalPages);
+      setTotalCompras(data.stats.total_compras);
+      setTotalMonto(data.stats.total_monto);
+      setTotalProductos(data.stats.total_productos);
+      setTotalProveedores(data.stats.proveedores);
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "Error al cargar las compras";
+      setErrorMsg(message);
+    } finally {
+      setLoading(false);
+    }
+  }, [currentPage, debouncedSearch, providerFilter, dateFrom, dateTo]);
 
-      let matchesDate = true;
-      const purchaseDate = new Date(purchase.fecha_compra);
-      if (dateFrom) {
-        matchesDate = matchesDate && purchaseDate >= new Date(dateFrom);
+  // Recargar al cambiar página o filtros
+  useEffect(() => {
+    fetchPurchases();
+  }, [fetchPurchases]);
+
+  // Get unique providers (para el dropdown de filtro) desde todas las compras
+  // Se mantiene un fetch ligero de proveedores activos
+  const [providers, setProviders] = useState<
+    { id_proveedor: number; nombre_proveedor: string; ruc: string }[]
+  >([]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await purchasesService.getPurchaseData();
+        setProviders(data.proveedores);
+      } catch (_err) {
+        // Silencioso: los proveedores se derivan también de la página actual
       }
-      if (dateTo) {
-        const toDate = new Date(dateTo);
-        toDate.setHours(23, 59, 59, 999);
-        matchesDate = matchesDate && purchaseDate <= toDate;
-      }
+    })();
+  }, []);
 
-      return matchesSearch && matchesStatus && matchesProvider && matchesDate;
-    });
-  }, [searchTerm, statusFilter, providerFilter, dateFrom, dateTo]);
+  // Proveedores de emergencia desde la página actual si aún no carga la lista
+  const pageProviders = Array.from(
+    new Map(
+      purchases.map((p) => [
+        p.proveedor?.id_proveedor ?? 0,
+        p.proveedor
+          ? { id_proveedor: p.proveedor.id_proveedor, nombre_proveedor: p.proveedor.nombre_proveedor, ruc: p.proveedor.ruc }
+          : { id_proveedor: 0, nombre_proveedor: "Sin proveedor", ruc: "-" },
+      ])
+    ).values()
+  );
+
+  const allProviders =
+    providers.length > 0
+      ? providers
+      : (pageProviders as { id_proveedor: number; nombre_proveedor: string; ruc: string }[]);
 
   // Pagination
-  const totalPages = Math.ceil(filteredPurchases.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const currentPurchases = filteredPurchases.slice(startIndex, endIndex);
+  const currentPurchases = purchases;
 
-  // Reset to page 1 when filters change
+  // Reset de página al cambiar filtros (sin disparar doble request)
   const handleFilterChange = () => {
     setCurrentPage(1);
   };
 
-  // Calculate totals
-  const totalCompras = filteredPurchases.length;
-  const totalMonto = filteredPurchases.reduce((sum, p) => sum + p.total, 0);
-  const totalProductos = filteredPurchases.reduce((sum, p) => sum + p.cantidad_productos, 0);
-
-  // View purchase details
-  const handleViewDetails = (purchase: Purchase) => {
+  // ─── Ver detalles: carga completa con lotes/vencimientos vía getPurchaseById ───
+  const handleViewDetails = async (purchase: Purchase) => {
     setSelectedPurchase(purchase);
     setShowDetailModal(true);
+    setDetailLoading(true);
+    setDetailError(null);
+    setDetailData(null);
+    try {
+      const full = await purchasesService.getPurchaseById(purchase.id_movimiento);
+      setDetailData(full as unknown as PurchaseDetail);
+    } catch (err: unknown) {
+      setDetailError(
+        err instanceof Error ? err.message : "Error al cargar el detalle de la compra"
+      );
+    } finally {
+      setDetailLoading(false);
+    }
   };
+
+  const [exporting, setExporting] = useState(false);
+  const [downloadingId, setDownloadingId] = useState<number | null>(null);
+
+  // ─── Descargar comprobante PDF (una sola fila) ───
+  const handleDownloadComprobante = async (purchase: Purchase) => {
+    setDownloadingId(purchase.id_movimiento);
+    try {
+      const full = await purchasesService.getPurchaseById(purchase.id_movimiento);
+      const detail: ComprobanteDetail = {
+        id_movimiento: full.id_movimiento,
+        numero_documento: full.numero_documento,
+        fecha_hora: full.fecha_hora,
+        subtotal: Number(full.subtotal || 0),
+        igv: Number(full.igv || 0),
+        total: Number(full.total || 0),
+        proveedor: full.proveedor
+          ? {
+              nombre_proveedor: full.proveedor.nombre_proveedor,
+              ruc: full.proveedor.ruc,
+              telefono: (full.proveedor as { telefono?: string | null }).telefono ?? null,
+              email: (full.proveedor as { email?: string | null }).email ?? null,
+            }
+          : null,
+        usuario: full.usuario
+          ? { nombre_completo: full.usuario.nombre_completo }
+          : null,
+        detalle_movimiento: (full.detalle_movimiento || []).map((d) => ({
+          cantidad: Number(d.cantidad || 0),
+          costo_unitario: Number(d.costo_unitario || 0),
+          producto: d.producto
+            ? {
+                nombre_comercial: d.producto.nombre_comercial,
+                nombre_generico: (d.producto as { nombre_generico?: string }).nombre_generico,
+                unidad_medida: (d.producto as { unidad_medida?: string }).unidad_medida,
+              }
+            : null,
+          inventario_lote: d.inventario_lote
+            ? {
+                numero_lote: d.inventario_lote.numero_lote,
+                fecha_vencimiento: d.inventario_lote.fecha_vencimiento,
+              }
+            : null,
+        })),
+      };
+      exportPurchaseComprobante(detail);
+      toast.success("Comprobante descargado");
+    } catch (err: unknown) {
+      toast.error(
+        err instanceof Error ? err.message : "Error al descargar el comprobante"
+      );
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
+  // ─── Exportar reporte PDF (todos los registros con filtros actuales) ───
+  const handleExportAll = async () => {
+    if (exporting) return;
+    setExporting(true);
+    const exportingToast = toast.loading("Generando reporte PDF...");
+    try {
+      const data = await purchasesService.getPurchaseHistory({
+        page: 1,
+        limit: 1000,
+        search: debouncedSearch || undefined,
+        proveedor: providerFilter === "all" ? undefined : providerFilter,
+        desde: dateFrom || undefined,
+        hasta: dateTo || undefined,
+      });
+      const providerName = allProviders.find(
+        (p) => p.id_proveedor === providerFilter
+      )?.nombre_proveedor;
+      exportPurchaseHistoryReport(
+        data.compras,
+        data.stats,
+        {
+          search: debouncedSearch || undefined,
+          proveedor:
+            providerFilter !== "all" && providerName ? providerName : undefined,
+          desde: dateFrom || undefined,
+          hasta: dateTo || undefined,
+        }
+      );
+      toast.success(`Se exportaron ${data.compras.length} registros`, {
+        id: exportingToast,
+      });
+    } catch (err: unknown) {
+      toast.error(
+        err instanceof Error ? err.message : "Error al exportar el reporte",
+        { id: exportingToast }
+      );
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  // ─── Loading state ───
+  if (loading) {
+    return (
+      <div
+        style={{
+          padding: "24px",
+          background: t.mainBg,
+          minHeight: "100vh",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: "16px",
+        }}
+      >
+        <Loader2 size={40} color={t.accent} className="animate-spin" />
+        <p style={{ fontSize: "16px", color: t.textSecondary }}>
+          Cargando historial de compras...
+        </p>
+      </div>
+    );
+  }
+
+  // ─── Error state ───
+  if (errorMsg) {
+    return (
+      <div
+        style={{
+          padding: "24px",
+          background: t.mainBg,
+          minHeight: "100vh",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: "16px",
+        }}
+      >
+        <AlertCircle size={40} color="#ef4444" />
+        <p style={{ fontSize: "16px", color: "#ef4444", fontWeight: 600 }}>
+          {errorMsg}
+        </p>
+        <button
+          onClick={fetchPurchases}
+          style={{
+            padding: "10px 20px",
+            borderRadius: "12px",
+            border: "none",
+            background: t.accent,
+            color: "#fff",
+            fontSize: "14px",
+            fontWeight: 600,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            fontFamily: "'Cairo', sans-serif",
+          }}
+        >
+          <RefreshCw size={16} />
+          Reintentar
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div style={{ padding: "24px", background: t.mainBg, minHeight: "100vh" }}>
@@ -626,6 +589,58 @@ export default function PurchaseHistory({ isDark = true }: { isDark?: boolean })
             </div>
           </div>
         </div>
+
+        {/* Total Proveedores - Teal Gradient */}
+        <div 
+          style={{ 
+            background: "linear-gradient(135deg, #14b8a6 0%, #0d9488 40%, #0f766e 100%)",
+            borderRadius: "24px", 
+            padding: "24px",
+            position: "relative",
+            overflow: "hidden",
+            boxShadow: "0 8px 24px rgba(20, 184, 166, 0.25)",
+            border: "1px solid rgba(255, 255, 255, 0.1)",
+          }}
+        >
+          <div style={{ 
+            position: "absolute", 
+            top: "-40px", 
+            right: "-40px", 
+            width: "160px", 
+            height: "160px", 
+            borderRadius: "50%", 
+            background: "rgba(255, 255, 255, 0.05)",
+            border: "1px solid rgba(255, 255, 255, 0.1)",
+          }} />
+          
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", position: "relative", zIndex: 1 }}>
+            <div>
+              <p style={{ fontSize: "11px", fontWeight: 600, color: "rgba(255,255,255,0.7)", marginBottom: "8px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                Proveedores
+              </p>
+              <p style={{ fontSize: "36px", fontWeight: 700, color: "#ffffff", marginBottom: "4px", lineHeight: 1 }}>
+                {totalProveedores}
+              </p>
+              <p style={{ fontSize: "11px", color: "rgba(255,255,255,0.6)" }}>
+                Activos en compras
+              </p>
+            </div>
+            <div style={{ 
+              width: "56px", 
+              height: "56px", 
+              borderRadius: "16px", 
+              background: "rgba(255,255,255,0.15)",
+              backdropFilter: "blur(10px)",
+              display: "flex", 
+              alignItems: "center", 
+              justifyContent: "center",
+              border: "1px solid rgba(255,255,255,0.2)",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+            }}>
+              <Truck size={28} color="#ffffff" strokeWidth={2.5} />
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Search & Filters */}
@@ -722,15 +737,17 @@ export default function PurchaseHistory({ isDark = true }: { isDark?: boolean })
 
             {/* Export Button */}
             <button
+              onClick={handleExportAll}
+              disabled={exporting}
               style={{
                 padding: "12px 20px",
                 borderRadius: "14px",
-                border: `1px solid ${t.border}`,
-                background: t.inputBg,
-                color: t.textSecondary,
+                border: `1px solid ${exporting ? t.accent : t.border}`,
+                background: exporting ? `${t.accent}15` : t.inputBg,
+                color: exporting ? t.accent : t.textSecondary,
                 fontSize: "14px",
                 fontWeight: 600,
-                cursor: "pointer",
+                cursor: exporting ? "pointer" : "pointer",
                 display: "flex",
                 alignItems: "center",
                 gap: "8px",
@@ -738,18 +755,26 @@ export default function PurchaseHistory({ isDark = true }: { isDark?: boolean })
                 transition: "all 0.2s",
               }}
               onMouseEnter={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.background = t.accent;
-                (e.currentTarget as HTMLButtonElement).style.color = "#fff";
-                (e.currentTarget as HTMLButtonElement).style.borderColor = t.accent;
+                if (!exporting) {
+                  (e.currentTarget as HTMLButtonElement).style.background = t.accent;
+                  (e.currentTarget as HTMLButtonElement).style.color = "#fff";
+                  (e.currentTarget as HTMLButtonElement).style.borderColor = t.accent;
+                }
               }}
               onMouseLeave={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.background = t.inputBg;
-                (e.currentTarget as HTMLButtonElement).style.color = t.textSecondary;
-                (e.currentTarget as HTMLButtonElement).style.borderColor = t.border;
+                if (!exporting) {
+                  (e.currentTarget as HTMLButtonElement).style.background = t.inputBg;
+                  (e.currentTarget as HTMLButtonElement).style.color = t.textSecondary;
+                  (e.currentTarget as HTMLButtonElement).style.borderColor = t.border;
+                }
               }}
             >
-              <Download size={16} />
-              Exportar
+              {exporting ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                <Download size={16} />
+              )}
+              {exporting ? "Exportando..." : "Exportar"}
             </button>
           </div>
 
@@ -790,9 +815,7 @@ export default function PurchaseHistory({ isDark = true }: { isDark?: boolean })
                   }}
                 >
                   <option value="all">Todos los estados</option>
-                  <option value="RECIBIDA">✓ Recibida</option>
-                  <option value="REGISTRADA">⏳ Registrada</option>
-                  <option value="CANCELADA">✗ Cancelada</option>
+                  <option value="COMPRA">✓ Compra</option>
                 </select>
               </div>
 
@@ -820,7 +843,7 @@ export default function PurchaseHistory({ isDark = true }: { isDark?: boolean })
                   }}
                 >
                   <option value="all">Todos los proveedores</option>
-                  {providers.map((provider) => (
+                  {allProviders.map((provider) => (
                     <option key={provider.id_proveedor} value={provider.id_proveedor}>
                       {provider.nombre_proveedor}
                     </option>
@@ -922,9 +945,10 @@ export default function PurchaseHistory({ isDark = true }: { isDark?: boolean })
       {/* Results Info */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "12px" }}>
         <p style={{ fontSize: "13px", color: t.textSecondary, fontWeight: 500 }}>
-          Mostrando {startIndex + 1}-{Math.min(endIndex, filteredPurchases.length)} de {filteredPurchases.length} compras
+          Mostrando {totalCompras === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1}-
+          {Math.min(currentPage * itemsPerPage, totalCompras)} de {totalCompras} compras
         </p>
-        {filteredPurchases.length === 0 && searchTerm && (
+        {totalCompras === 0 && searchTerm && (
           <p style={{ fontSize: "13px", color: "#ef4444", fontWeight: 600 }}>
             No se encontraron resultados para "{searchTerm}"
           </p>
@@ -977,7 +1001,7 @@ export default function PurchaseHistory({ isDark = true }: { isDark?: boolean })
                 </tr>
               ) : (
                 currentPurchases.map((purchase, index) => {
-                  const statusBadge = getStatusBadgeColors(purchase.estado, isDark);
+                  const statusBadge = getStatusBadgeColors("COMPRA", isDark);
                   return (
                     <tr
                       key={purchase.id_movimiento}
@@ -1012,7 +1036,7 @@ export default function PurchaseHistory({ isDark = true }: { isDark?: boolean })
                           </div>
                           <div>
                             <p style={{ fontSize: "14px", fontWeight: 600, color: t.textPrimary, marginBottom: "2px" }}>
-                              {purchase.numero_factura}
+                              {purchase.numero_documento}
                             </p>
                             <p style={{ fontSize: "12px", color: t.textSecondary }}>
                               ID: #{purchase.id_movimiento}
@@ -1027,11 +1051,11 @@ export default function PurchaseHistory({ isDark = true }: { isDark?: boolean })
                           <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                             <Truck size={14} color={t.textMuted} />
                             <p style={{ fontSize: "13px", fontWeight: 600, color: t.textPrimary }}>
-                              {purchase.proveedor.nombre_proveedor}
+                              {purchase.proveedor?.nombre_proveedor ?? "Sin proveedor"}
                             </p>
                           </div>
                           <p style={{ fontSize: "12px", color: t.textSecondary, marginLeft: "20px" }}>
-                            RUC: {purchase.proveedor.ruc}
+                            RUC: {purchase.proveedor?.ruc ?? "-"}
                           </p>
                         </div>
                       </td>
@@ -1042,11 +1066,11 @@ export default function PurchaseHistory({ isDark = true }: { isDark?: boolean })
                           <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                             <Calendar size={14} color={t.textMuted} />
                             <span style={{ fontSize: "13px", color: t.textPrimary }}>
-                              {new Date(purchase.fecha_compra).toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric" })}
+                              {new Date(purchase.fecha_hora).toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric" })}
                             </span>
                           </div>
                           <span style={{ fontSize: "12px", color: t.textSecondary, marginLeft: "20px" }}>
-                            {new Date(purchase.fecha_compra).toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" })}
+                            {new Date(purchase.fecha_hora).toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" })}
                           </span>
                         </div>
                       </td>
@@ -1068,7 +1092,7 @@ export default function PurchaseHistory({ isDark = true }: { isDark?: boolean })
                             border: `1px solid ${isDark ? "rgba(139, 92, 246, 0.3)" : "rgba(139, 92, 246, 0.25)"}`,
                           }}
                         >
-                          {purchase.cantidad_productos}
+                          {purchase.detalle_movimiento?.length ?? 0}
                         </span>
                       </td>
 
@@ -1104,7 +1128,7 @@ export default function PurchaseHistory({ isDark = true }: { isDark?: boolean })
                           }}
                         >
                           <span style={{ fontSize: "12px" }}>{statusBadge.icon}</span>
-                          {purchase.estado}
+                          COMPRA
                         </span>
                       </td>
 
@@ -1138,7 +1162,9 @@ export default function PurchaseHistory({ isDark = true }: { isDark?: boolean })
                             <Eye size={16} />
                           </button>
                           <button
-                            title="Descargar factura"
+                            title="Descargar comprobante"
+                            onClick={() => handleDownloadComprobante(purchase)}
+                            disabled={downloadingId !== null}
                             style={{
                               padding: "8px",
                               borderRadius: "8px",
@@ -1150,17 +1176,24 @@ export default function PurchaseHistory({ isDark = true }: { isDark?: boolean })
                               alignItems: "center",
                               justifyContent: "center",
                               transition: "all 0.2s",
+                              opacity: downloadingId !== null ? 0.6 : 1,
                             }}
                             onMouseEnter={(e) => {
-                              (e.currentTarget as HTMLButtonElement).style.background = "rgba(34, 197, 94, 0.1)";
-                              (e.currentTarget as HTMLButtonElement).style.color = "#4ade80";
+                              if (downloadingId === null) {
+                                (e.currentTarget as HTMLButtonElement).style.background = "rgba(34, 197, 94, 0.1)";
+                                (e.currentTarget as HTMLButtonElement).style.color = "#4ade80";
+                              }
                             }}
                             onMouseLeave={(e) => {
                               (e.currentTarget as HTMLButtonElement).style.background = "transparent";
                               (e.currentTarget as HTMLButtonElement).style.color = t.textSecondary;
                             }}
                           >
-                            <Download size={16} />
+                            {downloadingId === purchase.id_movimiento ? (
+                              <Loader2 size={16} className="animate-spin" />
+                            ) : (
+                              <Download size={16} />
+                            )}
                           </button>
                         </div>
                       </td>
@@ -1173,7 +1206,7 @@ export default function PurchaseHistory({ isDark = true }: { isDark?: boolean })
         </div>
 
         {/* Pagination */}
-        {filteredPurchases.length > 0 && (
+        {totalCompras > 0 && totalPages > 1 && (
           <div style={{ padding: "20px", borderTop: `1px solid ${t.border}`, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
             <p style={{ fontSize: "13px", color: t.textSecondary }}>
               Página {currentPage} de {totalPages}
@@ -1367,7 +1400,7 @@ export default function PurchaseHistory({ isDark = true }: { isDark?: boolean })
                   Detalle de Compra
                 </h2>
                 <p style={{ fontSize: "13px", color: t.textSecondary }}>
-                  Factura: {selectedPurchase.numero_factura}
+                  Factura: {selectedPurchase.numero_documento ?? "—"}
                 </p>
               </div>
               <button
@@ -1400,145 +1433,237 @@ export default function PurchaseHistory({ isDark = true }: { isDark?: boolean })
 
             {/* Modal Body */}
             <div style={{ padding: "24px", maxHeight: "calc(90vh - 180px)", overflowY: "auto" }}>
-              {/* Purchase Info */}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: "16px", marginBottom: "24px" }}>
-                <div style={{ padding: "16px", background: t.innerBg, borderRadius: "16px", border: `1px solid ${t.border}` }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "12px" }}>
-                    <Truck size={18} color={t.accent} />
-                    <p style={{ fontSize: "12px", fontWeight: 600, color: t.textSecondary, textTransform: "uppercase" }}>
-                      Proveedor
-                    </p>
+              {detailLoading ? (
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "16px", padding: "60px 20px" }}>
+                  <Loader2 size={36} color={t.accent} className="animate-spin" />
+                  <p style={{ fontSize: "15px", color: t.textSecondary }}>
+                    Cargando detalle de la compra...
+                  </p>
+                </div>
+              ) : detailError ? (
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "16px", padding: "60px 20px" }}>
+                  <AlertCircle size={36} color="#ef4444" />
+                  <p style={{ fontSize: "15px", color: "#ef4444", fontWeight: 600, textAlign: "center" }}>
+                    {detailError}
+                  </p>
+                  <button
+                    onClick={() => selectedPurchase && handleViewDetails(selectedPurchase)}
+                    style={{
+                      padding: "10px 20px",
+                      borderRadius: "12px",
+                      border: "none",
+                      background: t.accent,
+                      color: "#fff",
+                      fontSize: "14px",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      fontFamily: "'Cairo', sans-serif",
+                    }}
+                  >
+                    <RefreshCw size={16} />
+                    Reintentar
+                  </button>
+                </div>
+              ) : detailData ? (
+                <>
+                  {/* Purchase Info */}
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: "16px", marginBottom: "24px" }}>
+                    <div style={{ padding: "16px", background: t.innerBg, borderRadius: "16px", border: `1px solid ${t.border}` }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "12px" }}>
+                        <Truck size={18} color={t.accent} />
+                        <p style={{ fontSize: "12px", fontWeight: 600, color: t.textSecondary, textTransform: "uppercase" }}>
+                          Proveedor
+                        </p>
+                      </div>
+                      <p style={{ fontSize: "15px", fontWeight: 600, color: t.textPrimary, marginBottom: "4px" }}>
+                        {detailData.proveedor?.nombre_proveedor ?? "Sin proveedor"}
+                      </p>
+                      <p style={{ fontSize: "13px", color: t.textSecondary }}>
+                        RUC: {detailData.proveedor?.ruc ?? "-"}
+                      </p>
+                      {(detailData.proveedor?.telefono || detailData.proveedor?.email) && (
+                        <p style={{ fontSize: "12px", color: t.textSecondary, marginTop: "6px" }}>
+                          {detailData.proveedor?.telefono
+                            ? `${detailData.proveedor.telefono}${detailData.proveedor?.email ? " · " + detailData.proveedor.email : ""}`
+                            : detailData.proveedor?.email}
+                        </p>
+                      )}
+                    </div>
+
+                    <div style={{ padding: "16px", background: t.innerBg, borderRadius: "16px", border: `1px solid ${t.border}` }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "12px" }}>
+                        <User size={18} color={t.accent} />
+                        <p style={{ fontSize: "12px", fontWeight: 600, color: t.textSecondary, textTransform: "uppercase" }}>
+                          Registrado Por
+                        </p>
+                      </div>
+                      <p style={{ fontSize: "15px", fontWeight: 600, color: t.textPrimary, marginBottom: "4px" }}>
+                        {detailData.usuario?.nombre_completo ?? "No registrado"}
+                      </p>
+                      <p style={{ fontSize: "13px", color: t.textSecondary }}>
+                        {new Date(detailData.fecha_hora).toLocaleString("es-PE")}
+                      </p>
+                    </div>
+
+                    <div style={{ padding: "16px", background: t.innerBg, borderRadius: "16px", border: `1px solid ${t.border}` }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "12px" }}>
+                        <FileText size={18} color={t.accent} />
+                        <p style={{ fontSize: "12px", fontWeight: 600, color: t.textSecondary, textTransform: "uppercase" }}>
+                          Documento
+                        </p>
+                      </div>
+                      <p style={{ fontSize: "15px", fontWeight: 600, color: t.textPrimary, marginBottom: "4px" }}>
+                        {detailData.numero_documento ?? "—"}
+                      </p>
+                      <p style={{ fontSize: "13px", color: t.textSecondary }}>
+                        Tipo: {detailData.tipo_movimiento}
+                      </p>
+                    </div>
                   </div>
-                  <p style={{ fontSize: "15px", fontWeight: 600, color: t.textPrimary, marginBottom: "4px" }}>
-                    {selectedPurchase.proveedor.nombre_proveedor}
-                  </p>
-                  <p style={{ fontSize: "13px", color: t.textSecondary }}>
-                    RUC: {selectedPurchase.proveedor.ruc}
-                  </p>
-                </div>
 
-                <div style={{ padding: "16px", background: t.innerBg, borderRadius: "16px", border: `1px solid ${t.border}` }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "12px" }}>
-                    <User size={18} color={t.accent} />
-                    <p style={{ fontSize: "12px", fontWeight: 600, color: t.textSecondary, textTransform: "uppercase" }}>
-                      Registrado Por
-                    </p>
+                  {/* Products Table */}
+                  <div style={{ marginBottom: "24px" }}>
+                    <h3 style={{ fontSize: "16px", fontWeight: 700, color: t.textPrimary, marginBottom: "16px" }}>
+                      Productos Comprados
+                    </h3>
+                    <div style={{ background: t.innerBg, borderRadius: "16px", border: `1px solid ${t.border}`, overflow: "hidden" }}>
+                      <div style={{ overflowX: "auto" }}>
+                        <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "640px" }}>
+                          <thead>
+                            <tr style={{ background: t.cardBg, borderBottom: `1px solid ${t.border}` }}>
+                              <th style={{ padding: "12px 16px", textAlign: "left", fontSize: "11px", fontWeight: 700, color: t.textSecondary, textTransform: "uppercase" }}>
+                                Producto
+                              </th>
+                              <th style={{ padding: "12px 16px", textAlign: "center", fontSize: "11px", fontWeight: 700, color: t.textSecondary, textTransform: "uppercase" }}>
+                                Cantidad
+                              </th>
+                              <th style={{ padding: "12px 16px", textAlign: "right", fontSize: "11px", fontWeight: 700, color: t.textSecondary, textTransform: "uppercase" }}>
+                                P. Unit.
+                              </th>
+                              <th style={{ padding: "12px 16px", textAlign: "left", fontSize: "11px", fontWeight: 700, color: t.textSecondary, textTransform: "uppercase" }}>
+                                Lote
+                              </th>
+                              <th style={{ padding: "12px 16px", textAlign: "left", fontSize: "11px", fontWeight: 700, color: t.textSecondary, textTransform: "uppercase" }}>
+                                Vencimiento
+                              </th>
+                              <th style={{ padding: "12px 16px", textAlign: "right", fontSize: "11px", fontWeight: 700, color: t.textSecondary, textTransform: "uppercase" }}>
+                                Subtotal
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {detailData.detalle_movimiento.map((detail, index) => {
+                              const lote = detail.inventario_lote;
+                              return (
+                                <tr
+                                  key={detail.id_detalle_mov}
+                                  style={{
+                                    borderBottom: index < detailData.detalle_movimiento.length - 1 ? `1px solid ${t.border}` : "none",
+                                  }}
+                                >
+                                  <td style={{ padding: "12px 16px" }}>
+                                    <p style={{ fontSize: "13px", fontWeight: 600, color: t.textPrimary }}>
+                                      {detail.producto?.nombre_comercial ?? "Producto no disponible"}
+                                    </p>
+                                    {detail.producto?.nombre_generico && (
+                                      <p style={{ fontSize: "11px", color: t.textSecondary }}>
+                                        {detail.producto.nombre_generico}
+                                      </p>
+                                    )}
+                                  </td>
+                                  <td style={{ padding: "12px 16px", textAlign: "center" }}>
+                                    <span style={{ fontSize: "13px", color: t.textPrimary }}>
+                                      {detail.cantidad} {detail.producto?.unidad_medida ?? ""}
+                                    </span>
+                                  </td>
+                                  <td style={{ padding: "12px 16px", textAlign: "right" }}>
+                                    <span style={{ fontSize: "13px", color: t.textSecondary }}>
+                                      S/ {detail.costo_unitario.toFixed(2)}
+                                    </span>
+                                  </td>
+                                  <td style={{ padding: "12px 16px" }}>
+                                    <span style={{ fontSize: "12px", color: t.textSecondary }}>
+                                      {lote?.numero_lote ?? "—"}
+                                    </span>
+                                  </td>
+                                  <td style={{ padding: "12px 16px" }}>
+                                    {lote?.fecha_vencimiento ? (
+                                      <span style={{ fontSize: "12px", color: t.textSecondary }}>
+                                        {new Date(lote.fecha_vencimiento).toLocaleDateString("es-PE")}
+                                      </span>
+                                    ) : (
+                                      <span style={{ fontSize: "12px", color: t.textMuted }}>—</span>
+                                    )}
+                                  </td>
+                                  <td style={{ padding: "12px 16px", textAlign: "right" }}>
+                                    <span style={{ fontSize: "14px", fontWeight: 700, color: t.accent }}>
+                                      S/ {(detail.cantidad * detail.costo_unitario).toFixed(2)}
+                                    </span>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
                   </div>
-                  <p style={{ fontSize: "15px", fontWeight: 600, color: t.textPrimary, marginBottom: "4px" }}>
-                    {selectedPurchase.usuario.nombre_completo}
-                  </p>
-                  <p style={{ fontSize: "13px", color: t.textSecondary }}>
-                    {new Date(selectedPurchase.fecha_compra).toLocaleString("es-PE")}
-                  </p>
-                </div>
-              </div>
 
-              {/* Products Table */}
-              <div style={{ marginBottom: "24px" }}>
-                <h3 style={{ fontSize: "16px", fontWeight: 700, color: t.textPrimary, marginBottom: "16px" }}>
-                  Productos Comprados
-                </h3>
-                <div style={{ background: t.innerBg, borderRadius: "16px", border: `1px solid ${t.border}`, overflow: "hidden" }}>
-                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                    <thead>
-                      <tr style={{ background: t.cardBg, borderBottom: `1px solid ${t.border}` }}>
-                        <th style={{ padding: "12px 16px", textAlign: "left", fontSize: "11px", fontWeight: 700, color: t.textSecondary, textTransform: "uppercase" }}>
-                          Producto
-                        </th>
-                        <th style={{ padding: "12px 16px", textAlign: "center", fontSize: "11px", fontWeight: 700, color: t.textSecondary, textTransform: "uppercase" }}>
-                          Cantidad
-                        </th>
-                        <th style={{ padding: "12px 16px", textAlign: "right", fontSize: "11px", fontWeight: 700, color: t.textSecondary, textTransform: "uppercase" }}>
-                          P. Unit.
-                        </th>
-                        <th style={{ padding: "12px 16px", textAlign: "left", fontSize: "11px", fontWeight: 700, color: t.textSecondary, textTransform: "uppercase" }}>
-                          Lote
-                        </th>
-                        <th style={{ padding: "12px 16px", textAlign: "left", fontSize: "11px", fontWeight: 700, color: t.textSecondary, textTransform: "uppercase" }}>
-                          Vencimiento
-                        </th>
-                        <th style={{ padding: "12px 16px", textAlign: "right", fontSize: "11px", fontWeight: 700, color: t.textSecondary, textTransform: "uppercase" }}>
-                          Subtotal
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {selectedPurchase.detalles.map((detail, index) => (
-                        <tr
-                          key={detail.id_detalle}
-                          style={{
-                            borderBottom: index < selectedPurchase.detalles.length - 1 ? `1px solid ${t.border}` : "none",
-                          }}
-                        >
-                          <td style={{ padding: "12px 16px" }}>
-                            <p style={{ fontSize: "13px", fontWeight: 600, color: t.textPrimary }}>
-                              {detail.nombre_producto}
-                            </p>
-                          </td>
-                          <td style={{ padding: "12px 16px", textAlign: "center" }}>
-                            <span style={{ fontSize: "13px", color: t.textPrimary }}>
-                              {detail.cantidad}
-                            </span>
-                          </td>
-                          <td style={{ padding: "12px 16px", textAlign: "right" }}>
-                            <span style={{ fontSize: "13px", color: t.textSecondary }}>
-                              S/ {detail.precio_unitario.toFixed(2)}
-                            </span>
-                          </td>
-                          <td style={{ padding: "12px 16px" }}>
-                            <span style={{ fontSize: "12px", color: t.textSecondary }}>
-                              {detail.numero_lote}
-                            </span>
-                          </td>
-                          <td style={{ padding: "12px 16px" }}>
-                            <span style={{ fontSize: "12px", color: t.textSecondary }}>
-                              {new Date(detail.fecha_vencimiento).toLocaleDateString("es-PE")}
-                            </span>
-                          </td>
-                          <td style={{ padding: "12px 16px", textAlign: "right" }}>
-                            <span style={{ fontSize: "14px", fontWeight: 700, color: t.accent }}>
-                              S/ {detail.subtotal.toFixed(2)}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                  {/* Totals */}
+                  <div style={{ padding: "20px", background: t.innerBg, borderRadius: "16px", border: `1px solid ${t.border}` }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "12px" }}>
+                      <span style={{ fontSize: "14px", color: t.textSecondary }}>Subtotal:</span>
+                      <span style={{ fontSize: "14px", fontWeight: 600, color: t.textPrimary }}>
+                        S/ {detailData.subtotal.toFixed(2)}
+                      </span>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "12px" }}>
+                      <span style={{ fontSize: "14px", color: t.textSecondary }}>IGV (18%):</span>
+                      <span style={{ fontSize: "14px", fontWeight: 600, color: t.textPrimary }}>
+                        S/ {detailData.igv.toFixed(2)}
+                      </span>
+                    </div>
+                    <div
+                      style={{
+                        borderTop: `1px solid ${t.border}`,
+                        paddingTop: "12px",
+                        display: "flex",
+                        justifyContent: "space-between",
+                      }}
+                    >
+                      <span style={{ fontSize: "16px", fontWeight: 700, color: t.textPrimary }}>Total:</span>
+                      <span style={{ fontSize: "18px", fontWeight: 700, color: t.accent }}>
+                        S/ {detailData.total.toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "16px", padding: "60px 20px" }}>
+                  <p style={{ fontSize: "15px", color: t.textSecondary }}>
+                    No se pudo cargar el detalle.
+                  </p>
                 </div>
-              </div>
-
-              {/* Totals */}
-              <div style={{ padding: "20px", background: t.innerBg, borderRadius: "16px", border: `1px solid ${t.border}` }}>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "12px" }}>
-                  <span style={{ fontSize: "14px", color: t.textSecondary }}>Subtotal:</span>
-                  <span style={{ fontSize: "14px", fontWeight: 600, color: t.textPrimary }}>
-                    S/ {selectedPurchase.subtotal.toFixed(2)}
-                  </span>
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "12px" }}>
-                  <span style={{ fontSize: "14px", color: t.textSecondary }}>IGV (18%):</span>
-                  <span style={{ fontSize: "14px", fontWeight: 600, color: t.textPrimary }}>
-                    S/ {selectedPurchase.igv.toFixed(2)}
-                  </span>
-                </div>
-                <div
-                  style={{
-                    borderTop: `1px solid ${t.border}`,
-                    paddingTop: "12px",
-                    display: "flex",
-                    justifyContent: "space-between",
-                  }}
-                >
-                  <span style={{ fontSize: "16px", fontWeight: 700, color: t.textPrimary }}>Total:</span>
-                  <span style={{ fontSize: "18px", fontWeight: 700, color: t.accent }}>
-                    S/ {selectedPurchase.total.toFixed(2)}
-                  </span>
-                </div>
-              </div>
+              )}
             </div>
           </div>
         </>
       )}
+
+      {/* Toaster para notificaciones */}
+      <Toaster
+        position="top-center"
+        toastOptions={{
+          style: {
+            background: "transparent",
+            boxShadow: "none",
+            padding: 0,
+          },
+        }}
+      />
     </div>
   );
 }
