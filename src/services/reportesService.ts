@@ -105,6 +105,152 @@ export const reportesService = {
     const response = await api.get<GetReporteResponse>("/reportes/ventas", { params });
     return response.data.data;
   },
+
+  /**
+   * Obtener el reporte de inventario.
+   * Si no se pasan fechas, se reporta todo el historial de movimientos.
+   */
+  getReporteInventario: async (desde?: string, hasta?: string): Promise<ReporteInventario> => {
+    const params: Record<string, string> = {};
+    if (desde) params.desde = desde;
+    if (hasta) params.hasta = hasta;
+    const response = await api.get<GetReporteInventarioResponse>("/reportes/inventario", { params });
+    return response.data.data;
+  },
 };
+
+/* ═════════════════════════════════════════════════════════════════════
+ *  REPORTE DE INVENTARIO
+ * ═════════════════════════════════════════════════════════════════════ */
+
+export interface InventarioRango {
+  desde: string | null;
+  hasta: string | null;
+  periodo_completo: boolean;
+}
+
+export interface InventarioKpis {
+  total_productos: number;
+  total_categorias: number;
+  total_proveedores: number;
+  unidades_totales: number;
+  lotes_total: number;
+  valor_inventario: number;
+  valor_potencial: number;
+  margen_potencial: number;
+  stock_ok: number;
+  stock_bajo: number;
+  stock_critico: number;
+  stock_agotado: number;
+  alertas_stock: number;
+  lotes_vencen_30: number;
+  lotes_vencen_60: number;
+  lotes_vencen_90: number;
+  lotes_vencidos: number;
+  entradas_totales: number;
+  salidas_totales: number;
+  valor_promedio_producto: number;
+}
+
+export interface PorEstadoStock {
+  estado: string;
+  productos: number;
+  unidades: number;
+  valor: number;
+  porcentaje: number;
+}
+
+export interface PorCategoria {
+  categoria: string;
+  productos: number;
+  unidades: number;
+  valor: number;
+  porcentaje: number;
+}
+
+export interface TopValorItem {
+  nombre: string;
+  categoria: string;
+  unidades: number;
+  valor: number;
+  potencial: number;
+  margen: number;
+}
+
+export interface ProductoCritico {
+  id_producto: number;
+  nombre: string;
+  categoria: string;
+  stock: number;
+  minimo: number;
+  ratio: number;
+  estado: string;
+  valor: number;
+}
+
+export interface LotePorVencer {
+  id_inventario: number;
+  numero_lote: string;
+  producto: string;
+  fecha_vencimiento: string;
+  dias: number;
+  stock: number;
+  ubicacion: string;
+  urgencia: string;
+}
+
+export interface LoteVencido {
+  id_inventario: number;
+  numero_lote: string;
+  producto: string;
+  fecha_vencimiento: string;
+  dias: number;
+  stock: number;
+  ubicacion: string;
+}
+
+export interface SerieMovimiento {
+  fecha: string;
+  etiqueta: string;
+  entradas: number;
+  salidas: number;
+  neto: number;
+}
+
+export interface SerieStock {
+  fecha: string;
+  etiqueta: string;
+  nivel: number;
+  entradas: number;
+  salidas: number;
+}
+
+export interface PorTipoMovimiento {
+  tipo: string;
+  movimientos: number;
+  unidades: number;
+}
+
+export interface ReporteInventario {
+  rango: InventarioRango;
+  fecha_corte: string;
+  kpis: InventarioKpis;
+  por_estado: PorEstadoStock[];
+  por_categoria: PorCategoria[];
+  top_valor: TopValorItem[];
+  productos_criticos: ProductoCritico[];
+  lotes_por_vencer: LotePorVencer[];
+  lotes_vencidos: LoteVencido[];
+  serie_movimientos: SerieMovimiento[];
+  serie_stock: SerieStock[];
+  por_tipo_movimiento: PorTipoMovimiento[];
+  paleta_estados: Record<string, string>;
+}
+
+interface GetReporteInventarioResponse {
+  success: boolean;
+  message: string;
+  data: ReporteInventario;
+}
 
 export default reportesService;
