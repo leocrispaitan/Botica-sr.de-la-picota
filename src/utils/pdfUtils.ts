@@ -429,3 +429,249 @@ export function exportPurchaseHistoryReport(
     .padStart(2, "0")}`;
   doc.save(`Reporte_Compras_${stamp}.pdf`);
 }
+
+/* ═══════════════════════════════════════════════════════════════════ */
+/*  3. REPORTE DE VENTAS (dashboard)                                   */
+/*  Recibe KPIs, tablas y capturas (PNG) de los gráficos del dashboard  */
+/* ═══════════════════════════════════════════════════════════════════ */
+
+export interface SalesReportChartImages {
+  area?: string;
+  horas?: string;
+  metodo?: string;
+  comprobante?: string;
+  productos?: string;
+}
+
+export interface SalesPdfData {
+  meta: { desde: string | null; hasta: string | null; dias: number | null; periodo_completo: boolean };
+  kpis: {
+    total_ingresos: number;
+    total_ventas: number;
+    ticket_promedio: number;
+    unidades_vendidas: number;
+    clientes_unicos: number;
+  };
+  crecimiento: { ingresos: number | null; ventas: number | null; ticket: number | null; clientes: number | null };
+  topProductos: { nombre: string; cantidad: number; ingresos: number; porcentaje: number }[];
+  ventasRecientes: {
+    id_venta: number;
+    fecha_venta: string;
+    cliente: string;
+    vendedor: string;
+    metodo: string;
+    comprobante: string;
+    total_pagar: number;
+    estado_venta: string;
+  }[];
+  chartImages: SalesReportChartImages;
+}
+
+const CHART_MAX_H = 78;
+
+function addChartImage(doc: jsPDF, dataUrl: string, y: number): number {
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const props = doc.getImageProperties(dataUrl);
+
+  const contentW = pageWidth - 28;
+  const ratio = (props.height || contentW) / (props.width || contentW);
+  let h = contentW * ratio;
+  let w = contentW;
+  if (h > CHART_MAX_H) {
+    h = CHART_MAX_H;
+    w = h / ratio;
+  }
+
+  if (y + h > pageHeight - 28) {
+    doc.addPage();
+    y = 20;
+  }
+
+  const x = (pageWidth - w) / 2;
+  doc.setFillColor(255, 255, 255);
+  doc.roundedRect(x - 3, y - 3, w + 6, h + 6, 3, 3, "F");
+  doc.addImage(dataUrl, "PNG", x, y, w, h);
+  return y + h + 8;
+}
+
+export function exportSalesReportPdf(data: SalesPdfData) {
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  const pageWidth = doc.internal.pageSize.getWidth();
+
+  const subtitle = data.meta.periodo_completo
+    ? "Todo el período registrado"
+    : `Del ${formatDate(data.meta.desde!)} al ${formatDate(data.meta.hasta!)} (${data.meta.dias} días)`;
+
+  drawHeader(doc, "REPORTE DE VENTAS", subtitle);
+
+  // ─── Tarjetas de estadísticas ───
+  const cardColors = [
+    [16, 185, 129] as [number, number, number],
+    [59, 130, 246] as [number, number, number],
+    [139, 92, 246] as [number, number, number],
+    [245, 158, 11] as [number, number, number],
+  ];
+
+  const cardW = (pageWidth - 14 * 2 - 8 * 3) / 4;
+  const cardY = 56;
+  const cardH = 26;
+
+  const crecimientoIngresos = data.crecimiento.ingresos;
+
+  const cards = [
+    { label: "Total Ingresos", value: formatMoney(data.kpis.total_ingresos), growth: crecimientoIngresos },
+    { label: "Total Ventas", value: String(data.kpis.total_ventas), growth: data.crecimiento.ventas },
+    { label: "Ticket Promedio", value: formatMoney(data.kpis.ticket_promedio), growth: data.crecimiento.ticket },
+    { label: "Clientes Únicos", value: String(data.kpis.clientes_unicos), growth: data.crecimiento.clientes },
+  ];
+
+  cards.forEach((c, i) => {
+    const x = 14 + i * (cardW + 8);
+    doc.setFillColor(...cardColors[i]);
+    doc.setDrawColor(...cardColors[i]);
+    doc.roundedRect(x, cardY, cardW, cardH, 3, 3, "FD");
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7);
+    doc.text(c.label.toUpperCase(), x + 6, cardY + 8);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text(c.value, x + 6, cardY + 17);
+    if (c.growth !== null && c.growth !== undefined) {
+      const signo = c.growth >= 0 ? "+" : "";
+      const txt = `${signo}${c.growth.toFixed(1)}%`;
+      const tw = doc.getTextWidth(txt) + 4;
+      doc.setFillColor(255, 255, 255);
+      doc.setDrawColor(255, 255, 255);
+      doc.roundedRect(x + cardW - tw - 4, cardY + cardH - 7, tw, 4.5, 2, 2, "F");
+      doc.setTextColor(...cardColors[i]);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(6.5);
+      doc.text(txt, x + cardW - tw - 2, cardY + cardH - 3.6);
+    }
+  });
+
+  let y = cardY + cardH + 4;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(...BRAND.gray);
+  doc.text(`Unidades vendidas: ${data.kpis.unidades_vendidas}  |  Periodo anterior: ${data.meta.periodo_completo ? "—" : "sí"}`, 14, y);
+  y += 8;
+
+  // ─── Gráficos (imágenes capturadas del dashboard) ───
+  const charts: Array<[string, string | undefined]> = [
+    ["Tendencia de Ingresos", data.chartImages.area],
+    ["Ventas por Hora", data.chartImages.horas],
+    ["Métodos de Pago", data.chartImages.metodo],
+    ["Tipos de Comprobante", data.chartImages.comprobante],
+    ["Top Productos", data.chartImages.productos],
+  ];
+
+  charts.forEach(([titulo, imagen]) => {
+    if (!imagen) return;
+    if (y > doc.internal.pageSize.getHeight() - 40) {
+      doc.addPage();
+      y = 20;
+    }
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.setTextColor(...BRAND.primary);
+    doc.text(titulo.toUpperCase(), 14, y);
+    y += 4;
+    y = addChartImage(doc, imagen, y);
+  });
+
+  // ─── Tabla: Top productos ───
+  if (y > doc.internal.pageSize.getHeight() - 45) {
+    doc.addPage();
+    y = 20;
+  }
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.setTextColor(...BRAND.primary);
+  doc.text("TOP PRODUCTOS MÁS VENDIDOS", 14, y);
+  y += 4;
+
+  const productosBody = data.topProductos.map((p, i) => [
+    String(i + 1),
+    p.nombre,
+    String(p.cantidad),
+    formatMoney(p.ingresos),
+    `${p.porcentaje.toFixed(1)}%`,
+  ]);
+
+  autoTable(doc, {
+    startY: y,
+    theme: "grid",
+    headStyles: { fillColor: BRAND.dark, textColor: 255, fontStyle: "bold", fontSize: 8 },
+    bodyStyles: { fontSize: 8, textColor: BRAND.dark },
+    alternateRowStyles: { fillColor: [248, 250, 252] },
+    margin: { left: 14, right: 14 },
+    head: [["#", "Producto", "Cantidad", "Ingresos", "%"]],
+    body: productosBody.length > 0 ? productosBody : [["—", "Sin ventas registradas", "—", "—", "—"]],
+    columnStyles: {
+      0: { cellWidth: 10, halign: "center" as const },
+      2: { cellWidth: 22, halign: "center" as const },
+      3: { halign: "right" as const },
+      4: { cellWidth: 18, halign: "right" as const },
+    },
+  });
+
+  // ─── Tabla: Ventas recientes ───
+  y = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable
+    ? ((doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable as { finalY: number }).finalY + 10
+    : y + 10;
+
+  if (y > doc.internal.pageSize.getHeight() - 45) {
+    doc.addPage();
+    y = 20;
+  }
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.setTextColor(...BRAND.primary);
+  doc.text("ÚLTIMAS VENTAS", 14, y);
+  y += 4;
+
+  const ventasBody = data.ventasRecientes.map((v) => [
+    String(v.id_venta),
+    formatDateTime(v.fecha_venta),
+    v.cliente,
+    v.vendedor,
+    v.metodo,
+    v.comprobante,
+    formatMoney(v.total_pagar),
+    v.estado_venta,
+  ]);
+
+  autoTable(doc, {
+    startY: y,
+    theme: "grid",
+    headStyles: { fillColor: BRAND.dark, textColor: 255, fontStyle: "bold", fontSize: 7 },
+    bodyStyles: { fontSize: 7, textColor: BRAND.dark },
+    alternateRowStyles: { fillColor: [248, 250, 252] },
+    margin: { left: 14, right: 14 },
+    head: [["N°", "Fecha", "Cliente", "Vendedor", "Método", "Comp.", "Total", "Estado"]],
+    body: ventasBody.length > 0 ? ventasBody : [["—", "—", "Sin ventas en el período", "—", "—", "—", "—", "—"]],
+    columnStyles: {
+      0: { cellWidth: 12, halign: "center" as const },
+      1: { cellWidth: 30, halign: "center" as const },
+      4: { cellWidth: 20 },
+      5: { cellWidth: 14, halign: "center" as const },
+      6: { halign: "right" as const },
+      7: { cellWidth: 18, halign: "center" as const },
+    },
+  });
+
+  drawFooter(doc);
+  doc.setPage(1);
+
+  const dateStamp = new Date();
+  const stamp = `${dateStamp.getFullYear()}${(dateStamp.getMonth() + 1).toString().padStart(2, "0")}${dateStamp
+    .getDate()
+    .toString()
+    .padStart(2, "0")}`;
+  doc.save(`Reporte_Ventas_${stamp}.pdf`);
+}
