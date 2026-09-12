@@ -1,129 +1,52 @@
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState, type ReactNode, type CSSProperties } from "react";
+import { motion } from "framer-motion";
 import {
-  Package,
-  ShoppingCart,
-  AlertCircle,
-  RotateCcw,
-  Trash2,
-  Download,
-  Filter,
-  Search,
-  User,
-  Calendar,
-  TrendingUp,
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+} from "recharts";
+import { toPng } from "html-to-image";
+import toast, { Toaster } from "react-hot-toast";
+import {
   Activity,
+  AlertTriangle,
+  BarChart3,
+  Boxes,
+  Calendar,
+  ChartPie,
+  Clock,
+  DollarSign,
+  Download,
+  Inbox,
   Layers,
+  Package,
+  Receipt,
+  RefreshCw,
+  Repeat,
+  RotateCcw,
+  ShoppingCart,
+  SlidersHorizontal,
+  Trash2,
+  TrendingUp,
+  Users,
 } from "lucide-react";
-
-/* ─── Types ─────────────────────────────────────────────────────────── */
-type TipoMovimiento = "COMPRA" | "VENTA" | "AJUSTE" | "DEVOLUCION" | "MERMA";
-
-interface Movimiento {
-  id_movimiento: number;
-  tipo_movimiento: TipoMovimiento;
-  fecha_hora: string;
-  usuario: string;
-  motivo_ajuste?: string;
-  detalles: {
-    producto: string;
-    cantidad: number;
-    costo_unitario: number;
-  }[];
-  total_movimiento: number;
-}
-
-/* ─── Mock Data ───────────────────────────────────────────────────────── */
-const mockMovimientos: Movimiento[] = [
-  {
-    id_movimiento: 1,
-    tipo_movimiento: "COMPRA",
-    fecha_hora: "2024-02-15T09:30:00",
-    usuario: "Roberto Silva",
-    detalles: [
-      { producto: "Panadol Jarabe 60ml", cantidad: 50, costo_unitario: 7.0 },
-      { producto: "Ibuprofeno 400mg x20", cantidad: 30, costo_unitario: 9.0 },
-    ],
-    total_movimiento: 620.0,
-  },
-  {
-    id_movimiento: 2,
-    tipo_movimiento: "VENTA",
-    fecha_hora: "2024-02-15T10:15:00",
-    usuario: "María López",
-    detalles: [
-      { producto: "Amoxil 500mg x12", cantidad: 3, costo_unitario: 11.0 },
-    ],
-    total_movimiento: 33.0,
-  },
-  {
-    id_movimiento: 3,
-    tipo_movimiento: "AJUSTE",
-    fecha_hora: "2024-02-15T11:00:00",
-    usuario: "Roberto Silva",
-    motivo_ajuste: "Corrección de inventario físico - discrepancia detectada en conteo",
-    detalles: [
-      { producto: "Omeprazol 20mg x14", cantidad: 5, costo_unitario: 14.0 },
-    ],
-    total_movimiento: 70.0,
-  },
-  {
-    id_movimiento: 4,
-    tipo_movimiento: "DEVOLUCION",
-    fecha_hora: "2024-02-15T12:30:00",
-    usuario: "María López",
-    motivo_ajuste: "Cliente devuelve producto por fecha de vencimiento próxima",
-    detalles: [
-      { producto: "Loratadina 10mg x30", cantidad: 2, costo_unitario: 7.5 },
-    ],
-    total_movimiento: 15.0,
-  },
-  {
-    id_movimiento: 5,
-    tipo_movimiento: "MERMA",
-    fecha_hora: "2024-02-15T14:00:00",
-    usuario: "Roberto Silva",
-    motivo_ajuste: "Productos vencidos dados de baja según protocolo sanitario",
-    detalles: [
-      { producto: "Clonazepam 2mg x30", cantidad: 8, costo_unitario: 16.0 },
-    ],
-    total_movimiento: 128.0,
-  },
-  {
-    id_movimiento: 6,
-    tipo_movimiento: "COMPRA",
-    fecha_hora: "2024-02-14T16:00:00",
-    usuario: "Roberto Silva",
-    detalles: [
-      { producto: "Losartan 50mg x30", cantidad: 40, costo_unitario: 18.0 },
-      { producto: "Metformina 850mg x60", cantidad: 25, costo_unitario: 20.0 },
-    ],
-    total_movimiento: 1220.0,
-  },
-  {
-    id_movimiento: 7,
-    tipo_movimiento: "VENTA",
-    fecha_hora: "2024-02-14T17:30:00",
-    usuario: "María López",
-    detalles: [
-      { producto: "Panadol Jarabe 60ml", cantidad: 5, costo_unitario: 7.0 },
-      { producto: "Ibuprofeno 400mg x20", cantidad: 3, costo_unitario: 9.0 },
-    ],
-    total_movimiento: 62.0,
-  },
-  {
-    id_movimiento: 8,
-    tipo_movimiento: "AJUSTE",
-    fecha_hora: "2024-02-14T09:00:00",
-    usuario: "Juan Pérez",
-    motivo_ajuste: "Ajuste por error de registro en sistema anterior",
-    detalles: [
-      { producto: "Amoxil 500mg x12", cantidad: 10, costo_unitario: 11.0 },
-    ],
-    total_movimiento: 110.0,
-  },
-];
+import reportesService from "../services/reportesService";
+import type { ReporteMovimientos } from "../services/reportesService";
+import { exportMovementsReportPdf } from "../utils/pdfUtils";
+import type { MovementsReportChartImages } from "../utils/pdfUtils";
 
 /* ─── Theme ────────────────────────────────────────────────────────── */
+type Theme = ReturnType<typeof getTheme>;
+
 function getTheme(isDark: boolean) {
   if (isDark) {
     return {
@@ -157,964 +80,1305 @@ function getTheme(isDark: boolean) {
   };
 }
 
-/* ─── Helper Functions ──────────────────────────────────────────────── */
-const getTipoMovimientoConfig = (tipo: TipoMovimiento) => {
-  switch (tipo) {
-    case "COMPRA":
-      return {
-        color: "#06b6d4",
-        bg: "rgba(6, 182, 212, 0.1)",
-        icon: ShoppingCart,
-        label: "Compra",
-        description: "Ingreso de mercadería",
-      };
-    case "VENTA":
-      return {
-        color: "#10b981",
-        bg: "rgba(16, 185, 129, 0.1)",
-        icon: TrendingUp,
-        label: "Venta",
-        description: "Salida por venta",
-      };
-    case "AJUSTE":
-      return {
-        color: "#f59e0b",
-        bg: "rgba(245, 158, 11, 0.1)",
-        icon: AlertCircle,
-        label: "Ajuste",
-        description: "Corrección de inventario",
-      };
-    case "DEVOLUCION":
-      return {
-        color: "#8b5cf6",
-        bg: "rgba(139, 92, 246, 0.1)",
-        icon: RotateCcw,
-        label: "Devolución",
-        description: "Retorno de producto",
-      };
-    case "MERMA":
-      return {
-        color: "#ef4444",
-        bg: "rgba(239, 68, 68, 0.1)",
-        icon: Trash2,
-        label: "Merma",
-        description: "Baja de producto",
-      };
-  }
+/* ─── Paleta de tipos ──────────────────────────────────────────────── */
+const TIPO_COLORS: Record<string, string> = {
+  COMPRA: "#06b6d4",
+  VENTA: "#10b981",
+  AJUSTE: "#f59e0b",
+  DEVOLUCION: "#8b5cf6",
+  MERMA: "#f43f5e",
 };
 
-const formatDate = (dateStr: string) => {
-  const date = new Date(dateStr);
-  return date.toLocaleDateString("es-PE", {
+const TIPO_CONFIG: Record<
+  string,
+  { color: string; bg: string; icon: typeof ShoppingCart; label: string }
+> = {
+  COMPRA: { color: "#06b6d4", bg: "rgba(6,182,212,0.12)", icon: ShoppingCart, label: "Compras" },
+  VENTA: { color: "#10b981", bg: "rgba(16,185,129,0.12)", icon: TrendingUp, label: "Ventas" },
+  AJUSTE: { color: "#f59e0b", bg: "rgba(245,158,11,0.12)", icon: SlidersHorizontal, label: "Ajustes" },
+  DEVOLUCION: { color: "#8b5cf6", bg: "rgba(139,92,246,0.12)", icon: RotateCcw, label: "Devoluciones" },
+  MERMA: { color: "#f43f5e", bg: "rgba(244,63,94,0.12)", icon: Trash2, label: "Mermas" },
+};
+
+const tipoColor = (t: string) => TIPO_COLORS[t] || "#64748b";
+const tipoConfig = (t: string) =>
+  TIPO_CONFIG[t] || { color: "#64748b", bg: "rgba(100,116,139,0.12)", icon: Package, label: t };
+
+/* ─── Helpers ───────────────────────────────────────────────────────── */
+const moneyFmt = (v: number) =>
+  v.toLocaleString("es-PE", { style: "currency", currency: "PEN", minimumFractionDigits: 2 });
+
+const moneyTick = (v: number) => (v >= 1000 ? `S/${(v / 1000).toFixed(1)}k` : `S/${v}`);
+
+const numFmt = (v: number) => v.toLocaleString("es-PE");
+
+const toYMD = (d: Date) => {
+  const m = (d.getMonth() + 1).toString().padStart(2, "0");
+  const day = d.getDate().toString().padStart(2, "0");
+  return `${d.getFullYear()}-${m}-${day}`;
+};
+
+const addDays = (d: Date, n: number) => {
+  const c = new Date(d);
+  c.setDate(c.getDate() + n);
+  return c;
+};
+
+const fechaHora = (iso: string) =>
+  new Date(iso).toLocaleString("es-PE", {
     day: "2-digit",
     month: "short",
-    year: "numeric",
-  });
-};
-
-const formatTime = (dateStr: string) => {
-  const date = new Date(dateStr);
-  return date.toLocaleTimeString("es-PE", {
     hour: "2-digit",
     minute: "2-digit",
   });
+
+const fechaLarga = (iso: string) =>
+  new Date(`${iso.slice(0, 10)}T00:00:00`).toLocaleDateString("es-PE", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  });
+
+type Preset = "7d" | "30d" | "90d" | "mes" | "todo" | "custom";
+
+interface RangoResult {
+  desde?: string;
+  hasta?: string;
+}
+
+const getRango = (p: Preset, desde: string, hasta: string): RangoResult => {
+  const hoy = new Date();
+  switch (p) {
+    case "7d":
+      return { desde: toYMD(addDays(hoy, -6)), hasta: toYMD(hoy) };
+    case "90d":
+      return { desde: toYMD(addDays(hoy, -89)), hasta: toYMD(hoy) };
+    case "mes":
+      return { desde: toYMD(new Date(hoy.getFullYear(), hoy.getMonth(), 1)), hasta: toYMD(hoy) };
+    case "custom":
+      return { desde: desde || undefined, hasta: hasta || undefined };
+    case "todo":
+      return {};
+    default:
+      return { desde: toYMD(addDays(hoy, -29)), hasta: toYMD(hoy) };
+  }
 };
 
-/* ═══════════════════════════════════════════════════════════════════ */
-/*  REPORTES MOVIMIENTOS COMPONENT                                    */
-/* ═══════════════════════════════════════════════════════════════════ */
-export default function ReportesMovimientos({ isDark = true }: { isDark?: boolean }) {
-  const [showFilters, setShowFilters] = useState(false);
-  const [selectedTipo, setSelectedTipo] = useState<TipoMovimiento | "TODOS">("TODOS");
-  const [searchTerm, setSearchTerm] = useState("");
+/* ─── Tooltip de gráficos ───────────────────────────────────────────── */
+function ChartTooltip({
+  active,
+  payload,
+  label,
+  theme,
+  money,
+  suffix,
+}: {
+  active?: boolean;
+  payload?: Array<{ name?: string; value?: number; color?: string }>;
+  label?: string | number;
+  theme: Theme;
+  money?: boolean;
+  suffix?: string;
+}) {
+  if (!active || !payload || payload.length === 0) return null;
+  return (
+    <div
+      style={{
+        background: theme.cardBg,
+        border: `1px solid ${theme.border}`,
+        borderRadius: 12,
+        padding: "10px 12px",
+        boxShadow: "0 10px 30px rgba(0,0,0,0.18)",
+        minWidth: 130,
+      }}
+    >
+      {label !== undefined && label !== "" && (
+        <div
+          style={{
+            fontSize: 11,
+            fontWeight: 700,
+            color: theme.textSecondary,
+            marginBottom: 6,
+            textTransform: "capitalize",
+          }}
+        >
+          {label}
+        </div>
+      )}
+      {payload.map((p, i) => (
+        <div
+          key={i}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 18,
+          }}
+        >
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              fontSize: 12,
+              color: theme.textSecondary,
+            }}
+          >
+            <span style={{ width: 8, height: 8, borderRadius: 3, background: p.color }} />
+            {p.name}
+          </span>
+          <span style={{ fontSize: 12, fontWeight: 700, color: theme.textPrimary }}>
+            {money ? moneyFmt(Number(p.value) || 0) : `${numFmt(Number(p.value) || 0)}${suffix || ""}`}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
 
+/* ─── Card de KPI ───────────────────────────────────────────────────── */
+function KpiCard({
+  icon,
+  label,
+  value,
+  gradient,
+  boxShadow,
+  index,
+  sub,
+  chips,
+}: {
+  icon: ReactNode;
+  label: string;
+  value: string;
+  gradient: string;
+  boxShadow: string;
+  index: number;
+  sub: string;
+  chips?: ReactNode;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, delay: index * 0.06 }}
+      style={{
+        background: gradient,
+        borderRadius: 22,
+        padding: "22px",
+        position: "relative",
+        overflow: "hidden",
+        boxShadow,
+        border: "1px solid rgba(255,255,255,0.12)",
+      }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          top: -40,
+          right: -40,
+          width: 150,
+          height: 150,
+          borderRadius: "50%",
+          background: "rgba(255,255,255,0.06)",
+        }}
+      />
+      <div style={{ position: "relative", zIndex: 1 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
+          <div
+            style={{
+              width: 46,
+              height: 46,
+              borderRadius: 14,
+              background: "rgba(255,255,255,0.16)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            {icon}
+          </div>
+        </div>
+        <p
+          style={{
+            fontSize: 11,
+            fontWeight: 700,
+            color: "rgba(255,255,255,0.72)",
+            marginBottom: 6,
+            textTransform: "uppercase",
+            letterSpacing: 0.4,
+          }}
+        >
+          {label}
+        </p>
+        <p style={{ fontSize: 28, fontWeight: 800, color: "#ffffff", lineHeight: 1.1 }}>{value}</p>
+        <p style={{ fontSize: 11.5, color: "rgba(255,255,255,0.62)", marginTop: 6 }}>{sub}</p>
+        {chips ? <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 10 }}>{chips}</div> : null}
+      </div>
+    </motion.div>
+  );
+}
+
+/* ─── Skeleton ──────────────────────────────────────────────────────── */
+function SkeletonCard({ h, theme }: { h: number; theme: Theme }) {
+  return (
+    <div
+      style={{
+        background: theme.cardBg,
+        border: `1px solid ${theme.borderCard}`,
+        borderRadius: 20,
+        padding: 20,
+        height: h,
+      }}
+    >
+      <div
+        style={{
+          width: "30%",
+          height: 14,
+          background: theme.innerBg,
+          borderRadius: 6,
+          animation: "reportesPulse 1.4s ease-in-out infinite",
+        }}
+      />
+      <div
+        style={{
+          width: "100%",
+          height: 8,
+          background: theme.innerBg,
+          borderRadius: 6,
+          marginTop: 10,
+          animation: "reportesPulse 1.4s ease-in-out 0.15s infinite",
+        }}
+      />
+      <div
+        style={{
+          width: "70%",
+          height: 8,
+          background: theme.innerBg,
+          borderRadius: 6,
+          marginTop: 8,
+          animation: "reportesPulse 1.4s ease-in-out 0.3s infinite",
+        }}
+      />
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════ */
+/*  REPORTES MOVIMIENTOS COMPONENT                                      */
+/* ═══════════════════════════════════════════════════════════════════ */
+
+type PresetOption = { id: Preset; label: string };
+
+const PRESETS: PresetOption[] = [
+  { id: "7d", label: "7 días" },
+  { id: "30d", label: "30 días" },
+  { id: "90d", label: "90 días" },
+  { id: "mes", label: "Este mes" },
+  { id: "todo", label: "Todo" },
+  { id: "custom", label: "Personalizado" },
+];
+
+export default function ReportesMovimientos({ isDark = true }: { isDark?: boolean }) {
   const t = getTheme(isDark);
 
-  // Calculate statistics
-  const stats = useMemo(() => {
-    const totalMovimientos = mockMovimientos.length;
-    const movimientosPorTipo = mockMovimientos.reduce((acc, mov) => {
-      acc[mov.tipo_movimiento] = (acc[mov.tipo_movimiento] || 0) + 1;
-      return acc;
-    }, {} as Record<TipoMovimiento, number>);
+  const [preset, setPreset] = useState<Preset>("30d");
+  const [desdeInput, setDesdeInput] = useState("");
+  const [hastaInput, setHastaInput] = useState("");
+  const [refreshKey, setRefreshKey] = useState(0);
 
-    const valorPorTipo = mockMovimientos.reduce((acc, mov) => {
-      acc[mov.tipo_movimiento] = (acc[mov.tipo_movimiento] || 0) + mov.total_movimiento;
-      return acc;
-    }, {} as Record<TipoMovimiento, number>);
+  const [reporte, setReporte] = useState<ReporteMovimientos | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
 
-    const usuariosActivos = [...new Set(mockMovimientos.map((m) => m.usuario))].length;
+  useEffect(() => {
+    let cancelled = false;
+    const r = getRango(preset, desdeInput, hastaInput);
 
-    const movimientosHoy = mockMovimientos.filter((m) => {
-      const fecha = new Date(m.fecha_hora);
-      const hoy = new Date();
-      return fecha.toDateString() === hoy.toDateString();
-    }).length;
+    if (preset === "custom" && (!r.desde || !r.hasta)) {
+      setError("Selecciona las fechas de inicio y fin del período.");
+      setReporte(null);
+      setLoading(false);
+      return;
+    }
 
-    return {
-      totalMovimientos,
-      movimientosPorTipo,
-      valorPorTipo,
-      usuariosActivos,
-      movimientosHoy,
-    };
-  }, []);
+    setLoading(true);
+    setError(null);
 
-  // Filter movements
-  const movimientosFiltrados = useMemo(() => {
-    return mockMovimientos
-      .filter((mov) => {
-        if (selectedTipo !== "TODOS" && mov.tipo_movimiento !== selectedTipo) return false;
-        if (searchTerm) {
-          const searchLower = searchTerm.toLowerCase();
-          return (
-            mov.usuario.toLowerCase().includes(searchLower) ||
-            mov.detalles.some((d) => d.producto.toLowerCase().includes(searchLower)) ||
-            mov.motivo_ajuste?.toLowerCase().includes(searchLower)
-          );
-        }
-        return true;
+    reportesService
+      .getReporteMovimientos(r.desde, r.hasta)
+      .then((data) => {
+        if (!cancelled) setReporte(data);
       })
-      .sort((a, b) => new Date(b.fecha_hora).getTime() - new Date(a.fecha_hora).getTime());
-  }, [selectedTipo, searchTerm]);
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        const msg =
+          err && typeof err === "object" && "response" in err
+            ? String((err as { response?: { data?: { message?: string } } }).response?.data?.message || "No se pudo cargar el reporte.")
+            : "No se pudo cargar el reporte.";
+        setError(msg);
+        setReporte(null);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
 
-  const tiposMovimiento: TipoMovimiento[] = ["COMPRA", "VENTA", "AJUSTE", "DEVOLUCION", "MERMA"];
+    return () => {
+      cancelled = true;
+    };
+  }, [preset, desdeInput, hastaInput, refreshKey]);
+
+  const periodLabel = useMemo(() => {
+    if (!reporte) return "Cargando período…";
+    if (reporte.rango.periodo_completo) return "Todo el historial de movimientos";
+    return `Movimientos del ${reporte.rango.desde ? fechaLarga(reporte.rango.desde) : "—"} al ${
+      reporte.rango.hasta ? fechaLarga(reporte.rango.hasta) : "—"
+    }`;
+  }, [reporte]);
+
+  const kpis = reporte?.kpis;
+  const crecimiento = reporte?.crecimiento;
+
+  const balanceSeries = useMemo(() => {
+    let acc = 0;
+    return (reporte?.serie_diaria || []).map((d) => {
+      acc += d.neto;
+      return { etiqueta: d.etiqueta, balance: acc, neto: d.neto };
+    });
+  }, [reporte]);
+
+  const tipos = reporte?.por_tipo || [];
+  const top6 = useMemo(() => (reporte?.top_productos || []).slice(0, 6), [reporte]);
+  const usuarios = reporte?.usuarios_activos || [];
+  const recientes = reporte?.movimientos_recientes || [];
+
+  const maxUsuarioMovs = Math.max(1, ...usuarios.map((u) => u.movimientos));
+
+  // ─── Exportar PDF ───────────────────────────────────────────────────
+  const handleExport = async () => {
+    if (!reporte || exporting) return;
+    setExporting(true);
+    const toastId = toast.loading("Generando reporte PDF…");
+    try {
+      const refs: Array<[keyof MovementsReportChartImages, string]> = [
+        ["balance", "chart-balance"],
+        ["tipos", "chart-tipos"],
+        ["hora", "chart-hora"],
+        ["top", "chart-top"],
+      ];
+      const chartImages: MovementsReportChartImages = {};
+      for (const [key, id] of refs) {
+        const node = document.getElementById(id);
+        if (!node) continue;
+        chartImages[key] = await toPng(node, { pixelRatio: 2, backgroundColor: t.cardBg });
+      }
+      exportMovementsReportPdf({
+        meta: {
+          desde: reporte.rango.desde,
+          hasta: reporte.rango.hasta,
+          dias: reporte.rango.dias,
+          periodo_completo: reporte.rango.periodo_completo,
+        },
+        kpis: reporte.kpis,
+        crecimiento: reporte.crecimiento,
+        porTipo: reporte.por_tipo,
+        topProductos: reporte.top_productos,
+        usuariosActivos: reporte.usuarios_activos,
+        recientes: reporte.movimientos_recientes.map((m) => ({
+          id_movimiento: m.id_movimiento,
+          tipo_movimiento: m.tipo_movimiento,
+          fecha_hora: m.fecha_hora,
+          usuario: m.usuario,
+          unidades: m.unidades,
+          valor: m.valor,
+        })),
+        chartImages,
+      });
+      toast.success("Reporte de movimientos exportado a PDF", { id: toastId });
+    } catch {
+      toast.error("No se pudo exportar el reporte", { id: toastId });
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const chartCard = (h: number): CSSProperties => ({
+    background: t.cardBg,
+    border: `1px solid ${t.borderCard}`,
+    borderRadius: 20,
+    padding: "20px 22px",
+    height: h,
+  });
+
+  const axisTick = { fill: t.textMuted, fontSize: 11 };
+
+  const noData = !loading && !error && reporte && kpis && kpis.total_movimientos === 0;
 
   return (
     <div style={{ padding: "24px", background: t.mainBg, minHeight: "100vh" }}>
-      {/* Header */}
+      <style>{`
+        @keyframes reportesPulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.45; }
+        }
+      `}</style>
+      <Toaster
+        position="top-right"
+        gutter={8}
+        toastOptions={{
+          duration: 4500,
+          style: {
+            background: t.cardBg,
+            color: t.textPrimary,
+            border: `1px solid ${t.border}`,
+            borderRadius: 12,
+          },
+        }}
+      />
+
+      {/* ─── Header ─────────────────────────────────────────────────── */}
       <div
         style={{
-          marginBottom: "24px",
+          marginBottom: 22,
           display: "flex",
           justifyContent: "space-between",
-          alignItems: "center",
+          alignItems: "flex-start",
           flexWrap: "wrap",
-          gap: "16px",
+          gap: 16,
         }}
       >
         <div>
-          <h1 style={{ fontSize: "28px", fontWeight: 700, color: t.textPrimary, marginBottom: "8px" }}>
-            Reporte de Movimientos
-          </h1>
-          <p style={{ fontSize: "14px", color: t.textSecondary }}>
-            Historial completo de transacciones de inventario
-          </p>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+            <div
+              style={{
+                width: 42,
+                height: 42,
+                borderRadius: 14,
+                background: `linear-gradient(135deg, ${t.accent} 0%, #06b6d4 120%)`,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                boxShadow: `0 6px 16px ${t.accent}40`,
+              }}
+            >
+              <Layers size={22} color="#ffffff" strokeWidth={2.2} />
+            </div>
+            <div>
+              <h1 style={{ fontSize: 24, fontWeight: 800, color: t.textPrimary, lineHeight: 1.1 }}>
+                Reporte de Movimientos
+              </h1>
+              <p style={{ fontSize: 12.5, color: t.textSecondary }}>
+                {reporte ? `${periodLabel} · ${numFmt(kpis?.total_movimientos || 0)} movimientos` : periodLabel}
+              </p>
+            </div>
+          </div>
         </div>
 
-        <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
-          <button
-            onClick={() => setShowFilters(!showFilters)}
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+          {/* Rango */}
+          <div
             style={{
-              padding: "12px 20px",
-              borderRadius: "14px",
-              border: `1px solid ${showFilters ? t.accent : t.border}`,
-              background: showFilters ? `${t.accent}15` : t.inputBg,
-              color: showFilters ? t.accent : t.textSecondary,
-              fontSize: "14px",
-              fontWeight: 600,
-              cursor: "pointer",
               display: "flex",
               alignItems: "center",
-              gap: "8px",
-              fontFamily: "'Cairo', sans-serif",
-              transition: "all 0.2s",
+              gap: 4,
+              background: t.inputBg,
+              border: `1px solid ${t.border}`,
+              borderRadius: 14,
+              padding: 4,
             }}
           >
-            <Filter size={16} />
-            Filtros
-          </button>
+            <Calendar size={15} color={t.textMuted} style={{ marginLeft: 8 }} />
+            {PRESETS.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => setPreset(p.id)}
+                style={{
+                  padding: "7px 10px",
+                  borderRadius: 10,
+                  border: "none",
+                  background: preset === p.id ? t.accent : "transparent",
+                  color: preset === p.id ? "#ffffff" : t.textSecondary,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  fontFamily: "'Cairo', sans-serif",
+                  transition: "all 0.2s",
+                }}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
 
-          <button
-            style={{
-              padding: "12px 20px",
-              borderRadius: "14px",
-              border: "none",
-              background: t.accent,
-              color: "#fff",
-              fontSize: "14px",
-              fontWeight: 600,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: "8px",
-              fontFamily: "'Cairo', sans-serif",
-              transition: "all 0.2s",
-              boxShadow: `0 4px 12px ${t.accent}40`,
-            }}
-            onMouseEnter={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.background = t.accentHover;
-              (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)";
-            }}
-            onMouseLeave={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.background = t.accent;
-              (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
-            }}
-          >
-            <Download size={16} />
-            Exportar
-          </button>
-        </div>
-      </div>
-
-      {/* KPI Cards */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-          gap: "20px",
-          marginBottom: "24px",
-        }}
-      >
-        {/* Total Movimientos */}
-        <div
-          style={{
-            background: "linear-gradient(135deg, #0891b2 0%, #06b6d4 40%, #0e7490 100%)",
-            borderRadius: "24px",
-            padding: "24px",
-            position: "relative",
-            overflow: "hidden",
-            boxShadow: "0 8px 24px rgba(8, 145, 178, 0.25)",
-            border: "1px solid rgba(255, 255, 255, 0.1)",
-          }}
-        >
-          <div
-            style={{
-              position: "absolute",
-              top: "-40px",
-              right: "-40px",
-              width: "160px",
-              height: "160px",
-              borderRadius: "50%",
-              background: "rgba(255, 255, 255, 0.05)",
-            }}
-          />
-
-          <div style={{ position: "relative", zIndex: 1 }}>
+          {preset === "custom" && (
             <div
               style={{
                 display: "flex",
-                justifyContent: "space-between",
-                alignItems: "flex-start",
-                marginBottom: "16px",
+                alignItems: "center",
+                gap: 6,
+                background: t.inputBg,
+                border: `1px solid ${t.border}`,
+                borderRadius: 14,
+                padding: "6px 8px",
               }}
             >
-              <div
+              <input
+                type="date"
+                value={desdeInput}
+                onChange={(e) => setDesdeInput(e.target.value)}
                 style={{
-                  width: "52px",
-                  height: "52px",
-                  borderRadius: "16px",
-                  background: "rgba(255,255,255,0.2)",
-                  backdropFilter: "blur(10px)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                }}
-              >
-                <Activity size={26} color="#ffffff" strokeWidth={2.5} />
-              </div>
-            </div>
-            <p
-              style={{
-                fontSize: "13px",
-                fontWeight: 600,
-                color: "rgba(255,255,255,0.8)",
-                marginBottom: "8px",
-                textTransform: "uppercase",
-                letterSpacing: "0.5px",
-              }}
-            >
-              Total Movimientos
-            </p>
-            <p style={{ fontSize: "36px", fontWeight: 700, color: "#ffffff", marginBottom: "8px", lineHeight: 1 }}>
-              {stats.totalMovimientos}
-            </p>
-            <p style={{ fontSize: "12px", color: "rgba(255,255,255,0.7)" }}>
-              {stats.movimientosHoy} registrados hoy
-            </p>
-          </div>
-        </div>
-
-        {/* Compras */}
-        <div
-          style={{
-            background: "linear-gradient(135deg, #0d9488 0%, #14b8a6 40%, #0f766e 100%)",
-            borderRadius: "24px",
-            padding: "24px",
-            position: "relative",
-            overflow: "hidden",
-            boxShadow: "0 8px 24px rgba(13, 148, 136, 0.25)",
-            border: "1px solid rgba(255, 255, 255, 0.1)",
-          }}
-        >
-          <div
-            style={{
-              position: "absolute",
-              top: "-40px",
-              right: "-40px",
-              width: "160px",
-              height: "160px",
-              borderRadius: "50%",
-              background: "rgba(255, 255, 255, 0.05)",
-            }}
-          />
-
-          <div style={{ position: "relative", zIndex: 1 }}>
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "flex-start",
-                marginBottom: "16px",
-              }}
-            >
-              <div
-                style={{
-                  width: "52px",
-                  height: "52px",
-                  borderRadius: "16px",
-                  background: "rgba(255,255,255,0.2)",
-                  backdropFilter: "blur(10px)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                }}
-              >
-                <ShoppingCart size={26} color="#ffffff" strokeWidth={2.5} />
-              </div>
-            </div>
-            <p
-              style={{
-                fontSize: "13px",
-                fontWeight: 600,
-                color: "rgba(255,255,255,0.8)",
-                marginBottom: "8px",
-                textTransform: "uppercase",
-                letterSpacing: "0.5px",
-              }}
-            >
-              Compras
-            </p>
-            <p style={{ fontSize: "36px", fontWeight: 700, color: "#ffffff", marginBottom: "4px", lineHeight: 1 }}>
-              {stats.movimientosPorTipo["COMPRA"] || 0}
-            </p>
-            <p style={{ fontSize: "12px", color: "rgba(255,255,255,0.7)" }}>
-              S/ {(stats.valorPorTipo["COMPRA"] || 0).toLocaleString("es-PE", { minimumFractionDigits: 2 })}
-            </p>
-          </div>
-        </div>
-
-        {/* Ventas */}
-        <div
-          style={{
-            background: "linear-gradient(135deg, #059669 0%, #10b981 40%, #047857 100%)",
-            borderRadius: "24px",
-            padding: "24px",
-            position: "relative",
-            overflow: "hidden",
-            boxShadow: "0 8px 24px rgba(5, 150, 105, 0.25)",
-            border: "1px solid rgba(255, 255, 255, 0.1)",
-          }}
-        >
-          <div
-            style={{
-              position: "absolute",
-              top: "-40px",
-              right: "-40px",
-              width: "160px",
-              height: "160px",
-              borderRadius: "50%",
-              background: "rgba(255, 255, 255, 0.05)",
-            }}
-          />
-
-          <div style={{ position: "relative", zIndex: 1 }}>
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "flex-start",
-                marginBottom: "16px",
-              }}
-            >
-              <div
-                style={{
-                  width: "52px",
-                  height: "52px",
-                  borderRadius: "16px",
-                  background: "rgba(255,255,255,0.2)",
-                  backdropFilter: "blur(10px)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                }}
-              >
-                <TrendingUp size={26} color="#ffffff" strokeWidth={2.5} />
-              </div>
-            </div>
-            <p
-              style={{
-                fontSize: "13px",
-                fontWeight: 600,
-                color: "rgba(255,255,255,0.8)",
-                marginBottom: "8px",
-                textTransform: "uppercase",
-                letterSpacing: "0.5px",
-              }}
-            >
-              Ventas
-            </p>
-            <p style={{ fontSize: "36px", fontWeight: 700, color: "#ffffff", marginBottom: "4px", lineHeight: 1 }}>
-              {stats.movimientosPorTipo["VENTA"] || 0}
-            </p>
-            <p style={{ fontSize: "12px", color: "rgba(255,255,255,0.7)" }}>
-              S/ {(stats.valorPorTipo["VENTA"] || 0).toLocaleString("es-PE", { minimumFractionDigits: 2 })}
-            </p>
-          </div>
-        </div>
-
-        {/* Otros Movimientos */}
-        <div
-          style={{
-            background: "linear-gradient(135deg, #64748b 0%, #94a3b8 40%, #475569 100%)",
-            borderRadius: "24px",
-            padding: "24px",
-            position: "relative",
-            overflow: "hidden",
-            boxShadow: "0 8px 24px rgba(100, 116, 139, 0.25)",
-            border: "1px solid rgba(255, 255, 255, 0.1)",
-          }}
-        >
-          <div
-            style={{
-              position: "absolute",
-              top: "-40px",
-              right: "-40px",
-              width: "160px",
-              height: "160px",
-              borderRadius: "50%",
-              background: "rgba(255, 255, 255, 0.05)",
-            }}
-          />
-
-          <div style={{ position: "relative", zIndex: 1 }}>
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "flex-start",
-                marginBottom: "16px",
-              }}
-            >
-              <div
-                style={{
-                  width: "52px",
-                  height: "52px",
-                  borderRadius: "16px",
-                  background: "rgba(255,255,255,0.2)",
-                  backdropFilter: "blur(10px)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                }}
-              >
-                <Layers size={26} color="#ffffff" strokeWidth={2.5} />
-              </div>
-            </div>
-            <p
-              style={{
-                fontSize: "13px",
-                fontWeight: 600,
-                color: "rgba(255,255,255,0.8)",
-                marginBottom: "8px",
-                textTransform: "uppercase",
-                letterSpacing: "0.5px",
-              }}
-            >
-              Otros Movimientos
-            </p>
-            <p style={{ fontSize: "36px", fontWeight: 700, color: "#ffffff", marginBottom: "8px", lineHeight: 1 }}>
-              {(stats.movimientosPorTipo["AJUSTE"] || 0) +
-                (stats.movimientosPorTipo["DEVOLUCION"] || 0) +
-                (stats.movimientosPorTipo["MERMA"] || 0)}
-            </p>
-            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-              <span
-                style={{
-                  fontSize: "10px",
-                  padding: "3px 8px",
-                  borderRadius: "6px",
-                  background: "rgba(255,255,255,0.15)",
-                  color: "#ffffff",
-                }}
-              >
-                Ajustes: {stats.movimientosPorTipo["AJUSTE"] || 0}
-              </span>
-              <span
-                style={{
-                  fontSize: "10px",
-                  padding: "3px 8px",
-                  borderRadius: "6px",
-                  background: "rgba(255,255,255,0.15)",
-                  color: "#ffffff",
-                }}
-              >
-                Mermas: {stats.movimientosPorTipo["MERMA"] || 0}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Charts Row */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginBottom: "24px" }}>
-        {/* Distribution by Type - Horizontal Bars */}
-        <div style={{ background: t.cardBg, border: `1px solid ${t.borderCard}`, borderRadius: "20px", padding: "24px" }}>
-          <div style={{ marginBottom: "24px" }}>
-            <h3 style={{ fontSize: "18px", fontWeight: 700, color: t.textPrimary, marginBottom: "4px" }}>
-              Distribución por Tipo
-            </h3>
-            <p style={{ fontSize: "13px", color: t.textSecondary }}>Cantidad de movimientos por categoría</p>
-          </div>
-
-          <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-            {tiposMovimiento.map((tipo) => {
-              const config = getTipoMovimientoConfig(tipo);
-              const cantidad = stats.movimientosPorTipo[tipo] || 0;
-              const maxCantidad = Math.max(...Object.values(stats.movimientosPorTipo));
-              const percentage = maxCantidad > 0 ? (cantidad / maxCantidad) * 100 : 0;
-              const IconComponent = config.icon;
-
-              return (
-                <div key={tipo}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                      <div
-                        style={{
-                          width: "32px",
-                          height: "32px",
-                          borderRadius: "10px",
-                          background: config.bg,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          border: `1px solid ${config.color}30`,
-                        }}
-                      >
-                        <IconComponent size={16} color={config.color} strokeWidth={2.5} />
-                      </div>
-                      <div>
-                        <p style={{ fontSize: "13px", fontWeight: 600, color: t.textPrimary }}>{config.label}</p>
-                        <p style={{ fontSize: "11px", color: t.textSecondary }}>{config.description}</p>
-                      </div>
-                    </div>
-                    <span style={{ fontSize: "18px", fontWeight: 700, color: config.color }}>{cantidad}</span>
-                  </div>
-                  <div
-                    style={{
-                      height: "10px",
-                      background: t.innerBg,
-                      borderRadius: "999px",
-                      overflow: "hidden",
-                      position: "relative",
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: `${percentage}%`,
-                        height: "100%",
-                        background: `linear-gradient(90deg, ${config.color} 0%, ${config.color}cc 100%)`,
-                        borderRadius: "999px",
-                        transition: "width 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)",
-                        boxShadow: `0 0 8px ${config.color}60`,
-                      }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Recent Activity Timeline */}
-        <div style={{ background: t.cardBg, border: `1px solid ${t.borderCard}`, borderRadius: "20px", padding: "24px" }}>
-          <div style={{ marginBottom: "24px" }}>
-            <h3 style={{ fontSize: "18px", fontWeight: 700, color: t.textPrimary, marginBottom: "4px" }}>
-              Actividad Reciente
-            </h3>
-            <p style={{ fontSize: "13px", color: t.textSecondary }}>Últimos movimientos registrados</p>
-          </div>
-
-          <div style={{ maxHeight: "380px", overflowY: "auto", paddingRight: "8px" }}>
-            {mockMovimientos.slice(0, 6).map((mov, index) => {
-              const config = getTipoMovimientoConfig(mov.tipo_movimiento);
-              const IconComponent = config.icon;
-
-              return (
-                <div
-                  key={mov.id_movimiento}
-                  style={{
-                    position: "relative",
-                    paddingLeft: "40px",
-                    paddingBottom: index < 5 ? "24px" : "0",
-                  }}
-                >
-                  {/* Timeline line */}
-                  {index < 5 && (
-                    <div
-                      style={{
-                        position: "absolute",
-                        left: "15px",
-                        top: "32px",
-                        bottom: "0",
-                        width: "2px",
-                        background: t.border,
-                      }}
-                    />
-                  )}
-
-                  {/* Timeline dot with icon */}
-                  <div
-                    style={{
-                      position: "absolute",
-                      left: "0",
-                      top: "0",
-                      width: "32px",
-                      height: "32px",
-                      borderRadius: "10px",
-                      background: config.bg,
-                      border: `2px solid ${config.color}`,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      zIndex: 1,
-                    }}
-                  >
-                    <IconComponent size={14} color={config.color} strokeWidth={2.5} />
-                  </div>
-
-                  {/* Content */}
-                  <div
-                    style={{
-                      padding: "12px",
-                      borderRadius: "12px",
-                      background: t.innerBg,
-                      border: `1px solid ${t.border}`,
-                      transition: "all 0.2s",
-                      cursor: "pointer",
-                    }}
-                    onMouseEnter={(e) => {
-                      (e.currentTarget as HTMLDivElement).style.borderColor = config.color;
-                      (e.currentTarget as HTMLDivElement).style.background = config.bg;
-                    }}
-                    onMouseLeave={(e) => {
-                      (e.currentTarget as HTMLDivElement).style.borderColor = t.border;
-                      (e.currentTarget as HTMLDivElement).style.background = t.innerBg;
-                    }}
-                  >
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "6px" }}>
-                      <span
-                        style={{
-                          fontSize: "13px",
-                          fontWeight: 700,
-                          color: config.color,
-                          textTransform: "uppercase",
-                          letterSpacing: "0.5px",
-                        }}
-                      >
-                        {config.label}
-                      </span>
-                      <span style={{ fontSize: "11px", color: t.textSecondary }}>{formatTime(mov.fecha_hora)}</span>
-                    </div>
-                    <p style={{ fontSize: "12px", color: t.textPrimary, marginBottom: "4px" }}>
-                      {mov.detalles[0].producto}
-                      {mov.detalles.length > 1 && ` +${mov.detalles.length - 1} más`}
-                    </p>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <span style={{ fontSize: "11px", color: t.textSecondary }}>
-                        <User size={10} style={{ display: "inline", marginRight: "4px" }} />
-                        {mov.usuario}
-                      </span>
-                      <span style={{ fontSize: "11px", fontWeight: 600, color: t.accent }}>
-                        S/ {mov.total_movimiento.toFixed(2)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
-      {/* Filters & Search */}
-      {showFilters && (
-        <div
-          style={{
-            background: t.cardBg,
-            border: `1px solid ${t.borderCard}`,
-            borderRadius: "20px",
-            padding: "24px",
-            marginBottom: "24px",
-          }}
-        >
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px" }}>
-            {/* Search */}
-            <div>
-              <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px" }}>
-                Buscar
-              </label>
-              <div style={{ position: "relative" }}>
-                <Search
-                  size={16}
-                  style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: t.textMuted }}
-                />
-                <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Usuario, producto, motivo..."
-                  style={{
-                    width: "100%",
-                    padding: "10px 10px 10px 36px",
-                    borderRadius: "12px",
-                    border: `1px solid ${t.border}`,
-                    background: t.inputBg,
-                    color: t.textPrimary,
-                    fontSize: "13px",
-                    fontFamily: "'Cairo', sans-serif",
-                    outline: "none",
-                  }}
-                />
-              </div>
-            </div>
-
-            {/* Type Filter */}
-            <div>
-              <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px" }}>
-                Tipo de Movimiento
-              </label>
-              <select
-                value={selectedTipo}
-                onChange={(e) => setSelectedTipo(e.target.value as TipoMovimiento | "TODOS")}
-                style={{
-                  width: "100%",
-                  padding: "10px 12px",
-                  borderRadius: "12px",
-                  border: `1px solid ${t.border}`,
-                  background: t.inputBg,
+                  background: "transparent",
+                  border: "none",
                   color: t.textPrimary,
-                  fontSize: "13px",
+                  fontSize: 12,
                   fontFamily: "'Cairo', sans-serif",
                   outline: "none",
                   cursor: "pointer",
                 }}
-              >
-                <option value="TODOS">Todos</option>
-                {tiposMovimiento.map((tipo) => (
-                  <option key={tipo} value={tipo}>
-                    {getTipoMovimientoConfig(tipo).label}
-                  </option>
-                ))}
-              </select>
+              />
+              <span style={{ color: t.textMuted, fontSize: 12 }}>→</span>
+              <input
+                type="date"
+                value={hastaInput}
+                onChange={(e) => setHastaInput(e.target.value)}
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  color: t.textPrimary,
+                  fontSize: 12,
+                  fontFamily: "'Cairo', sans-serif",
+                  outline: "none",
+                  cursor: "pointer",
+                }}
+              />
             </div>
+          )}
+
+          <button
+            onClick={() => setRefreshKey((k) => k + 1)}
+            disabled={loading}
+            title="Actualizar"
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 14,
+              border: `1px solid ${t.border}`,
+              background: t.inputBg,
+              color: t.textSecondary,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              transition: "all 0.2s",
+            }}
+          >
+            <RefreshCw size={16} className={loading ? "reportes-spin" : ""} />
+          </button>
+          <style>{`
+            @keyframes reportesSpin { to { transform: rotate(360deg); } }
+            .reportes-spin { animation: reportesSpin 1s linear infinite; }
+          `}</style>
+
+          <button
+            onClick={handleExport}
+            disabled={exporting || !reporte || !kpis || kpis.total_movimientos === 0}
+            style={{
+              padding: "10px 18px",
+              borderRadius: 14,
+              border: "none",
+              background: t.accent,
+              color: "#fff",
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              fontFamily: "'Cairo', sans-serif",
+              transition: "all 0.2s",
+              boxShadow: `0 4px 14px ${t.accent}40`,
+              opacity: exporting || !reporte || !kpis || kpis.total_movimientos === 0 ? 0.55 : 1,
+            }}
+          >
+            <Download size={15} />
+            {exporting ? "Generando…" : "Exportar PDF"}
+          </button>
+        </div>
+      </div>
+
+      {/* ─── Cargando ───────────────────────────────────────────────── */}
+      {loading && (
+        <div style={{ display: "grid", gap: 20 }}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+              gap: 20,
+            }}
+          >
+            {[0, 1, 2, 3].map((i) => (
+              <SkeletonCard key={i} h={160} theme={t} />
+            ))}
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 20 }}>
+            <SkeletonCard h={320} theme={t} />
+            <SkeletonCard h={320} theme={t} />
           </div>
         </div>
       )}
 
-      {/* Movements Table */}
-      <div style={{ background: t.cardBg, border: `1px solid ${t.borderCard}`, borderRadius: "20px", padding: "24px" }}>
-        <div style={{ marginBottom: "20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div>
-            <h3 style={{ fontSize: "18px", fontWeight: 700, color: t.textPrimary, marginBottom: "4px" }}>
-              Historial de Movimientos
-            </h3>
-            <p style={{ fontSize: "13px", color: t.textSecondary }}>
-              Mostrando {movimientosFiltrados.length} de {mockMovimientos.length} movimientos
-            </p>
+      {/* ─── Error ──────────────────────────────────────────────────── */}
+      {!loading && error && (
+        <div
+          style={{
+            background: t.cardBg,
+            border: `1px solid ${t.borderCard}`,
+            borderRadius: 20,
+            padding: "48px 24px",
+            textAlign: "center",
+          }}
+        >
+          <div
+            style={{
+              width: 64,
+              height: 64,
+              borderRadius: 20,
+              background: "rgba(244,63,94,0.12)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              margin: "0 auto 16px",
+            }}
+          >
+            <AlertTriangle size={30} color="#f43f5e" />
           </div>
+          <h3 style={{ fontSize: 18, fontWeight: 700, color: t.textPrimary, marginBottom: 6 }}>
+            No se pudo cargar el reporte
+          </h3>
+          <p style={{ fontSize: 13, color: t.textSecondary, marginBottom: 20 }}>{error}</p>
+          <button
+            onClick={() => setRefreshKey((k) => k + 1)}
+            style={{
+              padding: "10px 20px",
+              borderRadius: 14,
+              border: "none",
+              background: t.accent,
+              color: "#fff",
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: "pointer",
+              fontFamily: "'Cairo', sans-serif",
+            }}
+          >
+            Reintentar
+          </button>
         </div>
+      )}
 
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: "0 8px" }}>
-            <thead>
-              <tr>
-                <th
-                  style={{
-                    textAlign: "left",
-                    padding: "12px 16px",
-                    fontSize: "12px",
-                    fontWeight: 700,
-                    color: t.textSecondary,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.5px",
-                  }}
-                >
-                  Tipo
-                </th>
-                <th
-                  style={{
-                    textAlign: "left",
-                    padding: "12px 16px",
-                    fontSize: "12px",
-                    fontWeight: 700,
-                    color: t.textSecondary,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.5px",
-                  }}
-                >
-                  Fecha
-                </th>
-                <th
-                  style={{
-                    textAlign: "left",
-                    padding: "12px 16px",
-                    fontSize: "12px",
-                    fontWeight: 700,
-                    color: t.textSecondary,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.5px",
-                  }}
-                >
-                  Usuario
-                </th>
-                <th
-                  style={{
-                    textAlign: "left",
-                    padding: "12px 16px",
-                    fontSize: "12px",
-                    fontWeight: 700,
-                    color: t.textSecondary,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.5px",
-                  }}
-                >
-                  Productos
-                </th>
-                <th
-                  style={{
-                    textAlign: "left",
-                    padding: "12px 16px",
-                    fontSize: "12px",
-                    fontWeight: 700,
-                    color: t.textSecondary,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.5px",
-                  }}
-                >
-                  Motivo
-                </th>
-                <th
-                  style={{
-                    textAlign: "right",
-                    padding: "12px 16px",
-                    fontSize: "12px",
-                    fontWeight: 700,
-                    color: t.textSecondary,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.5px",
-                  }}
-                >
-                  Total
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {movimientosFiltrados.map((mov) => {
-                const config = getTipoMovimientoConfig(mov.tipo_movimiento);
-                const IconComponent = config.icon;
+      {/* ─── Sin datos ──────────────────────────────────────────────── */}
+      {noData && (
+        <div
+          style={{
+            background: t.cardBg,
+            border: `1px solid ${t.borderCard}`,
+            borderRadius: 20,
+            padding: "52px 24px",
+            textAlign: "center",
+          }}
+        >
+          <div
+            style={{
+              width: 68,
+              height: 68,
+              borderRadius: 22,
+              background: t.innerBg,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              margin: "0 auto 16px",
+            }}
+          >
+            <Inbox size={32} color={t.textMuted} />
+          </div>
+          <h3 style={{ fontSize: 18, fontWeight: 700, color: t.textPrimary, marginBottom: 6 }}>
+            Aún no hay movimientos registrados
+          </h3>
+          <p style={{ fontSize: 13, color: t.textSecondary, maxWidth: 420, margin: "0 auto" }}>
+            Registra compras, ventas, ajustes, devoluciones o mermas para que este reporte muestre
+            la actividad de tu inventario.
+          </p>
+        </div>
+      )}
 
-                return (
-                  <tr
-                    key={mov.id_movimiento}
+      {/* ─── Dashboard ──────────────────────────────────────────────── */}
+      {!loading && !error && reporte && kpis && kpis.total_movimientos > 0 && (
+        <>
+          {/* KPIs */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+              gap: 18,
+              marginBottom: 20,
+            }}
+          >
+            <KpiCard
+              index={0}
+              icon={<Activity size={23} color="#ffffff" strokeWidth={2.4} />}
+              label="Total Movimientos"
+              value={numFmt(kpis.total_movimientos)}
+              sub={`${kpis.movimientos_hoy} hoy · ${kpis.usuarios_activos} usuarios activos`}
+              gradient="linear-gradient(135deg, #0891b2 0%, #22d3ee 45%, #0e7490 130%)"
+              boxShadow="0 8px 22px rgba(8,145,178,0.28)"
+              chips={
+                crecimiento?.movimientos !== null && crecimiento?.movimientos !== undefined ? (
+                  <span
                     style={{
-                      background: t.innerBg,
-                      transition: "all 0.2s",
-                      cursor: "pointer",
-                    }}
-                    onMouseEnter={(e) => {
-                      const row = e.currentTarget as HTMLTableRowElement;
-                      row.style.background = t.hoverBg;
-                      row.style.transform = "scale(1.01)";
-                    }}
-                    onMouseLeave={(e) => {
-                      const row = e.currentTarget as HTMLTableRowElement;
-                      row.style.background = t.innerBg;
-                      row.style.transform = "scale(1)";
+                      padding: "4px 10px",
+                      borderRadius: 999,
+                      background: "rgba(255,255,255,0.16)",
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: "#ffffff",
                     }}
                   >
-                    <td style={{ padding: "16px", borderRadius: "12px 0 0 12px" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                    {`${crecimiento.movimientos >= 0 ? "+" : ""}${crecimiento.movimientos.toFixed(1)}% vs período anterior`}
+                  </span>
+                ) : undefined
+              }
+            />
+            <KpiCard
+              index={1}
+              icon={<Boxes size={23} color="#ffffff" strokeWidth={2.4} />}
+              label="Unidades Movidas"
+              value={numFmt(kpis.unidades_movidas)}
+              sub={`${kpis.productos_movidos} productos distintos`}
+              gradient="linear-gradient(135deg, #7c3aed 0%, #a78bfa 45%, #6d28d9 130%)"
+              boxShadow="0 8px 22px rgba(124,58,237,0.28)"
+              chips={
+                crecimiento?.unidades !== null && crecimiento?.unidades !== undefined ? (
+                  <span
+                    style={{
+                      padding: "4px 10px",
+                      borderRadius: 999,
+                      background: "rgba(255,255,255,0.16)",
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: "#ffffff",
+                    }}
+                  >
+                    {`${crecimiento.unidades >= 0 ? "+" : ""}${crecimiento.unidades.toFixed(1)}%`}
+                  </span>
+                ) : undefined
+              }
+            />
+            <KpiCard
+              index={2}
+              icon={<DollarSign size={23} color="#ffffff" strokeWidth={2.4} />}
+              label="Valor Movido"
+              value={moneyFmt(kpis.valor_total)}
+              sub={`Entradas ${moneyFmt(kpis.entradas_valor)} · Salidas ${moneyFmt(kpis.salidas_valor)}`}
+              gradient="linear-gradient(135deg, #059669 0%, #34d399 45%, #047857 130%)"
+              boxShadow="0 8px 22px rgba(5,150,105,0.28)"
+            />
+            <KpiCard
+              index={3}
+              icon={<Repeat size={23} color="#ffffff" strokeWidth={2.4} />}
+              label="Balance Unidades"
+              value={`${kpis.balance_unidades >= 0 ? "+" : ""}${numFmt(kpis.balance_unidades)}`}
+              sub="entradas − salidas en el período"
+              gradient="linear-gradient(135deg, #d97706 0%, #fbbf24 45%, #b45309 130%)"
+              boxShadow="0 8px 22px rgba(217,119,6,0.28)"
+              chips={
+                <>
+                  <span
+                    style={{
+                      padding: "4px 10px",
+                      borderRadius: 999,
+                      background: "rgba(255,255,255,0.16)",
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: "#ffffff",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 5,
+                    }}
+                  >
+                    <span style={{ width: 7, height: 7, borderRadius: 999, background: "#10b981" }} />
+                    Entradas {numFmt(kpis.entradas_unid)} · {kpis.entradas_mov} movs
+                  </span>
+                  <span
+                    style={{
+                      padding: "4px 10px",
+                      borderRadius: 999,
+                      background: "rgba(255,255,255,0.16)",
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: "#ffffff",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 5,
+                    }}
+                  >
+                    <span style={{ width: 7, height: 7, borderRadius: 999, background: "#f43f5e" }} />
+                    Salidas {numFmt(kpis.salidas_unid)} · {kpis.salidas_mov} movs
+                  </span>
+                </>
+              }
+            />
+          </div>
+
+          {/* Fila 1: balance acumulado + tipos */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "minmax(0, 1.6fr) minmax(0, 1fr)",
+              gap: 18,
+              marginBottom: 18,
+            }}
+          >
+            {/* Balance acumulado */}
+            <div style={chartCard(320)}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
+                <div>
+                  <h3 style={{ fontSize: 15, fontWeight: 800, color: t.textPrimary }}>Balance acumulado</h3>
+                  <p style={{ fontSize: 12, color: t.textSecondary }}>
+                    Evolución del saldo neto de unidades (entradas − salidas)
+                  </p>
+                </div>
+                <div
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 5,
+                    padding: "4px 10px",
+                    borderRadius: 999,
+                    background: "rgba(16,185,129,0.12)",
+                    color: "#10b981",
+                    fontSize: 12,
+                    fontWeight: 700,
+                  }}
+                >
+                  <Activity size={13} />
+                  {`${kpis.balance_unidades >= 0 ? "+" : ""}${numFmt(kpis.balance_unidades)} uds.`}
+                </div>
+              </div>
+              <div id="chart-balance" style={{ width: "100%", height: 250 }}>
+                {balanceSeries.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={balanceSeries} margin={{ top: 8, right: 4, left: -8, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="gradBalance" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#10b981" stopOpacity={0.45} />
+                          <stop offset="100%" stopColor="#10b981" stopOpacity={0.02} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke={t.border} vertical={false} />
+                      <XAxis
+                        dataKey="etiqueta"
+                        tick={axisTick}
+                        tickLine={false}
+                        axisLine={false}
+                        interval="preserveStartEnd"
+                        minTickGap={28}
+                      />
+                      <YAxis tick={axisTick} tickLine={false} axisLine={false} width={46} allowDecimals={false} />
+                      <Tooltip content={<ChartTooltip theme={t} suffix=" uds" />} cursor={{ stroke: t.border, strokeDasharray: "3 3" }} />
+                      <Area
+                        type="monotone"
+                        dataKey="balance"
+                        name="Balance"
+                        stroke="#10b981"
+                        strokeWidth={2.5}
+                        fill="url(#gradBalance)"
+                        dot={false}
+                        activeDot={{ r: 5, strokeWidth: 2, stroke: t.cardBg }}
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div
+                    style={{
+                      height: "100%",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 6,
+                    }}
+                  >
+                    <Inbox size={26} color={t.textMuted} />
+                    <p style={{ fontSize: 12.5, color: t.textMuted }}>Sin movimientos en el período.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Donut por tipo */}
+            <div style={chartCard(320)}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                <ChartPie size={15} color={t.accent} />
+                <h3 style={{ fontSize: 15, fontWeight: 800, color: t.textPrimary }}>Movimientos por tipo</h3>
+              </div>
+              <p style={{ fontSize: 12, color: t.textSecondary, marginBottom: 6 }}>Documentos registrados</p>
+              <div id="chart-tipos" style={{ position: "relative", width: "100%", height: 175 }}>
+                {tipos.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={tipos}
+                        dataKey="movimientos"
+                        nameKey="tipo"
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={46}
+                        outerRadius={74}
+                        paddingAngle={3}
+                        cornerRadius={6}
+                        stroke="none"
+                      >
+                        {tipos.map((pt, i) => (
+                          <Cell key={i} fill={tipoColor(pt.tipo)} />
+                        ))}
+                      </Pie>
+                      <Tooltip content={<ChartTooltip theme={t} suffix=" movs" />} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div
+                    style={{
+                      height: "100%",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 6,
+                    }}
+                  >
+                    <Inbox size={26} color={t.textMuted} />
+                    <p style={{ fontSize: 12.5, color: t.textMuted }}>Sin tipos registrados.</p>
+                  </div>
+                )}
+                {tipos.length > 0 && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: "50%",
+                      left: "50%",
+                      transform: "translate(-50%, -50%)",
+                      textAlign: "center",
+                      pointerEvents: "none",
+                    }}
+                  >
+                    <div style={{ fontSize: 18, fontWeight: 800, color: t.textPrimary }}>{kpis.total_movimientos}</div>
+                    <div style={{ fontSize: 11, color: t.textSecondary, fontWeight: 600 }}>movimientos</div>
+                  </div>
+                )}
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 6 }}>
+                {tipos.slice(0, 5).map((pt) => {
+                  const cfg = tipoConfig(pt.tipo);
+                  return (
+                    <div
+                      key={pt.tipo}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        background: t.innerBg,
+                        borderRadius: 10,
+                        padding: "6px 10px",
+                      }}
+                    >
+                      <span
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 6,
+                          fontSize: 11.5,
+                          fontWeight: 700,
+                          color: t.textPrimary,
+                        }}
+                      >
+                        <span style={{ width: 8, height: 8, borderRadius: 3, background: cfg.color }} />
+                        {cfg.label}
+                      </span>
+                      <span style={{ fontSize: 11.5, fontWeight: 800, color: t.textSecondary }}>
+                        {pt.movimientos} movs · {pt.porcentaje.toFixed(0)}%
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* Fila 2: diario + hora + usuarios */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+              gap: 18,
+              marginBottom: 18,
+            }}
+          >
+            {/* Entradas vs salidas por día */}
+            <div style={chartCard(300)}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                <BarChart3 size={15} color={t.accent} />
+                <h3 style={{ fontSize: 15, fontWeight: 800, color: t.textPrimary }}>Entradas vs salidas diarias</h3>
+              </div>
+              <p style={{ fontSize: 12, color: t.textSecondary, marginBottom: 6 }}>Unidades por día en el período</p>
+              <div id="chart-diario" style={{ width: "100%", height: 220 }}>
+                {reporte.serie_diaria.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={reporte.serie_diaria} margin={{ top: 8, right: 4, left: -18, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke={t.border} vertical={false} />
+                      <XAxis dataKey="etiqueta" tick={axisTick} tickLine={false} axisLine={false} interval="preserveStartEnd" minTickGap={24} />
+                      <YAxis tick={axisTick} tickLine={false} axisLine={false} allowDecimals={false} width={42} />
+                      <Tooltip content={<ChartTooltip theme={t} suffix=" uds" />} cursor={{ fill: `${t.accent}0d` }} />
+                      <Bar dataKey="entradas" name="Entradas" fill={TIPO_COLORS.COMPRA} radius={[4, 4, 0, 0]} maxBarSize={20} />
+                      <Bar dataKey="salidas" name="Salidas" fill={TIPO_COLORS.MERMA} radius={[4, 4, 0, 0]} maxBarSize={20} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div
+                    style={{
+                      height: "100%",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 6,
+                    }}
+                  >
+                    <Inbox size={26} color={t.textMuted} />
+                    <p style={{ fontSize: 12.5, color: t.textMuted }}>Sin movimientos diarios.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Actividad por hora */}
+            <div style={chartCard(300)}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                <Clock size={15} color={t.accent} />
+                <h3 style={{ fontSize: 15, fontWeight: 800, color: t.textPrimary }}>Actividad por hora</h3>
+              </div>
+              <p style={{ fontSize: 12, color: t.textSecondary, marginBottom: 6 }}>Unidades movidas según la hora</p>
+              <div id="chart-hora" style={{ width: "100%", height: 220 }}>
+                {reporte.por_hora.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={reporte.por_hora} margin={{ top: 8, right: 4, left: -18, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke={t.border} vertical={false} />
+                      <XAxis dataKey="hora" tick={axisTick} tickLine={false} axisLine={false} interval={1} />
+                      <YAxis tick={axisTick} tickLine={false} axisLine={false} allowDecimals={false} width={42} />
+                      <Tooltip content={<ChartTooltip theme={t} suffix=" uds" />} cursor={{ fill: `${t.accent}0d` }} />
+                      <Bar dataKey="entradas" name="Entradas" stackId="h" fill={TIPO_COLORS.COMPRA} maxBarSize={22} />
+                      <Bar dataKey="salidas" name="Salidas" stackId="h" fill={TIPO_COLORS.MERMA} maxBarSize={22} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div
+                    style={{
+                      height: "100%",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 6,
+                    }}
+                  >
+                    <Inbox size={26} color={t.textMuted} />
+                    <p style={{ fontSize: 12.5, color: t.textMuted }}>Sin actividad horaria.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Usuarios más activos */}
+            <div style={chartCard(300)}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                <Users size={15} color={t.accent} />
+                <h3 style={{ fontSize: 15, fontWeight: 800, color: t.textPrimary }}>Usuarios más activos</h3>
+              </div>
+              <p style={{ fontSize: 12, color: t.textSecondary, marginBottom: 16 }}>Movimientos registrados por usuario</p>
+              {usuarios.length > 0 ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                  {usuarios.slice(0, 5).map((u, i) => {
+                    const color = [TIPO_COLORS.COMPRA, TIPO_COLORS.VENTA, TIPO_COLORS.AJUSTE, TIPO_COLORS.DEVOLUCION, TIPO_COLORS.MERMA][i % 5];
+                    const pct = (u.movimientos / maxUsuarioMovs) * 100;
+                    return (
+                      <div key={u.nombre}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 700, color: t.textPrimary }}>
+                            <span style={{ width: 9, height: 9, borderRadius: 3, background: color }} />
+                            {u.nombre}
+                          </span>
+                          <span style={{ fontSize: 12, fontWeight: 800, color: t.textPrimary }}>
+                            {u.movimientos} movs · {numFmt(u.unidades)} uds
+                          </span>
+                        </div>
                         <div
                           style={{
-                            width: "36px",
-                            height: "36px",
-                            borderRadius: "10px",
-                            background: config.bg,
-                            border: `1px solid ${config.color}30`,
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
+                            width: "100%",
+                            height: 8,
+                            background: t.innerBg,
+                            borderRadius: 999,
+                            overflow: "hidden",
                           }}
                         >
-                          <IconComponent size={16} color={config.color} strokeWidth={2.5} />
-                        </div>
-                        <span style={{ fontSize: "13px", fontWeight: 600, color: config.color }}>{config.label}</span>
-                      </div>
-                    </td>
-                    <td style={{ padding: "16px" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                        <Calendar size={14} color={t.textMuted} />
-                        <div>
-                          <p style={{ fontSize: "13px", fontWeight: 600, color: t.textPrimary }}>{formatDate(mov.fecha_hora)}</p>
-                          <p style={{ fontSize: "11px", color: t.textSecondary }}>{formatTime(mov.fecha_hora)}</p>
+                          <div
+                            style={{
+                              width: `${pct}%`,
+                              height: "100%",
+                              background: `linear-gradient(90deg, ${color} 0%, ${color}bb 100%)`,
+                              borderRadius: 999,
+                              transition: "width 0.6s ease",
+                            }}
+                          />
                         </div>
                       </div>
-                    </td>
-                    <td style={{ padding: "16px" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                        <User size={14} color={t.textMuted} />
-                        <span style={{ fontSize: "13px", color: t.textPrimary }}>{mov.usuario}</span>
-                      </div>
-                    </td>
-                    <td style={{ padding: "16px" }}>
-                      <p style={{ fontSize: "13px", color: t.textPrimary, marginBottom: "2px" }}>{mov.detalles[0].producto}</p>
-                      {mov.detalles.length > 1 && (
-                        <p style={{ fontSize: "11px", color: t.textSecondary }}>+{mov.detalles.length - 1} productos más</p>
-                      )}
-                    </td>
-                    <td style={{ padding: "16px" }}>
-                      {mov.motivo_ajuste ? (
-                        <p style={{ fontSize: "12px", color: t.textSecondary, maxWidth: "200px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          {mov.motivo_ajuste}
-                        </p>
-                      ) : (
-                        <span style={{ fontSize: "12px", color: t.textMuted }}>-</span>
-                      )}
-                    </td>
-                    <td style={{ padding: "16px", borderRadius: "0 12px 12px 0", textAlign: "right" }}>
-                      <span style={{ fontSize: "15px", fontWeight: 700, color: t.accent }}>
-                        S/ {mov.total_movimiento.toFixed(2)}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-
-        {movimientosFiltrados.length === 0 && (
-          <div style={{ textAlign: "center", padding: "40px", color: t.textSecondary }}>
-            <Package size={48} style={{ margin: "0 auto 16px", opacity: 0.3 }} />
-            <p style={{ fontSize: "14px" }}>No se encontraron movimientos con los filtros seleccionados</p>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p style={{ fontSize: 13, color: t.textMuted }}>Sin usuarios con movimientos.</p>
+              )}
+            </div>
           </div>
-        )}
-      </div>
+
+          {/* Fila 3: top productos + recientes */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "minmax(0, 1.1fr) minmax(0, 1fr)",
+              gap: 18,
+              marginBottom: 18,
+            }}
+          >
+            {/* Top productos movidos */}
+            <div style={chartCard(360)}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
+                <div>
+                  <h3 style={{ fontSize: 15, fontWeight: 800, color: t.textPrimary }}>Top productos movidos</h3>
+                  <p style={{ fontSize: 12, color: t.textSecondary }}>Productos con mayor valor de movimiento</p>
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    padding: "5px 10px",
+                    borderRadius: 999,
+                    background: "rgba(139,92,246,0.12)",
+                    color: "#8b5cf6",
+                    fontSize: 11.5,
+                    fontWeight: 700,
+                  }}
+                >
+                  <Package size={13} />
+                  {top6.length} destacados
+                </div>
+              </div>
+              <div id="chart-top" style={{ width: "100%", height: 250 }}>
+                {top6.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={top6} layout="vertical" margin={{ top: 6, right: 14, left: 8, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke={t.border} horizontal={false} />
+                      <XAxis type="number" tick={axisTick} tickLine={false} axisLine={false} tickFormatter={(v) => moneyTick(Number(v))} />
+                      <YAxis
+                        type="category"
+                        dataKey="nombre"
+                        tick={{ fill: t.textSecondary, fontSize: 10.5 }}
+                        tickLine={false}
+                        axisLine={false}
+                        width={150}
+                      />
+                      <Tooltip content={<ChartTooltip theme={t} money />} cursor={{ fill: `${t.accent}0d` }} />
+                      <Bar dataKey="valor" name="Valor" radius={[0, 6, 6, 0]} maxBarSize={18}>
+                        {top6.map((_, i) => (
+                          <Cell key={i} fill={[TIPO_COLORS.DEVOLUCION, TIPO_COLORS.COMPRA, TIPO_COLORS.VENTA, TIPO_COLORS.AJUSTE, TIPO_COLORS.MERMA][i % 5]} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <p style={{ fontSize: 13, color: t.textMuted }}>Sin productos movidos.</p>
+                )}
+              </div>
+            </div>
+
+            {/* Últimos movimientos */}
+            <div style={chartCard(360)}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                <Receipt size={15} color={t.accent} />
+                <h3 style={{ fontSize: 15, fontWeight: 800, color: t.textPrimary }}>Últimos movimientos</h3>
+              </div>
+              <p style={{ fontSize: 12, color: t.textSecondary, marginBottom: 12 }}>
+                {recientes.length} registros más recientes del período
+              </p>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 260, overflowY: "auto", paddingRight: 6 }}>
+                {recientes.map((mov) => {
+                  const cfg = tipoConfig(mov.tipo_movimiento);
+                  const IconComponent = cfg.icon;
+                  return (
+                    <div
+                      key={mov.id_movimiento}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 12,
+                        background: t.innerBg,
+                        border: `1px solid ${t.border}`,
+                        borderRadius: 12,
+                        padding: "10px 12px",
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: 36,
+                          height: 36,
+                          borderRadius: 10,
+                          background: cfg.bg,
+                          border: `1px solid ${cfg.color}30`,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          flexShrink: 0,
+                        }}
+                      >
+                        <IconComponent size={16} color={cfg.color} strokeWidth={2.5} />
+                      </div>
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <span style={{ fontSize: 12.5, fontWeight: 800, color: cfg.color }}>{cfg.label}</span>
+                          <span style={{ fontSize: 11, color: t.textSecondary }}>{fechaHora(mov.fecha_hora)}</span>
+                        </div>
+                        <p
+                          style={{
+                            fontSize: 11.5,
+                            color: t.textSecondary,
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                          }}
+                        >
+                          {mov.usuario} · {numFmt(mov.unidades)} uds
+                        </p>
+                      </div>
+                      <div style={{ textAlign: "right", flexShrink: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 800, color: t.accent }}>{moneyFmt(mov.valor)}</div>
+                        <div style={{ fontSize: 10, color: t.textMuted }}>N° {mov.id_movimiento}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

@@ -117,6 +117,18 @@ export const reportesService = {
     const response = await api.get<GetReporteInventarioResponse>("/reportes/inventario", { params });
     return response.data.data;
   },
+
+  /**
+   * Obtener el reporte de movimientos de inventario.
+   * Si no se pasan fechas, se reporta todo el historial registrado.
+   */
+  getReporteMovimientos: async (desde?: string, hasta?: string): Promise<ReporteMovimientos> => {
+    const params: Record<string, string> = {};
+    if (desde) params.desde = desde;
+    if (hasta) params.hasta = hasta;
+    const response = await api.get<GetReporteMovimientosResponse>("/reportes/movimientos", { params });
+    return response.data.data;
+  },
 };
 
 /* ═════════════════════════════════════════════════════════════════════
@@ -251,6 +263,106 @@ interface GetReporteInventarioResponse {
   success: boolean;
   message: string;
   data: ReporteInventario;
+}
+
+/* ═════════════════════════════════════════════════════════════════════
+ *  REPORTE DE MOVIMIENTOS
+ * ═════════════════════════════════════════════════════════════════════ */
+
+export interface MovimientosRango {
+  desde: string | null;
+  hasta: string | null;
+  dias: number | null;
+  periodo_completo: boolean;
+}
+
+export interface MovimientosKpis {
+  total_movimientos: number;
+  movimientos_hoy: number;
+  entradas_mov: number;
+  salidas_mov: number;
+  entradas_unid: number;
+  salidas_unid: number;
+  entradas_valor: number;
+  salidas_valor: number;
+  unidades_movidas: number;
+  valor_total: number;
+  balance_unidades: number;
+  usuarios_activos: number;
+  productos_movidos: number;
+}
+
+export interface MovimientosCrecimiento {
+  movimientos: number | null;
+  unidades: number | null;
+  valor: number | null;
+}
+
+export interface PorTipoDetalle {
+  tipo: string;
+  movimientos: number;
+  unidades: number;
+  valor: number;
+  porcentaje: number;
+}
+
+export interface SerieDiaMovimiento {
+  fecha: string;
+  etiqueta: string;
+  entradas: number;
+  salidas: number;
+  neto: number;
+  valor: number;
+}
+
+export interface PuntoHoraMovimiento {
+  hora: string;
+  movimientos: number;
+  entradas: number;
+  salidas: number;
+}
+
+export interface TopProductoMovido {
+  nombre: string;
+  unidades: number;
+  movimientos: number;
+  valor: number;
+  porcentaje: number;
+}
+
+export interface UsuarioActivo {
+  nombre: string;
+  movimientos: number;
+  unidades: number;
+}
+
+export interface MovimientoReciente {
+  id_movimiento: number;
+  tipo_movimiento: string;
+  fecha_hora: string;
+  usuario: string;
+  unidades: number;
+  valor: number;
+  total_registro: number | null;
+}
+
+export interface ReporteMovimientos {
+  rango: MovimientosRango;
+  kpis: MovimientosKpis;
+  crecimiento: MovimientosCrecimiento;
+  por_tipo: PorTipoDetalle[];
+  serie_diaria: SerieDiaMovimiento[];
+  por_hora: PuntoHoraMovimiento[];
+  top_productos: TopProductoMovido[];
+  usuarios_activos: UsuarioActivo[];
+  movimientos_recientes: MovimientoReciente[];
+  paleta_tipos: Record<string, string>;
+}
+
+interface GetReporteMovimientosResponse {
+  success: boolean;
+  message: string;
+  data: ReporteMovimientos;
 }
 
 export default reportesService;

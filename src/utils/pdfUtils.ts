@@ -996,3 +996,312 @@ export function exportInventoryReportPdf(data: InventoryPdfData) {
     .padStart(2, "0")}`;
   doc.save(`Reporte_Inventario_${stamp}.pdf`);
 }
+
+/* ═══════════════════════════════════════════════════════════════════ */
+/*  5. REPORTE DE MOVIMIENTOS (dashboard)                               */
+/*  Recibe KPIs, tablas y capturas (PNG) de los gráficos del dashboard  */
+/* ═══════════════════════════════════════════════════════════════════ */
+
+export interface MovementsReportChartImages {
+  balance?: string;
+  tipos?: string;
+  hora?: string;
+  top?: string;
+}
+
+export interface MovementsPdfData {
+  meta: { desde: string | null; hasta: string | null; dias: number | null; periodo_completo: boolean };
+  kpis: {
+    total_movimientos: number;
+    movimientos_hoy: number;
+    entradas_mov: number;
+    salidas_mov: number;
+    entradas_unid: number;
+    salidas_unid: number;
+    entradas_valor: number;
+    salidas_valor: number;
+    unidades_movidas: number;
+    valor_total: number;
+    balance_unidades: number;
+    usuarios_activos: number;
+    productos_movidos: number;
+  };
+  crecimiento: { movimientos: number | null; unidades: number | null; valor: number | null };
+  porTipo: { tipo: string; movimientos: number; unidades: number; valor: number; porcentaje: number }[];
+  topProductos: { nombre: string; unidades: number; movimientos: number; valor: number; porcentaje: number }[];
+  usuariosActivos: { nombre: string; movimientos: number; unidades: number }[];
+  recientes: {
+    id_movimiento: number;
+    tipo_movimiento: string;
+    fecha_hora: string;
+    usuario: string;
+    unidades: number;
+    valor: number;
+  }[];
+  chartImages: MovementsReportChartImages;
+}
+
+const CARD_COLORS_MOV = [
+  [6, 182, 212] as [number, number, number], // cyan
+  [139, 92, 246] as [number, number, number], // violet
+  [245, 158, 11] as [number, number, number], // amber
+  [16, 185, 129] as [number, number, number], // emerald
+];
+
+export function exportMovementsReportPdf(data: MovementsPdfData) {
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  const pageWidth = doc.internal.pageSize.getWidth();
+
+  const subtitle = data.meta.periodo_completo
+    ? "Todo el historial registrado"
+    : `Del ${formatDate(data.meta.desde!)} al ${formatDate(data.meta.hasta!)} (${data.meta.dias} días)`;
+
+  drawHeader(doc, "REPORTE DE MOVIMIENTOS", subtitle);
+
+  // ─── Tarjetas de estadísticas ───
+  const cardW = (pageWidth - 14 * 2 - 8 * 3) / 4;
+  const cardY = 56;
+  const cardH = 28;
+
+  const cards = [
+    { label: "Total Movimientos", value: String(data.kpis.total_movimientos), growth: data.crecimiento.movimientos },
+    { label: "Unidades Movidas", value: String(data.kpis.unidades_movidas), growth: data.crecimiento.unidades },
+    { label: "Valor Movido", value: formatMoney(data.kpis.valor_total), growth: data.crecimiento.valor },
+    { label: "Balance Unidades", value: `${data.kpis.balance_unidades >= 0 ? "+" : ""}${data.kpis.balance_unidades}` },
+  ];
+
+  cards.forEach((c, i) => {
+    const x = 14 + i * (cardW + 8);
+    doc.setFillColor(...CARD_COLORS_MOV[i]);
+    doc.setDrawColor(...CARD_COLORS_MOV[i]);
+    doc.roundedRect(x, cardY, cardW, cardH, 3, 3, "FD");
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7);
+    doc.text(c.label.toUpperCase(), x + 6, cardY + 8);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text(c.value, x + 6, cardY + 17);
+    if (c.growth !== null && c.growth !== undefined) {
+      const signo = c.growth >= 0 ? "+" : "";
+      const txt = `${signo}${c.growth.toFixed(1)}%`;
+      const tw = doc.getTextWidth(txt) + 4;
+      doc.setFillColor(255, 255, 255);
+      doc.setDrawColor(255, 255, 255);
+      doc.roundedRect(x + cardW - tw - 4, cardY + cardH - 7, tw, 4.5, 2, 2, "F");
+      doc.setTextColor(...CARD_COLORS_MOV[i]);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(6.5);
+      doc.text(txt, x + cardW - tw - 2, cardY + cardH - 3.6);
+    }
+  });
+
+  let y = cardY + cardH + 4;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(...BRAND.gray);
+  doc.text(
+    `Entradas: ${data.kpis.entradas_mov} mov. / ${data.kpis.entradas_unid} unid. / ${formatMoney(data.kpis.entradas_valor)}  |  Salidas: ${data.kpis.salidas_mov} mov. / ${data.kpis.salidas_unid} unid. / ${formatMoney(data.kpis.salidas_valor)}`,
+    14,
+    y
+  );
+  y += 5;
+  doc.text(
+    `Usuarios activos: ${data.kpis.usuarios_activos}  |  Productos movidos: ${data.kpis.productos_movidos}  |  Registrados hoy: ${data.kpis.movimientos_hoy}`,
+    14,
+    y
+  );
+  y += 4;
+
+  // ─── Gráficos (imágenes capturadas del dashboard) ───
+  const charts: Array<[string, string | undefined]> = [
+    ["Balance Acumulado de Productos", data.chartImages.balance],
+    ["Movimientos por Tipo", data.chartImages.tipos],
+    ["Actividad por Hora", data.chartImages.hora],
+    ["Top Productos Movidos", data.chartImages.top],
+  ];
+
+  charts.forEach(([titulo, imagen]) => {
+    if (!imagen) return;
+    if (y > doc.internal.pageSize.getHeight() - 40) {
+      doc.addPage();
+      y = 20;
+    }
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.setTextColor(...BRAND.primary);
+    doc.text(titulo.toUpperCase(), 14, y);
+    y += 4;
+    y = addChartImage(doc, imagen, y);
+  });
+
+  // ─── Tabla: Movimientos por tipo ───
+  if (y > doc.internal.pageSize.getHeight() - 45) {
+    doc.addPage();
+    y = 20;
+  }
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.setTextColor(...BRAND.primary);
+  doc.text("MOVIMIENTOS POR TIPO", 14, y);
+  y += 4;
+
+  autoTable(doc, {
+    startY: y,
+    theme: "grid",
+    headStyles: { fillColor: BRAND.dark, textColor: 255, fontStyle: "bold", fontSize: 8 },
+    bodyStyles: { fontSize: 8, textColor: BRAND.dark },
+    alternateRowStyles: { fillColor: [248, 250, 252] },
+    margin: { left: 14, right: 14 },
+    head: [["Tipo", "Movimientos", "Unidades", "Valor", "%"]],
+    body:
+      data.porTipo.length > 0
+        ? data.porTipo.map((p) => [
+            p.tipo,
+            String(p.movimientos),
+            String(p.unidades),
+            formatMoney(p.valor),
+            `${p.porcentaje.toFixed(1)}%`,
+          ])
+        : [["—", "Sin movimientos en el período", "—", "—", "—"]],
+    columnStyles: {
+      1: { halign: "center" as const },
+      2: { halign: "center" as const },
+      3: { halign: "right" as const },
+      4: { cellWidth: 18, halign: "right" as const },
+    },
+  });
+
+  // ─── Tabla: Top productos ───
+  y = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable
+    ? ((doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable as { finalY: number }).finalY + 10
+    : y + 10;
+
+  if (y > doc.internal.pageSize.getHeight() - 45) {
+    doc.addPage();
+    y = 20;
+  }
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.setTextColor(...BRAND.primary);
+  doc.text("TOP PRODUCTOS MOVIDOS", 14, y);
+  y += 4;
+
+  autoTable(doc, {
+    startY: y,
+    theme: "grid",
+    headStyles: { fillColor: BRAND.dark, textColor: 255, fontStyle: "bold", fontSize: 8 },
+    bodyStyles: { fontSize: 8, textColor: BRAND.dark },
+    alternateRowStyles: { fillColor: [248, 250, 252] },
+    margin: { left: 14, right: 14 },
+    head: [["#", "Producto", "Unidades", "Movimientos", "Valor", "%"]],
+    body:
+      data.topProductos.length > 0
+        ? data.topProductos.map((p, i) => [
+            String(i + 1),
+            p.nombre,
+            String(p.unidades),
+            String(p.movimientos),
+            formatMoney(p.valor),
+            `${p.porcentaje.toFixed(1)}%`,
+          ])
+        : [["—", "Sin productos movidos", "—", "—", "—", "—"]],
+    columnStyles: {
+      0: { cellWidth: 10, halign: "center" as const },
+      2: { halign: "center" as const },
+      3: { halign: "center" as const },
+      4: { halign: "right" as const },
+      5: { cellWidth: 18, halign: "right" as const },
+    },
+  });
+
+  // ─── Tabla: Usuarios más activos ───
+  y = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable
+    ? ((doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable as { finalY: number }).finalY + 10
+    : y + 10;
+
+  if (y > doc.internal.pageSize.getHeight() - 45) {
+    doc.addPage();
+    y = 20;
+  }
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.setTextColor(...BRAND.primary);
+  doc.text("USUARIOS MÁS ACTIVOS", 14, y);
+  y += 4;
+
+  autoTable(doc, {
+    startY: y,
+    theme: "grid",
+    headStyles: { fillColor: BRAND.dark, textColor: 255, fontStyle: "bold", fontSize: 8 },
+    bodyStyles: { fontSize: 8, textColor: BRAND.dark },
+    alternateRowStyles: { fillColor: [248, 250, 252] },
+    margin: { left: 14, right: 14 },
+    head: [["Usuario", "Movimientos", "Unidades"]],
+    body:
+      data.usuariosActivos.length > 0
+        ? data.usuariosActivos.map((u) => [u.nombre, String(u.movimientos), String(u.unidades)])
+        : [["—", "—", "—"]],
+    columnStyles: {
+      1: { halign: "center" as const },
+      2: { halign: "center" as const },
+    },
+  });
+
+  // ─── Tabla: Últimos movimientos ───
+  y = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable
+    ? ((doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable as { finalY: number }).finalY + 10
+    : y + 10;
+
+  if (y > doc.internal.pageSize.getHeight() - 45) {
+    doc.addPage();
+    y = 20;
+  }
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.setTextColor(...BRAND.primary);
+  doc.text("ÚLTIMOS MOVIMIENTOS", 14, y);
+  y += 4;
+
+  autoTable(doc, {
+    startY: y,
+    theme: "grid",
+    headStyles: { fillColor: BRAND.dark, textColor: 255, fontStyle: "bold", fontSize: 7.5 },
+    bodyStyles: { fontSize: 7.5, textColor: BRAND.dark },
+    alternateRowStyles: { fillColor: [248, 250, 252] },
+    margin: { left: 14, right: 14 },
+    head: [["N°", "Fecha", "Tipo", "Usuario", "Unid.", "Valor"]],
+    body:
+      data.recientes.length > 0
+        ? data.recientes.map((r) => [
+            String(r.id_movimiento),
+            formatDateTime(r.fecha_hora),
+            r.tipo_movimiento,
+            r.usuario,
+            String(r.unidades),
+            formatMoney(r.valor),
+          ])
+        : [["—", "—", "Sin movimientos", "—", "—", "—"]],
+    columnStyles: {
+      0: { cellWidth: 12, halign: "center" as const },
+      1: { cellWidth: 32, halign: "center" as const },
+      3: { cellWidth: 34 },
+      4: { halign: "center" as const },
+      5: { halign: "right" as const },
+    },
+  });
+
+  drawFooter(doc);
+  doc.setPage(1);
+
+  const dateStamp = new Date();
+  const stamp = `${dateStamp.getFullYear()}${(dateStamp.getMonth() + 1).toString().padStart(2, "0")}${dateStamp
+    .getDate()
+    .toString()
+    .padStart(2, "0")}`;
+  doc.save(`Reporte_Movimientos_${stamp}.pdf`);
+}
