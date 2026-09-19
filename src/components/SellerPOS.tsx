@@ -668,24 +668,24 @@ export default function SellerPOS() {
       <style>{`
         .seller-pos-page {
           min-height: 100vh;
-          padding: 26px;
-          background:
-            radial-gradient(circle at 10% 10%, rgba(15, 191, 112, 0.08), transparent 28%),
-            linear-gradient(135deg, #eef4f8 0%, #f8fbfd 48%, #edf3f7 100%);
+          width: 100%;
+          padding: 0;
+          margin: 0;
+          background: #ffffff;
           color: #111827;
           font-family: 'Cairo', sans-serif;
         }
 
         .seller-pos-shell {
-          min-height: calc(100vh - 52px);
+          min-height: 100vh;
+          width: 100%;
           display: grid;
           grid-template-columns: 242px minmax(0, 1fr) 360px;
           overflow: hidden;
-          background: rgba(255, 255, 255, 0.88);
-          border: 1px solid rgba(211, 222, 232, 0.86);
-          border-radius: 28px;
-          box-shadow: 0 30px 70px rgba(37, 56, 80, 0.12);
-          backdrop-filter: blur(18px);
+          background: #ffffff;
+          border: none;
+          border-radius: 0;
+          box-shadow: none;
         }
 
         .seller-sidebar {
@@ -695,7 +695,7 @@ export default function SellerPOS() {
           gap: 28px;
           padding: 28px 22px;
           border-right: 1px solid #e2ebf1;
-          background: rgba(255, 255, 255, 0.76);
+          background: #ffffff;
         }
 
         .seller-brand {
@@ -824,7 +824,7 @@ export default function SellerPOS() {
           gap: 20px;
           padding: 24px 28px;
           border-bottom: 1px solid #e2ebf1;
-          background: rgba(255, 255, 255, 0.7);
+          background: #ffffff;
         }
 
         .seller-search {
