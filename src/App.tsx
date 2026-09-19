@@ -3,10 +3,14 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Dashboard from "./components/Dashboard";
 import Login from "./components/Login";
 import ResetPassword from "./components/ResetPassword";
+import SellerPOS from "./components/SellerPOS";
 import { useAuth } from "./contexts/AuthContext";
 
 function App() {
   const { isAuthenticated, loading, checkAuth, user } = useAuth();
+  const isSellerRole =
+    user?.rol?.id_rol === 2 ||
+    user?.rol?.nombre_rol?.toUpperCase().includes("VENDEDOR");
 
   useEffect(() => {
     console.log('🎯 [App] Auth state changed:', { 
@@ -64,7 +68,11 @@ function App() {
           path="/"
           element={
             isAuthenticated ? (
-              <Dashboard />
+              isSellerRole ? (
+                <SellerPOS />
+              ) : (
+                <Dashboard />
+              )
             ) : (
               <Login onLoginSuccess={checkAuth} />
             )
