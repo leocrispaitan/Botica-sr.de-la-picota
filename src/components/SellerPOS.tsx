@@ -275,6 +275,7 @@ export default function SellerPOS() {
   const [documentType, setDocumentType] = useState<"Boleta" | "Factura" | "Ticket">("Boleta");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const userName = user?.nombre_completo || "Vendedor";
   const userEmail = user?.email || "vendedor@botica.com";
@@ -667,35 +668,44 @@ export default function SellerPOS() {
     <div className="seller-pos-page">
       <style>{`
         .seller-pos-page {
-          min-height: 100vh;
+          height: 100vh;
           width: 100%;
           padding: 0;
           margin: 0;
+          overflow: hidden;
           background: #ffffff;
           color: #111827;
           font-family: 'Cairo', sans-serif;
         }
 
         .seller-pos-shell {
-          min-height: 100vh;
+          height: 100vh;
           width: 100%;
           display: grid;
           grid-template-columns: 242px minmax(0, 1fr) 360px;
+          grid-template-rows: minmax(0, 1fr);
           overflow: hidden;
           background: #ffffff;
           border: none;
           border-radius: 0;
           box-shadow: none;
+          transition: grid-template-columns 0.3s ease;
+        }
+
+        .seller-pos-shell.is-sidebar-collapsed {
+          grid-template-columns: 92px minmax(0, 1fr) 360px;
         }
 
         .seller-sidebar {
           display: flex;
           flex-direction: column;
-          justify-content: space-between;
+          justify-content: flex-start;
           gap: 28px;
+          min-height: 0;
           padding: 28px 22px;
           border-right: 1px solid #e2ebf1;
           background: #ffffff;
+          overflow-y: auto;
         }
 
         .seller-brand {
@@ -780,6 +790,7 @@ export default function SellerPOS() {
         .seller-sidebar-footer {
           display: grid;
           gap: 14px;
+          margin-top: auto;
         }
 
         .seller-shift-card {
@@ -811,6 +822,7 @@ export default function SellerPOS() {
 
         .seller-workspace {
           min-width: 0;
+          min-height: 0;
           display: flex;
           flex-direction: column;
           overflow: hidden;
@@ -819,12 +831,149 @@ export default function SellerPOS() {
         .seller-topbar {
           min-height: 92px;
           display: grid;
-          grid-template-columns: minmax(240px, 480px) 1fr auto;
+          grid-template-columns: minmax(0, 480px) 1fr auto;
           align-items: center;
           gap: 20px;
           padding: 24px 28px;
           border-bottom: 1px solid #e2ebf1;
           background: #ffffff;
+        }
+
+        .seller-topbar-left {
+          min-width: 0;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+
+        .seller-topbar-left .seller-search {
+          flex: 1;
+          min-width: 0;
+        }
+
+        .seller-sidebar-toggle {
+          flex: 0 0 42px;
+          width: 42px;
+          height: 42px;
+          display: grid;
+          place-items: center;
+          border: 0;
+          border-radius: 14px;
+          background: #f2f6f8;
+          color: #0f172a;
+          cursor: pointer;
+          transition: color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+        }
+
+        .seller-sidebar-toggle:hover {
+          color: #0f9f63;
+          background: rgba(15, 191, 112, 0.1);
+        }
+
+        .seller-sidebar-toggle:active {
+          transform: scale(0.94);
+        }
+
+        /* ---- Tooltips de la barra lateral (rail colapsada) ---- */
+        .seller-nav-button[data-tooltip]::after,
+        .seller-logout-button[data-tooltip]::after {
+          content: attr(data-tooltip);
+          position: absolute;
+          left: calc(100% + 11px);
+          top: 50%;
+          transform: translateY(-50%) translateX(-6px);
+          z-index: 90;
+          padding: 8px 12px;
+          border-radius: 9px;
+          background: #0f172a;
+          color: #ffffff;
+          font-size: 12px;
+          font-weight: 800;
+          letter-spacing: 0.02em;
+          line-height: 1;
+          white-space: nowrap;
+          box-shadow: 0 14px 28px rgba(15, 23, 42, 0.26);
+          opacity: 0;
+          visibility: hidden;
+          pointer-events: none;
+          transition: opacity 0.16s ease, transform 0.16s ease, visibility 0.16s ease;
+        }
+
+        .seller-nav-button[data-tooltip]::before,
+        .seller-logout-button[data-tooltip]::before {
+          content: "";
+          position: absolute;
+          left: calc(100% + 7px);
+          top: 50%;
+          transform: translateY(-50%);
+          z-index: 90;
+          border: 5px solid transparent;
+          border-right-color: #0f172a;
+          opacity: 0;
+          visibility: hidden;
+          pointer-events: none;
+          transition: opacity 0.16s ease, visibility 0.16s ease;
+        }
+
+        @media (min-width: 921px) {
+          .seller-pos-shell.is-sidebar-collapsed .seller-sidebar {
+            align-items: center;
+            padding: 28px 14px;
+            overflow: visible;
+          }
+
+          .seller-pos-shell.is-sidebar-collapsed .seller-brand {
+            justify-content: center;
+            gap: 0;
+          }
+
+          .seller-pos-shell.is-sidebar-collapsed .seller-brand strong,
+          .seller-pos-shell.is-sidebar-collapsed .seller-nav-button span:not(.seller-nav-badge),
+          .seller-pos-shell.is-sidebar-collapsed .seller-logout-button span,
+          .seller-pos-shell.is-sidebar-collapsed .seller-shift-card {
+            display: none;
+          }
+
+          .seller-pos-shell.is-sidebar-collapsed .seller-nav-button,
+          .seller-pos-shell.is-sidebar-collapsed .seller-logout-button {
+            justify-content: center;
+            padding: 0;
+          }
+
+          .seller-pos-shell.is-sidebar-collapsed .seller-nav-badge {
+            position: absolute;
+            top: 2px;
+            right: 0;
+          }
+
+          .seller-pos-shell.is-sidebar-collapsed .seller-nav-button[data-tooltip]:hover::after,
+          .seller-pos-shell.is-sidebar-collapsed .seller-nav-button[data-tooltip]:hover::before,
+          .seller-pos-shell.is-sidebar-collapsed .seller-logout-button[data-tooltip]:hover::after,
+          .seller-pos-shell.is-sidebar-collapsed .seller-logout-button[data-tooltip]:hover::before {
+            opacity: 1;
+            visibility: visible;
+          }
+
+          .seller-pos-shell.is-sidebar-collapsed .seller-nav-button[data-tooltip]:hover::after,
+          .seller-pos-shell.is-sidebar-collapsed .seller-logout-button[data-tooltip]:hover::after {
+            transform: translateY(-50%) translateX(0);
+          }
+        }
+
+        @media (min-width: 921px) and (max-width: 1240px) {
+          /* En tabletas el sidebar ya es una rail de iconos: mostrar tooltips */
+          .seller-nav-button[data-tooltip]:hover::after,
+          .seller-nav-button[data-tooltip]:hover::before,
+          .seller-logout-button[data-tooltip]:hover::after,
+          .seller-logout-button[data-tooltip]:hover::before {
+            opacity: 1;
+            visibility: visible;
+          }
+
+          .seller-nav-button[data-tooltip]:hover::after,
+          .seller-logout-button[data-tooltip]:hover::after {
+            transform: translateY(-50%) translateX(0);
+          }
         }
 
         .seller-search {
@@ -1353,6 +1502,7 @@ export default function SellerPOS() {
           display: flex;
           flex-direction: column;
           min-width: 0;
+          min-height: 0;
           padding: 28px 24px;
           border-left: 1px solid #e2ebf1;
           background: rgba(255, 255, 255, 0.82);
@@ -1642,7 +1792,21 @@ export default function SellerPOS() {
         }
 
         @media (max-width: 1240px) {
+          .seller-pos-page {
+            height: auto;
+            min-height: 100vh;
+            overflow: visible;
+          }
+
           .seller-pos-shell {
+            grid-template-columns: 92px minmax(0, 1fr);
+            grid-template-rows: none;
+            height: auto;
+            min-height: 100vh;
+            overflow: visible;
+          }
+
+          .seller-pos-shell.is-sidebar-collapsed {
             grid-template-columns: 92px minmax(0, 1fr);
           }
 
@@ -1742,6 +1906,10 @@ export default function SellerPOS() {
             padding: 14px 18px;
             border-bottom: 1px solid #e2ebf1;
             background: rgba(255, 255, 255, 0.9);
+          }
+
+          .seller-sidebar-toggle {
+            display: none;
           }
 
           .seller-mobilebar button {
@@ -1844,7 +2012,9 @@ export default function SellerPOS() {
         }
       `}</style>
 
-      <div className={`seller-pos-shell ${mobileMenuOpen ? "is-nav-open" : ""}`}>
+      <div
+        className={`seller-pos-shell ${mobileMenuOpen ? "is-nav-open" : ""} ${sidebarCollapsed ? "is-sidebar-collapsed" : ""}`}
+      >
         <aside className="seller-sidebar">
           <div>
             <div className="seller-brand">
@@ -1864,6 +2034,7 @@ export default function SellerPOS() {
                   <button
                     key={item.id}
                     className={`seller-nav-button ${activeView === item.id ? "is-active" : ""}`}
+                    data-tooltip={item.label}
                     onClick={() => {
                       setActiveView(item.id);
                       setMobileMenuOpen(false);
@@ -1883,15 +2054,15 @@ export default function SellerPOS() {
               <span>Turno actual</span>
               <strong>{formatCurrency(total)}</strong>
             </div>
-            <button className="seller-nav-button" type="button">
+            <button className="seller-nav-button" type="button" data-tooltip="Ajustes">
               <Settings size={20} />
               <span>Ajustes</span>
             </button>
-            <button className="seller-nav-button" type="button">
+            <button className="seller-nav-button" type="button" data-tooltip="Ayuda">
               <HelpCircle size={20} />
               <span>Ayuda</span>
             </button>
-            <button className="seller-logout-button" type="button" onClick={handleLogout}>
+            <button className="seller-logout-button" type="button" data-tooltip="Cerrar sesión" onClick={handleLogout}>
               <LogOut size={20} />
               <span>Cerrar sesión</span>
             </button>
@@ -1916,14 +2087,25 @@ export default function SellerPOS() {
           </div>
 
           <header className="seller-topbar">
-            <label className="seller-search">
-              <Search size={20} />
-              <input
-                value={searchTerm}
-                onChange={(event) => setSearchTerm(event.target.value)}
-                placeholder="Buscar producto, genérico o laboratorio"
-              />
-            </label>
+            <div className="seller-topbar-left">
+              <button
+                className="seller-sidebar-toggle"
+                type="button"
+                onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}
+                aria-label={sidebarCollapsed ? "Mostrar menú lateral" : "Ocultar menú lateral"}
+                aria-expanded={!sidebarCollapsed}
+              >
+                <Menu size={21} />
+              </button>
+              <label className="seller-search">
+                <Search size={20} />
+                <input
+                  value={searchTerm}
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                  placeholder="Buscar producto, genérico o laboratorio"
+                />
+              </label>
+            </div>
             <div className="seller-date">{currentDate}</div>
             <div className="seller-user">
               <div className="seller-user-text">
