@@ -18,6 +18,7 @@ import {
   AlertCircle,
   X,
   User,
+  UserCheck,
   Lock,
   CreditCard,
   Image,
@@ -151,6 +152,8 @@ export default function UsersManagement({ isDark = true }: { isDark?: boolean })
   const [showNewUserModal, setShowNewUserModal] = useState(false);
   const [showUserDetailsModal, setShowUserDetailsModal] = useState(false);
   const [showEditUserModal, setShowEditUserModal] = useState(false);
+  const [userToToggle, setUserToToggle] = useState<Usuario | null>(null);
+  const [isTogglingStatus, setIsTogglingStatus] = useState(false);
   const [selectedUser, setSelectedUser] = useState<Usuario | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -294,6 +297,311 @@ export default function UsersManagement({ isDark = true }: { isDark?: boolean })
     });
     setEditFormErrors({});
     setShowEditUserModal(true);
+  };
+
+  // Activar / desactivar usuario (abre modal de confirmación)
+  const handleToggleUserStatus = (user: Usuario) => {
+    setUserToToggle(user);
+  };
+
+  const handleConfirmToggleUserStatus = async () => {
+    if (!userToToggle) return;
+    setIsTogglingStatus(true);
+    try {
+      const nextEstado = !userToToggle.estado_logico;
+      await usersService.updateUserStatus(userToToggle.id_usuario, nextEstado);
+
+      // Actualizar la lista localmente sin recargar toda la tabla
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.id_usuario === userToToggle.id_usuario ? { ...u, estado_logico: nextEstado } : u
+        )
+      );
+
+      // Notificación de éxito moderna y profesional
+      const usuario = userToToggle;
+      const acentoColor = nextEstado ? "#22c55e" : "#ef4444";
+      const acentoGradiente = nextEstado
+        ? "linear-gradient(135deg, #22c55e 0%, #16a34a 100%)"
+        : "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)";
+
+      toast.custom(
+        (t) => (
+          <div
+            style={{
+              background: isDark ? "#212130" : "#ffffff",
+              padding: "24px",
+              borderRadius: "20px",
+              boxShadow: "0 20px 60px rgba(0, 0, 0, 0.3)",
+              border: `2px solid ${isDark ? (nextEstado ? "rgba(34,197,94,0.4)" : "rgba(239,68,68,0.4)") : (nextEstado ? "rgba(34,197,94,0.3)" : "rgba(239,68,68,0.3)")}`,
+              maxWidth: "420px",
+              animation: t.visible ? "slideIn 0.4s ease-out" : "slideOut 0.3s ease-in",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "16px" }}>
+              <div
+                style={{
+                  width: "56px",
+                  height: "56px",
+                  borderRadius: "50%",
+                  background: acentoGradiente,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  boxShadow: `0 8px 24px ${nextEstado ? "rgba(34,197,94,0.4)" : "rgba(239,68,68,0.4)"}`,
+                  animation: "scaleIn 0.5s ease-out",
+                }}
+              >
+                <CheckCircle2 size={32} color="#fff" strokeWidth={2.5} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <h3
+                  style={{
+                    fontSize: "18px",
+                    fontWeight: 700,
+                    color: acentoColor,
+                    marginBottom: "4px",
+                    fontFamily: "'Cairo', sans-serif",
+                  }}
+                >
+                  {nextEstado ? "¡Usuario Activado!" : "Usuario Desactivado"}
+                </h3>
+                <p
+                  style={{
+                    fontSize: "13px",
+                    color: isDark ? "#969ba0" : "#787f9e",
+                    fontFamily: "'Cairo', sans-serif",
+                  }}
+                >
+                  {nextEstado
+                    ? "El usuario puede volver a ingresar al sistema"
+                    : "El usuario ya no puede ingresar al sistema"}
+                </p>
+              </div>
+            </div>
+
+            <div
+              style={{
+                background: isDark ? "#1e1d29" : "#f5f6fa",
+                padding: "16px",
+                borderRadius: "12px",
+                marginBottom: "16px",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
+                <img
+                  src={getUserAvatar(usuario)}
+                  alt={usuario.nombre_completo}
+                  style={{
+                    width: "48px",
+                    height: "48px",
+                    borderRadius: "50%",
+                    border: `2px solid ${acentoColor}`,
+                  }}
+                />
+                <div style={{ minWidth: 0 }}>
+                  <p
+                    style={{
+                      fontSize: "15px",
+                      fontWeight: 600,
+                      color: isDark ? "#ffffff" : "#3d4465",
+                      marginBottom: "2px",
+                      fontFamily: "'Cairo', sans-serif",
+                    }}
+                  >
+                    {usuario.nombre_completo}
+                  </p>
+                  <p
+                    style={{
+                      fontSize: "12px",
+                      color: isDark ? "#828690" : "#787f9e",
+                      fontFamily: "'Cairo', sans-serif",
+                    }}
+                  >
+                    @{usuario.nombre_usuario}
+                  </p>
+                </div>
+                <span
+                  style={{
+                    marginLeft: "auto",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    padding: "6px 12px",
+                    borderRadius: "8px",
+                    background: nextEstado ? "rgba(34,197,94,0.12)" : "rgba(239,68,68,0.12)",
+                    color: acentoColor,
+                    border: `1px solid ${nextEstado ? "rgba(34,197,94,0.3)" : "rgba(239,68,68,0.3)"}`,
+                    fontSize: "12px",
+                    fontWeight: 700,
+                    fontFamily: "'Cairo', sans-serif",
+                    flexShrink: 0,
+                  }}
+                >
+                  {nextEstado ? "ACTIVO" : "INACTIVO"}
+                </span>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <Mail size={14} color={acentoColor} />
+                  <span
+                    style={{
+                      fontSize: "13px",
+                      color: isDark ? "#969ba0" : "#787f9e",
+                      fontFamily: "'Cairo', sans-serif",
+                    }}
+                  >
+                    {usuario.email}
+                  </span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <Shield size={14} color={acentoColor} />
+                  <span
+                    style={{
+                      fontSize: "13px",
+                      color: isDark ? "#969ba0" : "#787f9e",
+                      fontFamily: "'Cairo', sans-serif",
+                    }}
+                  >
+                    Rol: {usuario.rol?.nombre_rol || getRoleName(usuario.id_rol)}
+                  </span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <CreditCard size={14} color={acentoColor} />
+                  <span
+                    style={{
+                      fontSize: "13px",
+                      color: isDark ? "#969ba0" : "#787f9e",
+                      fontFamily: "'Cairo', sans-serif",
+                    }}
+                  >
+                    DNI: {usuario.dni}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={() => toast.dismiss(t.id)}
+              style={{
+                width: "100%",
+                padding: "12px",
+                borderRadius: "12px",
+                border: "none",
+                background: acentoGradiente,
+                color: "#fff",
+                fontSize: "14px",
+                fontWeight: 600,
+                cursor: "pointer",
+                fontFamily: "'Cairo', sans-serif",
+                transition: "all 0.2s",
+                boxShadow: `0 4px 12px ${nextEstado ? "rgba(34,197,94,0.3)" : "rgba(239,68,68,0.3)"}`,
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)";
+                (e.currentTarget as HTMLButtonElement).style.boxShadow = `0 6px 20px ${nextEstado ? "rgba(34,197,94,0.4)" : "rgba(239,68,68,0.4)"}`;
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
+                (e.currentTarget as HTMLButtonElement).style.boxShadow = `0 4px 12px ${nextEstado ? "rgba(34,197,94,0.3)" : "rgba(239,68,68,0.3)"}`;
+              }}
+            >
+              Entendido
+            </button>
+          </div>
+        ),
+        { duration: 6000 }
+      );
+
+      setUserToToggle(null);
+    } catch (err) {
+      console.error("❌ Error al cambiar estado del usuario:", err);
+      const message =
+        (err as any)?.response?.data?.message || "Error al cambiar el estado del usuario. Intenta nuevamente.";
+      toast.custom(
+        (t) => (
+          <div
+            style={{
+              background: isDark ? "#212130" : "#ffffff",
+              padding: "24px",
+              borderRadius: "20px",
+              boxShadow: "0 20px 60px rgba(0, 0, 0, 0.3)",
+              border: `2px solid ${isDark ? "rgba(239, 68, 68, 0.4)" : "rgba(239, 68, 68, 0.25)"}`,
+              maxWidth: "420px",
+              animation: t.visible ? "slideIn 0.4s ease-out" : "slideOut 0.3s ease-in",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "16px" }}>
+              <div
+                style={{
+                  width: "56px",
+                  height: "56px",
+                  borderRadius: "50%",
+                  background: "linear-gradient(135deg, #ef4444 0%, #f87171 100%)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  boxShadow: "0 8px 24px rgba(239, 68, 68, 0.4)",
+                  animation: "scaleIn 0.5s ease-out",
+                }}
+              >
+                <AlertCircle size={32} color="#fff" strokeWidth={2.5} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <h3
+                  style={{
+                    fontSize: "18px",
+                    fontWeight: 700,
+                    color: "#ef4444",
+                    marginBottom: "4px",
+                    fontFamily: "'Cairo', sans-serif",
+                  }}
+                >
+                  Error al cambiar el estado
+                </h3>
+                <p
+                  style={{
+                    fontSize: "13px",
+                    color: isDark ? "#969ba0" : "#787f9e",
+                    fontFamily: "'Cairo', sans-serif",
+                  }}
+                >
+                  {message}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => toast.dismiss(t.id)}
+              style={{
+                width: "100%",
+                padding: "12px",
+                borderRadius: "12px",
+                border: "none",
+                background: "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)",
+                color: "#fff",
+                fontSize: "14px",
+                fontWeight: 600,
+                cursor: "pointer",
+                fontFamily: "'Cairo', sans-serif",
+                transition: "all 0.2s",
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.opacity = "0.9";
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.opacity = "1";
+              }}
+            >
+              Entendido
+            </button>
+          </div>
+        ),
+        { duration: 6000 }
+      );
+    } finally {
+      setIsTogglingStatus(false);
+    }
   };
 
   const handleEditInputChange = (field: keyof EditUserFormData, value: string | number | boolean) => {
@@ -1981,7 +2289,8 @@ export default function UsersManagement({ isDark = true }: { isDark?: boolean })
                             <Edit2 size={16} />
                           </button>
                           <button
-                            title="Eliminar usuario"
+                            title={user.estado_logico ? "Desactivar usuario" : "Activar usuario"}
+                            onClick={() => handleToggleUserStatus(user)}
                             style={{
                               padding: "8px",
                               borderRadius: "8px",
@@ -1995,15 +2304,21 @@ export default function UsersManagement({ isDark = true }: { isDark?: boolean })
                               transition: "all 0.2s",
                             }}
                             onMouseEnter={(e) => {
-                              (e.currentTarget as HTMLButtonElement).style.background = "rgba(239,68,68,0.1)";
-                              (e.currentTarget as HTMLButtonElement).style.color = "#ef4444";
+                              (e.currentTarget as HTMLButtonElement).style.background = user.estado_logico
+                                ? "rgba(239,68,68,0.15)"
+                                : "rgba(34,197,94,0.15)";
+                              (e.currentTarget as HTMLButtonElement).style.color = user.estado_logico ? "#ef4444" : "#22c55e";
                             }}
                             onMouseLeave={(e) => {
                               (e.currentTarget as HTMLButtonElement).style.background = "transparent";
                               (e.currentTarget as HTMLButtonElement).style.color = t.textSecondary;
                             }}
                           >
-                            <Trash2 size={16} />
+                            {user.estado_logico ? (
+                              <Trash2 size={16} />
+                            ) : (
+                              <UserCheck size={16} />
+                            )}
                           </button>
                           <button
                             title="Más opciones"
@@ -3558,6 +3873,120 @@ export default function UsersManagement({ isDark = true }: { isDark?: boolean })
       )}
 
       {/* MODAL: EDITAR USUARIO */}
+      {/* Modal de confirmación: activar / desactivar usuario */}
+      {userToToggle && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0, 0, 0, 0.7)",
+            backdropFilter: "blur(4px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+            padding: "20px",
+          }}
+          onClick={() => setUserToToggle(null)}
+        >
+          <div
+            style={{
+              background: t.cardBg,
+              borderRadius: "24px",
+              maxWidth: "440px",
+              width: "100%",
+              boxShadow: "0 20px 60px rgba(0, 0, 0, 0.4)",
+              border: `1px solid ${t.borderCard}`,
+              padding: "32px",
+              textAlign: "center",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              style={{
+                width: "72px",
+                height: "72px",
+                margin: "0 auto 20px",
+                borderRadius: "50%",
+                background: userToToggle.estado_logico
+                  ? "rgba(239,68,68,0.12)"
+                  : "rgba(34,197,94,0.12)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              {userToToggle.estado_logico ? (
+                <Trash2 size={34} color="#ef4444" />
+              ) : (
+                <UserCheck size={34} color="#22c55e" />
+              )}
+            </div>
+            <h2 style={{ fontSize: "22px", fontWeight: 700, color: t.textPrimary, marginBottom: "8px" }}>
+              {userToToggle.estado_logico ? "Desactivar usuario" : "Activar usuario"}
+            </h2>
+            <p style={{ fontSize: "14px", color: t.textSecondary, marginBottom: "24px", lineHeight: 1.6 }}>
+              {userToToggle.estado_logico
+                ? `El usuario "${userToToggle.nombre_completo || userToToggle.email}" dejará de poder ingresar al sistema. ¿Deseas continuar?`
+                : `El usuario "${userToToggle.nombre_completo || userToToggle.email}" podrá volver a ingresar al sistema. ¿Deseas continuar?`}
+            </p>
+            <div style={{ display: "flex", gap: "12px" }}>
+              <button
+                onClick={() => setUserToToggle(null)}
+                disabled={isTogglingStatus}
+                style={{
+                  flex: 1,
+                  padding: "12px 16px",
+                  borderRadius: "12px",
+                  border: `1px solid ${t.border}`,
+                  background: "transparent",
+                  color: t.textSecondary,
+                  fontSize: "14px",
+                  fontWeight: 600,
+                  cursor: isTogglingStatus ? "not-allowed" : "pointer",
+                  fontFamily: "'Cairo', sans-serif",
+                  transition: "all 0.2s",
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.background = t.hoverBg;
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.background = "transparent";
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleConfirmToggleUserStatus}
+                disabled={isTogglingStatus}
+                style={{
+                  flex: 1,
+                  padding: "12px 16px",
+                  borderRadius: "12px",
+                  border: "none",
+                  background: userToToggle.estado_logico
+                    ? "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)"
+                    : "linear-gradient(135deg, #22c55e 0%, #16a34a 100%)",
+                  color: "#fff",
+                  fontSize: "14px",
+                  fontWeight: 700,
+                  cursor: isTogglingStatus ? "not-allowed" : "pointer",
+                  fontFamily: "'Cairo', sans-serif",
+                  transition: "all 0.2s",
+                  opacity: isTogglingStatus ? 0.6 : 1,
+                }}
+              >
+                {isTogglingStatus
+                  ? "Procesando..."
+                  : userToToggle.estado_logico
+                    ? "Desactivar"
+                    : "Activar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showEditUserModal && selectedUser && (
         <div
           style={{
