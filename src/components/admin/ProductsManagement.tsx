@@ -34,7 +34,7 @@ import {
   RotateCcw,
 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
-import { productsService } from "../services/productsService";
+import { productsService } from "../../services/productsService";
 
 const { updateProduct, deleteProduct } = productsService;
 import type {
@@ -47,7 +47,7 @@ import type {
   ViaAdministracion,
   ClasificacionATC,
   Laboratorio,
-} from "../services/productsService";
+} from "../../services/productsService";
 
 /* ─── Default Image ─────────────────────────────────────────────────── */
 const DEFAULT_PRODUCT_IMAGE =

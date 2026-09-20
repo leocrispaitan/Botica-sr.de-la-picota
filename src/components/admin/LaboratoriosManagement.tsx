@@ -24,7 +24,7 @@ import {
   laboratoriosService,
   type Laboratorio,
   type NewLaboratorioInput,
-} from "../services/laboratoriosService";
+} from "../../services/laboratoriosService";
 
 /* ─── Toast de éxito / error ─────────────────────────────────────── */
 const showToast = (

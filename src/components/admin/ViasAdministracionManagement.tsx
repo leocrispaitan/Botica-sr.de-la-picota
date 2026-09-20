@@ -2,30 +2,28 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   Search,
   Filter,
-  UserPlus,
+  Plus,
   Edit2,
   Trash2,
   Eye,
   ChevronLeft,
   ChevronRight,
-  Mail,
-  Phone,
-  MapPin,
-  FileText,
-  Truck,
-  Building2,
+  FlaskConical,
+  CheckCircle2,
+  Archive,
+  Syringe,
   X,
   Save,
   AlertCircle,
-  CheckCircle2,
   RefreshCw,
+  Package,
 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import {
-  suppliersService,
-  type Proveedor,
-  type NewProveedorInput,
-} from "../services/suppliersService";
+  viasAdministracionService,
+  type ViaAdministracion,
+  type NewViaAdministracionInput,
+} from "../../services/viasAdministracionService";
 
 /* ─── Toast de éxito / error ─────────────────────────────────────── */
 const showToast = (
@@ -150,52 +148,49 @@ function getTheme(isDark: boolean) {
 
 /* ─── Form state inicial ─────────────────────────────────────────── */
 const emptyForm = {
-  nombre_proveedor: "",
-  ruc: "",
-  telefono: "",
-  email: "",
-  direccion: "",
+  nombre: "",
 };
 
 /* ═══════════════════════════════════════════════════════════════════ */
-/*  SUPPLIERS MANAGEMENT COMPONENT                                     */
+/*  VIAS ADMINISTRACION MANAGEMENT COMPONENT                          */
 /* ═══════════════════════════════════════════════════════════════════ */
-export default function SuppliersManagement({ isDark = true }: { isDark?: boolean }) {
+export default function ViasAdministracionManagement({ isDark = true }: { isDark?: boolean }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<boolean | "all">("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
 
   // ═══ Datos reales desde el backend ═══
-  const [proveedores, setProveedores] = useState<Proveedor[]>([]);
+  const [vias, setVias] = useState<ViaAdministracion[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // ═══ Modal: Crear / Editar / Ver ═══
   const [showModal, setShowModal] = useState(false);
   const [modalMode, setModalMode] = useState<"create" | "edit" | "view">("create");
-  const [selectedSupplier, setSelectedSupplier] = useState<Proveedor | null>(null);
+  const [selectedVia, setSelectedVia] = useState<ViaAdministracion | null>(null);
   const [formData, setFormData] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [loadingDetail, setLoadingDetail] = useState(false);
 
   // ═══ Modal: Desactivar / Reactivar ═══
   const [showToggleModal, setShowToggleModal] = useState(false);
-  const [supplierToToggle, setSupplierToToggle] = useState<Proveedor | null>(null);
+  const [viaToToggle, setViaToToggle] = useState<ViaAdministracion | null>(null);
   const [togglings, setTogglings] = useState(false);
 
   const itemsPerPage = 8;
   const t = getTheme(isDark);
 
-  const loadSuppliers = useCallback(async () => {
+  const loadVias = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await suppliersService.getAllSuppliers();
-      setProveedores(data);
+      const data = await viasAdministracionService.getAllViasAdministracion();
+      setVias(data);
     } catch (err: any) {
-      console.error("❌ Error al cargar proveedores:", err);
+      console.error("❌ Error al cargar vías de administración:", err);
       setError(
-        err?.response?.data?.message || "Error al cargar los proveedores. Intenta nuevamente."
+        err?.response?.data?.message || "Error al cargar las vías de administración. Intenta nuevamente."
       );
     } finally {
       setLoading(false);
@@ -203,55 +198,64 @@ export default function SuppliersManagement({ isDark = true }: { isDark?: boolea
   }, []);
 
   useEffect(() => {
-    loadSuppliers();
-  }, [loadSuppliers]);
+    loadVias();
+  }, [loadVias]);
 
-  // Filtered suppliers
-  const filteredSuppliers = useMemo(() => {
-    return proveedores.filter((supplier) => {
-      const matchesSearch =
-        (supplier.nombre_proveedor || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (supplier.ruc || "").includes(searchTerm) ||
-        (supplier.email || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (supplier.telefono || "").includes(searchTerm);
+  // Mantener la lista ordenada por nombre (igual que el backend)
+  const sortVias = (lista: ViaAdministracion[]) =>
+    [...lista].sort((a, b) => a.nombre.localeCompare(b.nombre));
 
-      const matchesStatus = statusFilter === "all" || supplier.estado_logico === statusFilter;
-
+  // Filtered vías
+  const filteredVias = useMemo(() => {
+    return vias.filter((via) => {
+      const matchesSearch = (via.nombre || "").toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesStatus = statusFilter === "all" || via.estado_logico === statusFilter;
       return matchesSearch && matchesStatus;
     });
-  }, [proveedores, searchTerm, statusFilter]);
+  }, [vias, searchTerm, statusFilter]);
 
   // Pagination
-  const totalPages = Math.ceil(filteredSuppliers.length / itemsPerPage);
+  const totalPages = Math.ceil(filteredVias.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const currentSuppliers = filteredSuppliers.slice(startIndex, endIndex);
+  const currentVias = filteredVias.slice(startIndex, endIndex);
 
   // Reset to page 1 when filters change
   const handleFilterChange = () => {
     setCurrentPage(1);
   };
 
-  // Calculate totals (datos reales de todos los proveedores)
-  const totalProveedores = proveedores.length;
-  const proveedoresActivos = proveedores.filter((s) => s.estado_logico).length;
-  const proveedoresInactivos = proveedores.filter((s) => !s.estado_logico).length;
+  // Total de vías (datos reales de todos los registros)
+  const totalVias = vias.length;
+  const viasActivas = vias.filter((v) => v.estado_logico).length;
+  const viasInactivas = vias.filter((v) => !v.estado_logico).length;
 
   /* ─── Gestión del Modal ─── */
-  const handleOpenModal = (mode: "create" | "edit" | "view", supplier?: Proveedor) => {
+  const handleOpenModal = (mode: "create" | "edit" | "view", via?: ViaAdministracion) => {
     setModalMode(mode);
-    setSelectedSupplier(supplier || null);
+    setSelectedVia(via || null);
 
     if (mode === "create") {
       setFormData(emptyForm);
-    } else if (supplier) {
-      setFormData({
-        nombre_proveedor: supplier.nombre_proveedor || "",
-        ruc: supplier.ruc || "",
-        telefono: supplier.telefono || "",
-        email: supplier.email || "",
-        direccion: supplier.direccion || "",
-      });
+    } else if (via) {
+      setFormData({ nombre: via.nombre || "" });
+    }
+
+    if (mode === "view" && via) {
+      setLoadingDetail(true);
+      viasAdministracionService
+        .getViaAdministracionById(via.id_via_administracion)
+        .then((detalle) => setSelectedVia(detalle))
+        .catch((err) => {
+          console.error("❌ Error al cargar el detalle:", err);
+          showToast(
+            false,
+            "No se pudo cargar el detalle",
+            err?.response?.data?.message || "Intenta nuevamente.",
+            isDark
+          );
+        })
+        .finally(() => setLoadingDetail(false));
     }
 
     setShowModal(true);
@@ -259,109 +263,99 @@ export default function SuppliersManagement({ isDark = true }: { isDark?: boolea
 
   const handleCloseModal = () => {
     setShowModal(false);
-    setSelectedSupplier(null);
+    setSelectedVia(null);
   };
 
-  /* ─── Guardar Proveedor (crear o editar) ─── */
-  const handleSaveSupplier = async () => {
-    // Validaciones
-    if (!formData.nombre_proveedor.trim() || !formData.ruc.trim() || !formData.email.trim()) {
-      showToast(false, "Datos incompletos", "Por favor completa los campos obligatorios (Nombre, RUC, Email).", isDark);
+  /* ─── Guardar Vía de Administración (crear o editar) ─── */
+  const handleSaveVia = async () => {
+    if (!formData.nombre.trim()) {
+      showToast(false, "Datos incompletos", "Por favor completa el nombre de la vía de administración.", isDark);
       return;
     }
-    if (!/^\d{11}$/.test(formData.ruc)) {
-      showToast(false, "RUC inválido", "El RUC debe tener exactamente 11 dígitos.", isDark);
-      return;
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      showToast(false, "Email inválido", "Por favor ingresa un email válido.", isDark);
+    if (formData.nombre.trim().length > 60) {
+      showToast(false, "Nombre muy largo", "El nombre no puede superar los 60 caracteres.", isDark);
       return;
     }
 
-    const payload: NewProveedorInput = {
-      nombre_proveedor: formData.nombre_proveedor.trim(),
-      ruc: formData.ruc.trim(),
-      email: formData.email.trim(),
-      ...(formData.telefono.trim() && { telefono: formData.telefono.trim() }),
-      ...(formData.direccion.trim() && { direccion: formData.direccion.trim() }),
+    const payload: NewViaAdministracionInput = {
+      nombre: formData.nombre.trim(),
     };
 
     setSaving(true);
     try {
       if (modalMode === "create") {
-        const nuevo = await suppliersService.createSupplier(payload);
-        setProveedores((prev) => [nuevo, ...prev]);
-        showToast(true, "¡Proveedor Creado!", `${nuevo.nombre_proveedor} se registró exitosamente.`, isDark);
-      } else if (modalMode === "edit" && selectedSupplier) {
-        const actualizado = await suppliersService.updateSupplier(selectedSupplier.id_proveedor, payload);
-        setProveedores((prev) =>
-          prev.map((p) => (p.id_proveedor === actualizado.id_proveedor ? actualizado : p))
+        const nueva = await viasAdministracionService.createViaAdministracion(payload);
+        setVias((prev) => sortVias([...prev, nueva]));
+        showToast(true, "¡Vía Creada!", `${nueva.nombre} se registró exitosamente.`, isDark);
+      } else if (modalMode === "edit" && selectedVia) {
+        const actualizada = await viasAdministracionService.updateViaAdministracion(
+          selectedVia.id_via_administracion,
+          payload
         );
-        showToast(true, "¡Proveedor Actualizado!", `${actualizado.nombre_proveedor} se actualizó correctamente.`, isDark);
+        setVias((prev) =>
+          sortVias(prev.map((v) => (v.id_via_administracion === actualizada.id_via_administracion ? actualizada : v)))
+        );
+        showToast(true, "¡Vía Actualizada!", `${actualizada.nombre} se actualizó correctamente.`, isDark);
       }
       handleCloseModal();
     } catch (err: any) {
-      console.error("❌ Error al guardar proveedor:", err);
+      console.error("❌ Error al guardar vía de administración:", err);
       const mensaje =
         err?.response?.data?.error?.[0] ||
         err?.response?.data?.message ||
-        "No se pudo guardar el proveedor. Intenta nuevamente.";
-      showToast(false, "No se pudo guardar el proveedor", mensaje, isDark);
+        "No se pudo guardar la vía de administración. Intenta nuevamente.";
+      showToast(false, "No se pudo guardar", mensaje, isDark);
     } finally {
       setSaving(false);
     }
   };
 
-  /* ─── Desactivar / Reactivar Proveedor ─── */
-  const handleOpenToggleModal = (supplier: Proveedor) => {
-    setSelectedSupplier(supplier);
-    setSupplierToToggle(supplier);
+  /* ─── Desactivar / Reactivar Vía de Administración ─── */
+  const handleOpenToggleModal = (via: ViaAdministracion) => {
+    setSelectedVia(via);
+    setViaToToggle(via);
     setShowToggleModal(true);
   };
 
   const closeToggleModal = () => {
     setShowToggleModal(false);
-    setSupplierToToggle(null);
+    setViaToToggle(null);
   };
 
   const handleConfirmToggle = async () => {
-    if (!supplierToToggle) return;
+    if (!viaToToggle) return;
 
-    const esActivacion = !supplierToToggle.estado_logico;
+    const esActivacion = !viaToToggle.estado_logico;
     setTogglings(true);
     try {
       if (esActivacion) {
-        const reactivado = await suppliersService.updateSupplier(supplierToToggle.id_proveedor, {
-          nombre_proveedor: supplierToToggle.nombre_proveedor,
-          ruc: supplierToToggle.ruc,
-          telefono: supplierToToggle.telefono || "",
-          email: supplierToToggle.email || "",
-          direccion: supplierToToggle.direccion || "",
+        const reactivada = await viasAdministracionService.updateViaAdministracion(viaToToggle.id_via_administracion, {
+          nombre: viaToToggle.nombre,
           estado_logico: true,
         });
-        setProveedores((prev) =>
-          prev.map((p) => (p.id_proveedor === reactivado.id_proveedor ? reactivado : p))
+        setVias((prev) =>
+          sortVias(prev.map((v) => (v.id_via_administracion === reactivada.id_via_administracion ? reactivada : v)))
         );
-        showToast(true, "¡Proveedor Reactivado!", `${reactivado.nombre_proveedor} se habilitó nuevamente.`, isDark);
+        showToast(true, "¡Vía Reactivada!", `${reactivada.nombre} se habilitó nuevamente.`, isDark);
       } else {
-        const desactivado = await suppliersService.deleteSupplier(supplierToToggle.id_proveedor);
-        setProveedores((prev) =>
-          prev.map((p) => (p.id_proveedor === desactivado.id_proveedor ? desactivado : p))
+        const desactivada = await viasAdministracionService.deleteViaAdministracion(viaToToggle.id_via_administracion);
+        setVias((prev) =>
+          sortVias(prev.map((v) => (v.id_via_administracion === desactivada.id_via_administracion ? desactivada : v)))
         );
         showToast(
           true,
-          "¡Proveedor Desactivado!",
-          `${desactivado.nombre_proveedor} se desactivó. Puedes reactivarlo cuando lo necesites.`,
+          "¡Vía Desactivada!",
+          `${desactivada.nombre} se desactivó. Puedes reactivarla cuando lo necesites.`,
           isDark
         );
       }
       closeToggleModal();
     } catch (err: any) {
-      console.error("❌ Error al cambiar estado del proveedor:", err);
+      console.error("❌ Error al cambiar estado de la vía de administración:", err);
       const mensaje =
         err?.response?.data?.error?.[0] ||
         err?.response?.data?.message ||
-        "No se pudo cambiar el estado del proveedor. Intenta nuevamente.";
+        "No se pudo cambiar el estado. Intenta nuevamente.";
       showToast(false, "No se pudo cambiar el estado", mensaje, isDark);
     } finally {
       setTogglings(false);
@@ -388,24 +382,24 @@ export default function SuppliersManagement({ isDark = true }: { isDark?: boolea
       {/* Header */}
       <div style={{ marginBottom: "24px" }}>
         <h1 style={{ fontSize: "28px", fontWeight: 700, color: t.textPrimary, marginBottom: "8px" }}>
-          Gestión de Proveedores
+          Vías de Administración
         </h1>
         <p style={{ fontSize: "14px", color: t.textSecondary }}>
-          Administra y visualiza todos los proveedores del sistema
+          Administra las vías de administración del catálogo de medicamentos
         </p>
       </div>
 
       {/* Stats Cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "20px", marginBottom: "24px" }}>
-        {/* Total Proveedores - Blue Gradient */}
+        {/* Total Vías - Cyan Gradient */}
         <div
           style={{
-            background: "linear-gradient(135deg, #2c4eff 0%, #3b5beb 40%, #1d3bcd 100%)",
+            background: "linear-gradient(135deg, #06b6d4 0%, #22d3ee 40%, #0891b2 100%)",
             borderRadius: "24px",
             padding: "24px",
             position: "relative",
             overflow: "hidden",
-            boxShadow: "0 8px 24px rgba(44, 78, 255, 0.25)",
+            boxShadow: "0 8px 24px rgba(6, 182, 212, 0.25)",
             border: "1px solid rgba(255, 255, 255, 0.1)",
           }}
         >
@@ -419,21 +413,27 @@ export default function SuppliersManagement({ isDark = true }: { isDark?: boolea
             background: "rgba(255, 255, 255, 0.05)",
             border: "1px solid rgba(255, 255, 255, 0.1)",
           }} />
+          <div style={{
+            position: "absolute",
+            bottom: "-20px",
+            left: "-20px",
+            width: "100px",
+            height: "100px",
+            borderRadius: "50%",
+            background: "rgba(255, 255, 255, 0.03)",
+          }} />
 
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", position: "relative", zIndex: 1 }}>
             <div>
               <p style={{ fontSize: "11px", fontWeight: 600, color: "rgba(255,255,255,0.7)", marginBottom: "8px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                Total Proveedores
+                Total Vías
               </p>
               <p style={{ fontSize: "36px", fontWeight: 700, color: "#ffffff", marginBottom: "8px", lineHeight: 1 }}>
-                {loading ? "—" : totalProveedores}
+                {loading ? "—" : totalVias}
               </p>
               <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                <span style={{ fontSize: "12px", fontWeight: 700, color: "#68e365" }}>
-                  Registrados
-                </span>
-                <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.6)" }}>
-                  en el sistema
+                <span style={{ fontSize: "12px", fontWeight: 700, color: "#a5f3fc" }}>
+                  Catálogo completo
                 </span>
               </div>
             </div>
@@ -449,20 +449,20 @@ export default function SuppliersManagement({ isDark = true }: { isDark?: boolea
               border: "1px solid rgba(255,255,255,0.2)",
               boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
             }}>
-              <Truck size={28} color="#ffffff" strokeWidth={2.5} />
+              <FlaskConical size={28} color="#ffffff" strokeWidth={2.5} />
             </div>
           </div>
         </div>
 
-        {/* Proveedores Activos - Green Gradient */}
+        {/* Vías Activas - Green Gradient */}
         <div
           style={{
-            background: "linear-gradient(135deg, #0f9d58 0%, #16a765 40%, #0b7a44 100%)",
+            background: "linear-gradient(135deg, #10b981 0%, #34d399 40%, #059669 100%)",
             borderRadius: "24px",
             padding: "24px",
             position: "relative",
             overflow: "hidden",
-            boxShadow: "0 8px 24px rgba(15, 157, 88, 0.25)",
+            boxShadow: "0 8px 24px rgba(16, 185, 129, 0.25)",
             border: "1px solid rgba(255, 255, 255, 0.1)",
           }}
         >
@@ -476,21 +476,27 @@ export default function SuppliersManagement({ isDark = true }: { isDark?: boolea
             background: "rgba(255, 255, 255, 0.05)",
             border: "1px solid rgba(255, 255, 255, 0.1)",
           }} />
+          <div style={{
+            position: "absolute",
+            bottom: "-20px",
+            left: "-20px",
+            width: "100px",
+            height: "100px",
+            borderRadius: "50%",
+            background: "rgba(255, 255, 255, 0.03)",
+          }} />
 
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", position: "relative", zIndex: 1 }}>
             <div>
               <p style={{ fontSize: "11px", fontWeight: 600, color: "rgba(255,255,255,0.7)", marginBottom: "8px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                Proveedores Activos
+                Vías Activas
               </p>
               <p style={{ fontSize: "36px", fontWeight: 700, color: "#ffffff", marginBottom: "8px", lineHeight: 1 }}>
-                {loading ? "—" : proveedoresActivos}
+                {loading ? "—" : viasActivas}
               </p>
               <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                 <span style={{ fontSize: "12px", fontWeight: 700, color: "#a7f3d0" }}>
-                  Habilitados
-                </span>
-                <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.6)" }}>
-                  para realizar compras
+                  Disponibles
                 </span>
               </div>
             </div>
@@ -506,33 +512,20 @@ export default function SuppliersManagement({ isDark = true }: { isDark?: boolea
               border: "1px solid rgba(255,255,255,0.2)",
               boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
             }}>
-              <div style={{
-                width: "32px",
-                height: "32px",
-                borderRadius: "50%",
-                background: "#ffffff",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: "20px",
-                fontWeight: 700,
-                color: "#0f9d58",
-              }}>
-                ✓
-              </div>
+              <CheckCircle2 size={28} color="#ffffff" strokeWidth={2.5} />
             </div>
           </div>
         </div>
 
-        {/* Proveedores Inactivos - Red Gradient */}
+        {/* Vías Inactivas - Gray Gradient */}
         <div
           style={{
-            background: "linear-gradient(135deg, #ea4335 0%, #f4511e 40%, #c62828 100%)",
+            background: "linear-gradient(135deg, #64748b 0%, #94a3b8 40%, #475569 100%)",
             borderRadius: "24px",
             padding: "24px",
             position: "relative",
             overflow: "hidden",
-            boxShadow: "0 8px 24px rgba(234, 67, 53, 0.25)",
+            boxShadow: "0 8px 24px rgba(100, 116, 139, 0.25)",
             border: "1px solid rgba(255, 255, 255, 0.1)",
           }}
         >
@@ -546,21 +539,27 @@ export default function SuppliersManagement({ isDark = true }: { isDark?: boolea
             background: "rgba(255, 255, 255, 0.05)",
             border: "1px solid rgba(255, 255, 255, 0.1)",
           }} />
+          <div style={{
+            position: "absolute",
+            bottom: "-20px",
+            left: "-20px",
+            width: "100px",
+            height: "100px",
+            borderRadius: "50%",
+            background: "rgba(255, 255, 255, 0.03)",
+          }} />
 
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", position: "relative", zIndex: 1 }}>
             <div>
               <p style={{ fontSize: "11px", fontWeight: 600, color: "rgba(255,255,255,0.7)", marginBottom: "8px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                Proveedores Inactivos
+                Vías Inactivas
               </p>
               <p style={{ fontSize: "36px", fontWeight: 700, color: "#ffffff", marginBottom: "8px", lineHeight: 1 }}>
-                {loading ? "—" : proveedoresInactivos}
+                {loading ? "—" : viasInactivas}
               </p>
               <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                <span style={{ fontSize: "12px", fontWeight: 700, color: "#fecaca" }}>
-                  Inhabilitados
-                </span>
-                <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.6)" }}>
-                  detenidos del sistema
+                <span style={{ fontSize: "12px", fontWeight: 700, color: "#cbd5e1" }}>
+                  Archivadas
                 </span>
               </div>
             </div>
@@ -576,20 +575,7 @@ export default function SuppliersManagement({ isDark = true }: { isDark?: boolea
               border: "1px solid rgba(255,255,255,0.2)",
               boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
             }}>
-              <div style={{
-                width: "32px",
-                height: "32px",
-                borderRadius: "50%",
-                background: "#ffffff",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: "20px",
-                fontWeight: 700,
-                color: "#ea4335",
-              }}>
-                ✗
-              </div>
+              <Archive size={28} color="#ffffff" strokeWidth={2.5} />
             </div>
           </div>
         </div>
@@ -605,7 +591,7 @@ export default function SuppliersManagement({ isDark = true }: { isDark?: boolea
               <Search size={18} style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: t.textMuted }} />
               <input
                 type="text"
-                placeholder="Buscar por nombre, RUC, email o teléfono..."
+                placeholder="Buscar por nombre de vía de administración..."
                 value={searchTerm}
                 onChange={(e) => {
                   setSearchTerm(e.target.value);
@@ -687,7 +673,7 @@ export default function SuppliersManagement({ isDark = true }: { isDark?: boolea
               )}
             </button>
 
-            {/* Add Supplier Button */}
+            {/* Add Button */}
             <button
               onClick={() => handleOpenModal("create")}
               style={{
@@ -717,8 +703,8 @@ export default function SuppliersManagement({ isDark = true }: { isDark?: boolea
                 (e.currentTarget as HTMLButtonElement).style.boxShadow = `0 4px 12px ${t.accent}40`;
               }}
             >
-              <UserPlus size={16} />
-              Nuevo Proveedor
+              <Plus size={16} />
+              Nueva Vía
             </button>
           </div>
 
@@ -759,8 +745,8 @@ export default function SuppliersManagement({ isDark = true }: { isDark?: boolea
                   }}
                 >
                   <option value="all">Todos los estados</option>
-                  <option value="true">✓ Activos</option>
-                  <option value="false">✗ Inactivos</option>
+                  <option value="true">✓ Activas</option>
+                  <option value="false">✗ Inactivas</option>
                 </select>
               </div>
 
@@ -814,7 +800,7 @@ export default function SuppliersManagement({ isDark = true }: { isDark?: boolea
             animation: "spin 0.8s linear infinite",
           }} />
           <p style={{ fontSize: "15px", fontWeight: 600, color: t.textSecondary }}>
-            Cargando proveedores...
+            Cargando vías de administración...
           </p>
           <style>{`
             @keyframes spin {
@@ -829,13 +815,13 @@ export default function SuppliersManagement({ isDark = true }: { isDark?: boolea
         <div style={{ background: t.cardBg, border: `1px solid ${t.borderCard}`, borderRadius: "20px", padding: "80px 20px", display: "flex", flexDirection: "column", alignItems: "center", gap: "16px" }}>
           <span style={{ fontSize: "44px" }}>😕</span>
           <p style={{ fontSize: "16px", fontWeight: 600, color: t.textPrimary }}>
-            No se pudieron cargar los proveedores
+            No se pudieron cargar las vías de administración
           </p>
           <p style={{ fontSize: "14px", color: t.textSecondary, textAlign: "center", maxWidth: "420px" }}>
             {error}
           </p>
           <button
-            onClick={loadSuppliers}
+            onClick={loadVias}
             style={{
               padding: "12px 20px",
               borderRadius: "14px",
@@ -871,32 +857,29 @@ export default function SuppliersManagement({ isDark = true }: { isDark?: boolea
           {/* Results Info */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "12px" }}>
             <p style={{ fontSize: "13px", color: t.textSecondary, fontWeight: 500 }}>
-              Mostrando {filteredSuppliers.length > 0 ? startIndex + 1 : 0}-{Math.min(endIndex, filteredSuppliers.length)} de {filteredSuppliers.length} proveedores
+              Mostrando {filteredVias.length > 0 ? startIndex + 1 : 0}-{Math.min(endIndex, filteredVias.length)} de {filteredVias.length} vías de administración
             </p>
-            {filteredSuppliers.length === 0 && searchTerm && (
+            {filteredVias.length === 0 && searchTerm && (
               <p style={{ fontSize: "13px", color: "#ef4444", fontWeight: 600 }}>
                 No se encontraron resultados para "{searchTerm}"
               </p>
             )}
           </div>
 
-          {/* Suppliers Table */}
+          {/* Vías Table */}
           <div style={{ background: t.cardBg, border: `1px solid ${t.borderCard}`, borderRadius: "20px", overflow: "hidden" }}>
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead>
                   <tr style={{ background: t.innerBg, borderBottom: `1px solid ${t.border}` }}>
                     <th style={{ padding: "16px 20px", textAlign: "left", fontSize: "12px", fontWeight: 700, color: t.textSecondary, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                      Proveedor
+                      ID
                     </th>
                     <th style={{ padding: "16px 20px", textAlign: "left", fontSize: "12px", fontWeight: 700, color: t.textSecondary, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                      Contacto
+                      Vía de Administración
                     </th>
                     <th style={{ padding: "16px 20px", textAlign: "left", fontSize: "12px", fontWeight: 700, color: t.textSecondary, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                      Ubicación
-                    </th>
-                    <th style={{ padding: "16px 20px", textAlign: "center", fontSize: "12px", fontWeight: 700, color: t.textSecondary, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                      Compras
+                      Fecha Registro
                     </th>
                     <th style={{ padding: "16px 20px", textAlign: "center", fontSize: "12px", fontWeight: 700, color: t.textSecondary, textTransform: "uppercase", letterSpacing: "0.05em" }}>
                       Estado
@@ -907,13 +890,13 @@ export default function SuppliersManagement({ isDark = true }: { isDark?: boolea
                   </tr>
                 </thead>
                 <tbody>
-                  {currentSuppliers.length === 0 ? (
+                  {currentVias.length === 0 ? (
                     <tr>
-                      <td colSpan={6} style={{ padding: "60px 20px", textAlign: "center" }}>
+                      <td colSpan={5} style={{ padding: "60px 20px", textAlign: "center" }}>
                         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "12px" }}>
                           <Search size={48} color={t.textMuted} />
                           <p style={{ fontSize: "16px", fontWeight: 600, color: t.textPrimary }}>
-                            No se encontraron proveedores
+                            No se encontraron vías de administración
                           </p>
                           <p style={{ fontSize: "14px", color: t.textSecondary }}>
                             Intenta ajustar los filtros de búsqueda
@@ -922,216 +905,184 @@ export default function SuppliersManagement({ isDark = true }: { isDark?: boolea
                       </td>
                     </tr>
                   ) : (
-                    currentSuppliers.map((supplier, index) => (
-                      <tr
-                        key={supplier.id_proveedor}
-                        style={{
-                          borderBottom: index < currentSuppliers.length - 1 ? `1px solid ${t.border}` : "none",
-                          transition: "background 0.2s",
-                        }}
-                        onMouseEnter={(e) => {
-                          (e.currentTarget as HTMLTableRowElement).style.background = t.hoverBg;
-                        }}
-                        onMouseLeave={(e) => {
-                          (e.currentTarget as HTMLTableRowElement).style.background = "transparent";
-                        }}
-                      >
-                        {/* Proveedor */}
-                        <td style={{ padding: "16px 20px" }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                            <div
-                              style={{
-                                width: "44px",
-                                height: "44px",
-                                borderRadius: "50%",
-                                background: `linear-gradient(135deg, ${t.accent}20 0%, ${t.accent}10 100%)`,
-                                border: `2px solid ${t.accent}30`,
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                flexShrink: 0,
-                              }}
-                            >
-                              <Building2 size={22} color={t.accent} />
+                    currentVias.map((via, index) => {
+                      return (
+                        <tr
+                          key={via.id_via_administracion}
+                          style={{
+                            borderBottom: index < currentVias.length - 1 ? `1px solid ${t.border}` : "none",
+                            transition: "background 0.2s",
+                          }}
+                          onMouseEnter={(e) => {
+                            (e.currentTarget as HTMLTableRowElement).style.background = t.hoverBg;
+                          }}
+                          onMouseLeave={(e) => {
+                            (e.currentTarget as HTMLTableRowElement).style.background = "transparent";
+                          }}
+                        >
+                          {/* ID */}
+                          <td style={{ padding: "16px 20px" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                              <div
+                                style={{
+                                  width: "40px",
+                                  height: "40px",
+                                  borderRadius: "12px",
+                                  background: "linear-gradient(135deg, #06b6d4 0%, #22d3ee 100%)",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  boxShadow: "0 4px 12px rgba(6, 182, 212, 0.25)",
+                                  flexShrink: 0,
+                                }}
+                              >
+                                <span style={{ fontSize: "14px", fontWeight: 700, color: "#ffffff" }}>
+                                  {via.id_via_administracion}
+                                </span>
+                              </div>
                             </div>
-                            <div style={{ minWidth: 0 }}>
-                              <p style={{ fontSize: "14px", fontWeight: 600, color: t.textPrimary, marginBottom: "2px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                                {supplier.nombre_proveedor}
-                              </p>
-                              <p style={{ fontSize: "12px", color: t.textSecondary, display: "flex", alignItems: "center", gap: "4px" }}>
-                                <FileText size={12} />
-                                RUC: {supplier.ruc}
-                              </p>
-                            </div>
-                          </div>
-                        </td>
+                          </td>
 
-                        {/* Contacto */}
-                        <td style={{ padding: "16px 20px" }}>
-                          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "13px", color: t.textPrimary }}>
-                              <Mail size={14} color={t.textMuted} />
-                              <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{supplier.email || "—"}</span>
+                          {/* Nombre */}
+                          <td style={{ padding: "16px 20px" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                              <Syringe size={18} color={t.accent} strokeWidth={2} />
+                              <span style={{ fontSize: "14px", fontWeight: 600, color: t.textPrimary }}>
+                                {via.nombre}
+                              </span>
                             </div>
-                            <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "13px", color: t.textSecondary }}>
-                              <Phone size={14} color={t.textMuted} />
-                              <span>{supplier.telefono || "—"}</span>
-                            </div>
-                          </div>
-                        </td>
+                          </td>
 
-                        {/* Ubicación */}
-                        <td style={{ padding: "16px 20px" }}>
-                          <div style={{ display: "flex", alignItems: "flex-start", gap: "6px", maxWidth: "300px" }}>
-                            <MapPin size={14} color={t.textMuted} style={{ marginTop: "2px", flexShrink: 0 }} />
-                            <span style={{ fontSize: "13px", color: t.textSecondary, lineHeight: 1.4 }}>
-                              {supplier.direccion || "—"}
+                          {/* Fecha Registro */}
+                          <td style={{ padding: "16px 20px" }}>
+                            <span style={{ fontSize: "13px", color: t.textSecondary }}>
+                              {via.fecha_registro
+                                ? new Date(via.fecha_registro).toLocaleDateString("es-PE", {
+                                    day: "2-digit",
+                                    month: "short",
+                                    year: "numeric",
+                                  })
+                                : "N/A"}
                             </span>
-                          </div>
-                        </td>
+                          </td>
 
-                        {/* Compras */}
-                        <td style={{ padding: "16px 20px" }}>
-                          <div style={{ display: "flex", flexDirection: "column", gap: "4px", alignItems: "center" }}>
+                          {/* Estado */}
+                          <td style={{ padding: "16px 20px", textAlign: "center" }}>
                             <span
                               style={{
                                 display: "inline-flex",
                                 alignItems: "center",
-                                justifyContent: "center",
-                                width: "36px",
-                                height: "36px",
-                                borderRadius: "10px",
-                                background: isDark ? "rgba(139, 92, 246, 0.12)" : "rgba(139, 92, 246, 0.08)",
-                                color: "#a78bfa",
-                                fontSize: "14px",
+                                gap: "6px",
+                                padding: "6px 12px",
+                                borderRadius: "999px",
+                                background: via.estado_logico ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)",
+                                color: via.estado_logico ? "#22c55e" : "#ef4444",
+                                border: `1px solid ${via.estado_logico ? "rgba(34,197,94,0.3)" : "rgba(239,68,68,0.3)"}`,
+                                fontSize: "11px",
                                 fontWeight: 700,
-                                border: `1px solid ${isDark ? "rgba(139, 92, 246, 0.3)" : "rgba(139, 92, 246, 0.25)"}`,
+                                textTransform: "uppercase",
+                                letterSpacing: "0.05em",
+                                whiteSpace: "nowrap",
                               }}
                             >
-                              {supplier.total_compras ?? 0}
+                              <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: via.estado_logico ? "#22c55e" : "#ef4444" }} />
+                              {via.estado_logico ? "Activa" : "Inactiva"}
                             </span>
-                            <span style={{ fontSize: "11px", color: t.textSecondary }}>
-                              S/ {(supplier.monto_total_comprado || 0).toLocaleString("es-PE", { minimumFractionDigits: 2 })}
-                            </span>
-                          </div>
-                        </td>
+                          </td>
 
-                        {/* Estado */}
-                        <td style={{ padding: "16px 20px", textAlign: "center" }}>
-                          <span
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: "6px",
-                              padding: "6px 12px",
-                              borderRadius: "999px",
-                              background: supplier.estado_logico ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)",
-                              color: supplier.estado_logico ? "#22c55e" : "#ef4444",
-                              border: `1px solid ${supplier.estado_logico ? "rgba(34,197,94,0.3)" : "rgba(239,68,68,0.3)"}`,
-                              fontSize: "11px",
-                              fontWeight: 700,
-                              textTransform: "uppercase",
-                              letterSpacing: "0.05em",
-                              whiteSpace: "nowrap",
-                            }}
-                          >
-                            <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: supplier.estado_logico ? "#22c55e" : "#ef4444" }} />
-                            {supplier.estado_logico ? "Activo" : "Inactivo"}
-                          </span>
-                        </td>
-
-                        {/* Acciones */}
-                        <td style={{ padding: "16px 20px" }}>
-                          <div style={{ display: "flex", justifyContent: "center", gap: "4px" }}>
-                            <button
-                              onClick={() => handleOpenModal("view", supplier)}
-                              title="Ver detalles"
-                              style={{
-                                padding: "8px",
-                                borderRadius: "8px",
-                                border: "none",
-                                background: "transparent",
-                                color: t.textSecondary,
-                                cursor: "pointer",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                transition: "all 0.2s",
-                              }}
-                              onMouseEnter={(e) => {
-                                (e.currentTarget as HTMLButtonElement).style.background = `${t.accent}15`;
-                                (e.currentTarget as HTMLButtonElement).style.color = t.accent;
-                              }}
-                              onMouseLeave={(e) => {
-                                (e.currentTarget as HTMLButtonElement).style.background = "transparent";
-                                (e.currentTarget as HTMLButtonElement).style.color = t.textSecondary;
-                              }}
-                            >
-                              <Eye size={16} />
-                            </button>
-                            <button
-                              onClick={() => handleOpenModal("edit", supplier)}
-                              title="Editar proveedor"
-                              style={{
-                                padding: "8px",
-                                borderRadius: "8px",
-                                border: "none",
-                                background: "transparent",
-                                color: t.textSecondary,
-                                cursor: "pointer",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                transition: "all 0.2s",
-                              }}
-                              onMouseEnter={(e) => {
-                                (e.currentTarget as HTMLButtonElement).style.background = "rgba(249,115,22,0.1)";
-                                (e.currentTarget as HTMLButtonElement).style.color = "#fb923c";
-                              }}
-                              onMouseLeave={(e) => {
-                                (e.currentTarget as HTMLButtonElement).style.background = "transparent";
-                                (e.currentTarget as HTMLButtonElement).style.color = t.textSecondary;
-                              }}
-                            >
-                              <Edit2 size={16} />
-                            </button>
-                            <button
-                              onClick={() => handleOpenToggleModal(supplier)}
-                              title={supplier.estado_logico ? "Desactivar proveedor" : "Activar proveedor"}
-                              style={{
-                                padding: "8px",
-                                borderRadius: "8px",
-                                border: "none",
-                                background: "transparent",
-                                color: t.textSecondary,
-                                cursor: "pointer",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                transition: "all 0.2s",
-                              }}
-                              onMouseEnter={(e) => {
-                                (e.currentTarget as HTMLButtonElement).style.background = "rgba(239,68,68,0.1)";
-                                (e.currentTarget as HTMLButtonElement).style.color = "#ef4444";
-                              }}
-                              onMouseLeave={(e) => {
-                                (e.currentTarget as HTMLButtonElement).style.background = "transparent";
-                                (e.currentTarget as HTMLButtonElement).style.color = t.textSecondary;
-                              }}
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
+                          {/* Acciones */}
+                          <td style={{ padding: "16px 20px" }}>
+                            <div style={{ display: "flex", justifyContent: "center", gap: "4px" }}>
+                              <button
+                                onClick={() => handleOpenModal("view", via)}
+                                title="Ver detalles"
+                                style={{
+                                  padding: "8px",
+                                  borderRadius: "8px",
+                                  border: "none",
+                                  background: "transparent",
+                                  color: t.textSecondary,
+                                  cursor: "pointer",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  transition: "all 0.2s",
+                                }}
+                                onMouseEnter={(e) => {
+                                  (e.currentTarget as HTMLButtonElement).style.background = `${t.accent}15`;
+                                  (e.currentTarget as HTMLButtonElement).style.color = t.accent;
+                                }}
+                                onMouseLeave={(e) => {
+                                  (e.currentTarget as HTMLButtonElement).style.background = "transparent";
+                                  (e.currentTarget as HTMLButtonElement).style.color = t.textSecondary;
+                                }}
+                              >
+                                <Eye size={16} />
+                              </button>
+                              <button
+                                onClick={() => handleOpenModal("edit", via)}
+                                title="Editar vía"
+                                style={{
+                                  padding: "8px",
+                                  borderRadius: "8px",
+                                  border: "none",
+                                  background: "transparent",
+                                  color: t.textSecondary,
+                                  cursor: "pointer",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  transition: "all 0.2s",
+                                }}
+                                onMouseEnter={(e) => {
+                                  (e.currentTarget as HTMLButtonElement).style.background = "rgba(249,115,22,0.1)";
+                                  (e.currentTarget as HTMLButtonElement).style.color = "#fb923c";
+                                }}
+                                onMouseLeave={(e) => {
+                                  (e.currentTarget as HTMLButtonElement).style.background = "transparent";
+                                  (e.currentTarget as HTMLButtonElement).style.color = t.textSecondary;
+                                }}
+                              >
+                                <Edit2 size={16} />
+                              </button>
+                              <button
+                                onClick={() => handleOpenToggleModal(via)}
+                                title={via.estado_logico ? "Desactivar vía" : "Activar vía"}
+                                style={{
+                                  padding: "8px",
+                                  borderRadius: "8px",
+                                  border: "none",
+                                  background: "transparent",
+                                  color: t.textSecondary,
+                                  cursor: "pointer",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  transition: "all 0.2s",
+                                }}
+                                onMouseEnter={(e) => {
+                                  (e.currentTarget as HTMLButtonElement).style.background = "rgba(239,68,68,0.1)";
+                                  (e.currentTarget as HTMLButtonElement).style.color = "#ef4444";
+                                }}
+                                onMouseLeave={(e) => {
+                                  (e.currentTarget as HTMLButtonElement).style.background = "transparent";
+                                  (e.currentTarget as HTMLButtonElement).style.color = t.textSecondary;
+                                }}
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>
             </div>
 
             {/* Pagination */}
-            {filteredSuppliers.length > 0 && (
+            {filteredVias.length > 0 && (
               <div style={{ padding: "20px", borderTop: `1px solid ${t.border}`, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
                 <p style={{ fontSize: "13px", color: t.textSecondary }}>
                   Página {currentPage} de {totalPages}
@@ -1275,7 +1226,7 @@ export default function SuppliersManagement({ isDark = true }: { isDark?: boolea
               left: "50%",
               transform: "translate(-50%, -50%)",
               width: "90%",
-              maxWidth: "600px",
+              maxWidth: "520px",
               maxHeight: "90vh",
               background: t.cardBg,
               borderRadius: "24px",
@@ -1311,10 +1262,10 @@ export default function SuppliersManagement({ isDark = true }: { isDark?: boolea
             >
               <div>
                 <h2 style={{ fontSize: "20px", fontWeight: 700, color: t.textPrimary, marginBottom: "4px" }}>
-                  {modalMode === "create" ? "Nuevo Proveedor" : modalMode === "edit" ? "Editar Proveedor" : "Detalle del Proveedor"}
+                  {modalMode === "create" ? "Nueva Vía de Administración" : modalMode === "edit" ? "Editar Vía de Administración" : "Detalle de la Vía de Administración"}
                 </h2>
                 <p style={{ fontSize: "13px", color: t.textSecondary }}>
-                  {modalMode === "create" ? "Completa los datos del nuevo proveedor" : modalMode === "edit" ? "Actualiza la información del proveedor" : "Información completa del proveedor"}
+                  {modalMode === "create" ? "Registra una nueva vía del catálogo" : modalMode === "edit" ? "Actualiza el nombre de la vía de administración" : "Información completa de la vía de administración"}
                 </p>
               </div>
               <button
@@ -1347,57 +1298,66 @@ export default function SuppliersManagement({ isDark = true }: { isDark?: boolea
 
             {/* Modal Body */}
             <div style={{ padding: "24px", maxHeight: "calc(90vh - 180px)", overflowY: "auto" }}>
-              {modalMode === "view" && selectedSupplier ? (
-                // ─── View Mode ───
-                <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-                  <div style={{ padding: "16px", background: t.innerBg, borderRadius: "16px", border: `1px solid ${t.border}` }}>
-                    <p style={{ fontSize: "12px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px", textTransform: "uppercase" }}>
-                      Nombre del Proveedor
+              {modalMode === "view" ? (
+                loadingDetail || !selectedVia ? (
+                  // ─── Cargando detalle ───
+                  <div style={{ padding: "40px 20px", display: "flex", flexDirection: "column", alignItems: "center", gap: "16px" }}>
+                    <div style={{
+                      width: "40px",
+                      height: "40px",
+                      border: `4px solid ${t.border}`,
+                      borderTopColor: t.accent,
+                      borderRadius: "50%",
+                      animation: "spinDetail 0.8s linear infinite",
+                    }} />
+                    <p style={{ fontSize: "14px", fontWeight: 600, color: t.textSecondary }}>
+                      Cargando detalle...
                     </p>
-                    <p style={{ fontSize: "15px", fontWeight: 600, color: t.textPrimary }}>
-                      {selectedSupplier.nombre_proveedor}
-                    </p>
+                    <style>{`
+                      @keyframes spinDetail {
+                        to { transform: rotate(360deg); }
+                      }
+                    `}</style>
                   </div>
-
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px" }}>
+                ) : (
+                  // ─── View Mode ───
+                  <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
                     <div style={{ padding: "16px", background: t.innerBg, borderRadius: "16px", border: `1px solid ${t.border}` }}>
                       <p style={{ fontSize: "12px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px", textTransform: "uppercase" }}>
-                        RUC
+                        Nombre de la Vía de Administración
                       </p>
-                      <p style={{ fontSize: "15px", fontWeight: 600, color: t.textPrimary }}>
-                        {selectedSupplier.ruc}
+                      <p style={{ fontSize: "15px", fontWeight: 600, color: t.textPrimary, display: "flex", alignItems: "center", gap: "8px" }}>
+                        <Syringe size={18} color={t.accent} strokeWidth={2} />
+                        {selectedVia.nombre}
                       </p>
                     </div>
 
-                    <div style={{ padding: "16px", background: t.innerBg, borderRadius: "16px", border: `1px solid ${t.border}` }}>
-                      <p style={{ fontSize: "12px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px", textTransform: "uppercase" }}>
-                        Teléfono
-                      </p>
-                      <p style={{ fontSize: "15px", fontWeight: 600, color: t.textPrimary }}>
-                        {selectedSupplier.telefono || "—"}
-                      </p>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px" }}>
+                      <div style={{ padding: "16px", background: t.innerBg, borderRadius: "16px", border: `1px solid ${t.border}` }}>
+                        <p style={{ fontSize: "12px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px", textTransform: "uppercase" }}>
+                          ID
+                        </p>
+                        <p style={{ fontSize: "15px", fontWeight: 600, color: t.textPrimary }}>
+                          #{selectedVia.id_via_administracion}
+                        </p>
+                      </div>
+
+                      <div style={{ padding: "16px", background: t.innerBg, borderRadius: "16px", border: `1px solid ${t.border}` }}>
+                        <p style={{ fontSize: "12px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px", textTransform: "uppercase" }}>
+                          Fecha de Registro
+                        </p>
+                        <p style={{ fontSize: "15px", fontWeight: 600, color: t.textPrimary }}>
+                          {selectedVia.fecha_registro
+                            ? new Date(selectedVia.fecha_registro).toLocaleDateString("es-PE", {
+                                day: "2-digit",
+                                month: "short",
+                                year: "numeric",
+                              })
+                            : "N/A"}
+                        </p>
+                      </div>
                     </div>
-                  </div>
 
-                  <div style={{ padding: "16px", background: t.innerBg, borderRadius: "16px", border: `1px solid ${t.border}` }}>
-                    <p style={{ fontSize: "12px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px", textTransform: "uppercase" }}>
-                      Email
-                    </p>
-                    <p style={{ fontSize: "15px", fontWeight: 600, color: t.textPrimary }}>
-                      {selectedSupplier.email || "—"}
-                    </p>
-                  </div>
-
-                  <div style={{ padding: "16px", background: t.innerBg, borderRadius: "16px", border: `1px solid ${t.border}` }}>
-                    <p style={{ fontSize: "12px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px", textTransform: "uppercase" }}>
-                      Dirección
-                    </p>
-                    <p style={{ fontSize: "15px", fontWeight: 600, color: t.textPrimary }}>
-                      {selectedSupplier.direccion || "—"}
-                    </p>
-                  </div>
-
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px" }}>
                     <div style={{ padding: "16px", background: t.innerBg, borderRadius: "16px", border: `1px solid ${t.border}` }}>
                       <p style={{ fontSize: "12px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px", textTransform: "uppercase" }}>
                         Estado
@@ -1409,62 +1369,72 @@ export default function SuppliersManagement({ isDark = true }: { isDark?: boolea
                           gap: "6px",
                           padding: "6px 12px",
                           borderRadius: "999px",
-                          background: selectedSupplier.estado_logico ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)",
-                          color: selectedSupplier.estado_logico ? "#22c55e" : "#ef4444",
-                          border: `1px solid ${selectedSupplier.estado_logico ? "rgba(34,197,94,0.3)" : "rgba(239,68,68,0.3)"}`,
+                          background: selectedVia.estado_logico ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)",
+                          color: selectedVia.estado_logico ? "#22c55e" : "#ef4444",
+                          border: `1px solid ${selectedVia.estado_logico ? "rgba(34,197,94,0.3)" : "rgba(239,68,68,0.3)"}`,
                           fontSize: "11px",
                           fontWeight: 700,
                           textTransform: "uppercase",
                           letterSpacing: "0.05em",
                         }}
                       >
-                        <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: selectedSupplier.estado_logico ? "#22c55e" : "#ef4444" }} />
-                        {selectedSupplier.estado_logico ? "Activo" : "Inactivo"}
+                        <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: selectedVia.estado_logico ? "#22c55e" : "#ef4444" }} />
+                        {selectedVia.estado_logico ? "Activa" : "Inactiva"}
                       </span>
                     </div>
 
-                    <div style={{ padding: "16px", background: t.innerBg, borderRadius: "16px", border: `1px solid ${t.border}` }}>
-                      <p style={{ fontSize: "12px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px", textTransform: "uppercase" }}>
-                        Fecha de Registro
-                      </p>
-                      <p style={{ fontSize: "15px", fontWeight: 600, color: t.textPrimary }}>
-                        {new Date(selectedSupplier.fecha_registro).toLocaleDateString("es-PE")}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px" }}>
                     <div style={{ padding: "16px", background: `${t.accent}15`, borderRadius: "16px", border: `1px solid ${t.accent}30` }}>
                       <p style={{ fontSize: "12px", fontWeight: 600, color: t.accent, marginBottom: "8px", textTransform: "uppercase" }}>
-                        Total Compras
+                        Productos Asociados
                       </p>
                       <p style={{ fontSize: "24px", fontWeight: 700, color: t.accent }}>
-                        {selectedSupplier.total_compras ?? 0}
+                        {selectedVia.total_productos ?? 0}
                       </p>
-                    </div>
-
-                    <div style={{ padding: "16px", background: "rgba(34, 197, 94, 0.1)", borderRadius: "16px", border: "1px solid rgba(34, 197, 94, 0.3)" }}>
-                      <p style={{ fontSize: "12px", fontWeight: 600, color: "#22c55e", marginBottom: "8px", textTransform: "uppercase" }}>
-                        Monto Total
-                      </p>
-                      <p style={{ fontSize: "24px", fontWeight: 700, color: "#22c55e" }}>
-                        S/ {(selectedSupplier.monto_total_comprado || 0).toLocaleString("es-PE", { minimumFractionDigits: 2 })}
-                      </p>
+                      {selectedVia.productos && selectedVia.productos.length > 0 && (
+                        <div style={{ marginTop: "12px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                          {selectedVia.productos.map((producto) => (
+                            <div
+                              key={producto.id_producto}
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                                gap: "10px",
+                                padding: "10px 12px",
+                                background: t.cardBg,
+                                borderRadius: "10px",
+                                border: `1px solid ${t.border}`,
+                              }}
+                            >
+                              <div style={{ display: "flex", alignItems: "center", gap: "8px", minWidth: 0 }}>
+                                <Package size={14} color={t.textMuted} style={{ flexShrink: 0 }} />
+                                <span style={{ fontSize: "13px", fontWeight: 600, color: t.textPrimary, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                  {producto.nombre_comercial}
+                                </span>
+                              </div>
+                              <span style={{ fontSize: "12px", color: t.textSecondary, flexShrink: 0 }}>
+                                S/ {(producto.precio_venta || 0).toLocaleString("es-PE", { minimumFractionDigits: 2 })}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
-                </div>
+                )
               ) : (
                 // ─── Create / Edit Mode ───
                 <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                   <div>
                     <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px" }}>
-                      Nombre del Proveedor *
+                      Nombre de la Vía de Administración *
                     </label>
                     <input
                       type="text"
-                      placeholder="Ej: Distribuidora Farmacéutica Lima S.A."
-                      value={formData.nombre_proveedor}
-                      onChange={(e) => setFormData({ ...formData, nombre_proveedor: e.target.value })}
+                      placeholder="Ej: ORAL, TÓPICA, INYECTABLE..."
+                      maxLength={60}
+                      value={formData.nombre}
+                      onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
                       style={{
                         width: "100%",
                         padding: "12px 14px",
@@ -1476,101 +1446,13 @@ export default function SuppliersManagement({ isDark = true }: { isDark?: boolea
                         fontFamily: "'Cairo', sans-serif",
                         outline: "none",
                       }}
-                    />
-                  </div>
-
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px" }}>
-                    <div>
-                      <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px" }}>
-                        RUC *
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="20123456789"
-                        maxLength={11}
-                        value={formData.ruc}
-                        onChange={(e) => setFormData({ ...formData, ruc: e.target.value.replace(/\D/g, "") })}
-                        style={{
-                          width: "100%",
-                          padding: "12px 14px",
-                          borderRadius: "14px",
-                          border: `1px solid ${t.border}`,
-                          background: t.inputBg,
-                          color: t.textPrimary,
-                          fontSize: "14px",
-                          fontFamily: "'Cairo', sans-serif",
-                          outline: "none",
-                        }}
-                      />
-                    </div>
-
-                    <div>
-                      <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px" }}>
-                        Teléfono
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="01-4567890"
-                        value={formData.telefono}
-                        onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
-                        style={{
-                          width: "100%",
-                          padding: "12px 14px",
-                          borderRadius: "14px",
-                          border: `1px solid ${t.border}`,
-                          background: t.inputBg,
-                          color: t.textPrimary,
-                          fontSize: "14px",
-                          fontFamily: "'Cairo', sans-serif",
-                          outline: "none",
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px" }}>
-                      Email *
-                    </label>
-                    <input
-                      type="email"
-                      placeholder="ventas@ejemplo.com.pe"
-                      value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      style={{
-                        width: "100%",
-                        padding: "12px 14px",
-                        borderRadius: "14px",
-                        border: `1px solid ${t.border}`,
-                        background: t.inputBg,
-                        color: t.textPrimary,
-                        fontSize: "14px",
-                        fontFamily: "'Cairo', sans-serif",
-                        outline: "none",
+                      onFocus={(e) => {
+                        e.currentTarget.style.borderColor = t.accent;
+                        e.currentTarget.style.boxShadow = `0 0 0 3px ${t.accent}20`;
                       }}
-                    />
-                  </div>
-
-                  <div>
-                    <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px" }}>
-                      Dirección
-                    </label>
-                    <textarea
-                      placeholder="Av. Industrial 1234, Lima - Perú"
-                      value={formData.direccion}
-                      onChange={(e) => setFormData({ ...formData, direccion: e.target.value })}
-                      rows={3}
-                      style={{
-                        width: "100%",
-                        padding: "12px 14px",
-                        borderRadius: "14px",
-                        border: `1px solid ${t.border}`,
-                        background: t.inputBg,
-                        color: t.textPrimary,
-                        fontSize: "14px",
-                        fontFamily: "'Cairo', sans-serif",
-                        outline: "none",
-                        resize: "vertical",
+                      onBlur={(e) => {
+                        e.currentTarget.style.borderColor = t.border;
+                        e.currentTarget.style.boxShadow = "none";
                       }}
                     />
                   </div>
@@ -1588,7 +1470,7 @@ export default function SuppliersManagement({ isDark = true }: { isDark?: boolea
                   >
                     <AlertCircle size={18} color="#fb923c" />
                     <p style={{ fontSize: "12px", color: "#fb923c", lineHeight: 1.4 }}>
-                      Los campos marcados con * son obligatorios
+                      El nombre se guarda en mayúsculas (máx. 60 caracteres). Los campos marcados con * son obligatorios.
                     </p>
                   </div>
                 </div>
@@ -1633,7 +1515,7 @@ export default function SuppliersManagement({ isDark = true }: { isDark?: boolea
 
               {modalMode !== "view" && (
                 <button
-                  onClick={handleSaveSupplier}
+                  onClick={handleSaveVia}
                   disabled={saving}
                   style={{
                     padding: "12px 24px",
@@ -1664,7 +1546,7 @@ export default function SuppliersManagement({ isDark = true }: { isDark?: boolea
                   {saving
                     ? "Guardando..."
                     : modalMode === "create"
-                    ? "Crear Proveedor"
+                    ? "Crear Vía"
                     : "Guardar Cambios"}
                 </button>
               )}
@@ -1674,7 +1556,7 @@ export default function SuppliersManagement({ isDark = true }: { isDark?: boolea
       )}
 
       {/* Modal: Confirmar Desactivar / Reactivar */}
-      {showToggleModal && supplierToToggle && (
+      {showToggleModal && viaToToggle && (
         <>
           <div
             style={{
@@ -1713,7 +1595,7 @@ export default function SuppliersManagement({ isDark = true }: { isDark?: boolea
                   height: "64px",
                   margin: "0 auto 16px",
                   borderRadius: "50%",
-                  background: supplierToToggle.estado_logico
+                  background: viaToToggle.estado_logico
                     ? "rgba(239,68,68,0.12)"
                     : "rgba(34,197,94,0.12)",
                   display: "flex",
@@ -1721,19 +1603,19 @@ export default function SuppliersManagement({ isDark = true }: { isDark?: boolea
                   justifyContent: "center",
                 }}
               >
-                {supplierToToggle.estado_logico ? (
+                {viaToToggle.estado_logico ? (
                   <Trash2 size={30} color="#ef4444" />
                 ) : (
                   <CheckCircle2 size={30} color="#22c55e" />
                 )}
               </div>
               <h2 style={{ fontSize: "20px", fontWeight: 700, color: t.textPrimary, marginBottom: "8px" }}>
-                {supplierToToggle.estado_logico ? "¿Desactivar proveedor?" : "¿Reactivar proveedor?"}
+                {viaToToggle.estado_logico ? "¿Desactivar vía de administración?" : "¿Reactivar vía de administración?"}
               </h2>
               <p style={{ fontSize: "14px", color: t.textSecondary, lineHeight: 1.5 }}>
-                {supplierToToggle.estado_logico
-                  ? `"${supplierToToggle.nombre_proveedor}" dejará de estar disponible para nuevas compras. Su historial se conserva.`
-                  : `"${supplierToToggle.nombre_proveedor}" volverá a estar disponible para realizar compras.`}
+                {viaToToggle.estado_logico
+                  ? `"${viaToToggle.nombre}" dejará de estar disponible para nuevos productos. Los productos existentes conservan su vía.`
+                  : `"${viaToToggle.nombre}" volverá a estar disponible para el catálogo de productos.`}
               </p>
             </div>
             <div style={{ padding: "0 24px 24px", display: "flex", gap: "12px" }}>
@@ -1771,7 +1653,7 @@ export default function SuppliersManagement({ isDark = true }: { isDark?: boolea
                   padding: "12px",
                   borderRadius: "12px",
                   border: "none",
-                  background: supplierToToggle.estado_logico ? "#ef4444" : "#22c55e",
+                  background: viaToToggle.estado_logico ? "#ef4444" : "#22c55e",
                   color: "#fff",
                   fontSize: "14px",
                   fontWeight: 600,
@@ -1793,7 +1675,7 @@ export default function SuppliersManagement({ isDark = true }: { isDark?: boolea
               >
                 {togglings
                   ? "Procesando..."
-                  : supplierToToggle.estado_logico
+                  : viaToToggle.estado_logico
                   ? "Desactivar"
                   : "Reactivar"}
               </button>

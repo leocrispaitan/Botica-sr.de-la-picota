@@ -7,7 +7,7 @@ import {
   CheckCircle,
   Package,
 } from "lucide-react";
-import authService from "../services/authService";
+import authService from "../../services/authService";
 
 /* ─── Premium Light Theme ─────────────────────────── */
 const theme = {

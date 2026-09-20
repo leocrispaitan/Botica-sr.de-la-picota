@@ -24,8 +24,8 @@ import {
   DollarSign,
 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
-import { lotesService, type Lote } from "../services/lotesService";
-import { productsService, type Producto } from "../services/productsService";
+import { lotesService, type Lote } from "../../services/lotesService";
+import { productsService, type Producto } from "../../services/productsService";
 
 /* ─── Theme ────────────────────────────────────────────────────────── */
 function getTheme(isDark: boolean) {

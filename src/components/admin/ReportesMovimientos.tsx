@@ -17,25 +17,32 @@ import {
 import { toPng } from "html-to-image";
 import toast, { Toaster } from "react-hot-toast";
 import {
-  Package,
-  Boxes,
-  DollarSign,
-  AlertTriangle,
-  Download,
-  RefreshCw,
-  Calendar,
-  Clock,
-  BarChart3,
-  ChartPie,
-  CheckCircle2,
-  Inbox,
-  Repeat,
   Activity,
+  AlertTriangle,
+  BarChart3,
+  Boxes,
+  Calendar,
+  ChartPie,
+  Clock,
+  DollarSign,
+  Download,
+  Inbox,
+  Layers,
+  Package,
+  Receipt,
+  RefreshCw,
+  Repeat,
+  RotateCcw,
+  ShoppingCart,
+  SlidersHorizontal,
+  Trash2,
+  TrendingUp,
+  Users,
 } from "lucide-react";
-import reportesService from "../services/reportesService";
-import type { ReporteInventario } from "../services/reportesService";
-import { exportInventoryReportPdf } from "../utils/pdfUtils";
-import type { InventoryReportChartImages } from "../utils/pdfUtils";
+import reportesService from "../../services/reportesService";
+import type { ReporteMovimientos } from "../../services/reportesService";
+import { exportMovementsReportPdf } from "../../utils/pdfUtils";
+import type { MovementsReportChartImages } from "../../utils/pdfUtils";
 
 /* ─── Theme ────────────────────────────────────────────────────────── */
 type Theme = ReturnType<typeof getTheme>;
@@ -73,22 +80,29 @@ function getTheme(isDark: boolean) {
   };
 }
 
-/* ─── Paleta ────────────────────────────────────────────────────────── */
-const COLORS = ["#6366f1", "#10b981", "#3b82f6", "#f59e0b", "#f43f5e", "#06b6d4", "#8b5cf6", "#f97316"];
-
-const DEFAULT_ESTADO_COLORS: Record<string, string> = {
-  OK: "#10b981",
-  BAJO: "#f59e0b",
-  CRITICO: "#f43f5e",
-  AGOTADO: "#64748b",
+/* ─── Paleta de tipos ──────────────────────────────────────────────── */
+const TIPO_COLORS: Record<string, string> = {
+  COMPRA: "#06b6d4",
+  VENTA: "#10b981",
+  AJUSTE: "#f59e0b",
+  DEVOLUCION: "#8b5cf6",
+  MERMA: "#f43f5e",
 };
 
-const DEFAULT_ESTADO_BG: Record<string, string> = {
-  OK: "rgba(16,185,129,0.14)",
-  BAJO: "rgba(245,158,11,0.14)",
-  CRITICO: "rgba(244,63,94,0.14)",
-  AGOTADO: "rgba(100,116,139,0.14)",
+const TIPO_CONFIG: Record<
+  string,
+  { color: string; bg: string; icon: typeof ShoppingCart; label: string }
+> = {
+  COMPRA: { color: "#06b6d4", bg: "rgba(6,182,212,0.12)", icon: ShoppingCart, label: "Compras" },
+  VENTA: { color: "#10b981", bg: "rgba(16,185,129,0.12)", icon: TrendingUp, label: "Ventas" },
+  AJUSTE: { color: "#f59e0b", bg: "rgba(245,158,11,0.12)", icon: SlidersHorizontal, label: "Ajustes" },
+  DEVOLUCION: { color: "#8b5cf6", bg: "rgba(139,92,246,0.12)", icon: RotateCcw, label: "Devoluciones" },
+  MERMA: { color: "#f43f5e", bg: "rgba(244,63,94,0.12)", icon: Trash2, label: "Mermas" },
 };
+
+const tipoColor = (t: string) => TIPO_COLORS[t] || "#64748b";
+const tipoConfig = (t: string) =>
+  TIPO_CONFIG[t] || { color: "#64748b", bg: "rgba(100,116,139,0.12)", icon: Package, label: t };
 
 /* ─── Helpers ───────────────────────────────────────────────────────── */
 const moneyFmt = (v: number) =>
@@ -109,6 +123,14 @@ const addDays = (d: Date, n: number) => {
   c.setDate(c.getDate() + n);
   return c;
 };
+
+const fechaHora = (iso: string) =>
+  new Date(iso).toLocaleString("es-PE", {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 
 const fechaLarga = (iso: string) =>
   new Date(`${iso.slice(0, 10)}T00:00:00`).toLocaleDateString("es-PE", {
@@ -210,59 +232,6 @@ function ChartTooltip({
           </span>
         </div>
       ))}
-    </div>
-  );
-}
-
-/* ─── Tooltip para el área de stock (nivel + neto) ───────────────────── */
-function ChangableTooltip({
-  active,
-  payload,
-  label,
-  theme,
-}: {
-  active?: boolean;
-  payload?: Array<{ name?: string; value?: number; color?: string }>;
-  label?: string | number;
-  theme: Theme;
-}) {
-  if (!active || !payload || payload.length === 0) return null;
-  const nivel = payload.find((p) => p.name === "nivel")?.value || 0;
-  const entradas = payload.find((p) => p.name === "entradas")?.value || 0;
-  const salidas = payload.find((p) => p.name === "salidas")?.value || 0;
-  return (
-    <div
-      style={{
-        background: theme.cardBg,
-        border: `1px solid ${theme.border}`,
-        borderRadius: 12,
-        padding: "10px 12px",
-        boxShadow: "0 10px 30px rgba(0,0,0,0.18)",
-        minWidth: 150,
-      }}
-    >
-      <div style={{ fontSize: 11, fontWeight: 700, color: theme.textSecondary, marginBottom: 6 }}>{label}</div>
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 18 }}>
-        <span style={{ fontSize: 12, color: theme.textSecondary }}>
-          <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 3, background: "#6366f1", marginRight: 6 }} />
-          Nivel stock
-        </span>
-        <span style={{ fontSize: 12, fontWeight: 700, color: theme.textPrimary }}>{numFmt(nivel)}</span>
-      </div>
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 18 }}>
-        <span style={{ fontSize: 12, color: theme.textSecondary }}>
-          <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 3, background: "#10b981", marginRight: 6 }} />
-          Entradas
-        </span>
-        <span style={{ fontSize: 12, fontWeight: 700, color: theme.textPrimary }}>{numFmt(entradas)}</span>
-      </div>
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 18 }}>
-        <span style={{ fontSize: 12, color: theme.textSecondary }}>
-          <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 3, background: "#f43f5e", marginRight: 6 }} />
-          Salidas
-        </span>
-        <span style={{ fontSize: 12, fontWeight: 700, color: theme.textPrimary }}>{numFmt(salidas)}</span>
-      </div>
     </div>
   );
 }
@@ -395,7 +364,7 @@ function SkeletonCard({ h, theme }: { h: number; theme: Theme }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════ */
-/*  REPORTES INVENTARIO COMPONENT                                      */
+/*  REPORTES MOVIMIENTOS COMPONENT                                      */
 /* ═══════════════════════════════════════════════════════════════════ */
 
 type PresetOption = { id: Preset; label: string };
@@ -409,7 +378,7 @@ const PRESETS: PresetOption[] = [
   { id: "custom", label: "Personalizado" },
 ];
 
-export default function ReportesInventario({ isDark = true }: { isDark?: boolean }) {
+export default function ReportesMovimientos({ isDark = true }: { isDark?: boolean }) {
   const t = getTheme(isDark);
 
   const [preset, setPreset] = useState<Preset>("30d");
@@ -417,7 +386,7 @@ export default function ReportesInventario({ isDark = true }: { isDark?: boolean
   const [hastaInput, setHastaInput] = useState("");
   const [refreshKey, setRefreshKey] = useState(0);
 
-  const [reporte, setReporte] = useState<ReporteInventario | null>(null);
+  const [reporte, setReporte] = useState<ReporteMovimientos | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
@@ -437,7 +406,7 @@ export default function ReportesInventario({ isDark = true }: { isDark?: boolean
     setError(null);
 
     reportesService
-      .getReporteInventario(r.desde, r.hasta)
+      .getReporteMovimientos(r.desde, r.hasta)
       .then((data) => {
         if (!cancelled) setReporte(data);
       })
@@ -468,11 +437,22 @@ export default function ReportesInventario({ isDark = true }: { isDark?: boolean
   }, [reporte]);
 
   const kpis = reporte?.kpis;
+  const crecimiento = reporte?.crecimiento;
 
-  const estadoColor = (estado: string) => reporte?.paleta_estados?.[estado] || DEFAULT_ESTADO_COLORS[estado] || "#8b5cf6";
-  const estadoBg = (estado: string) => DEFAULT_ESTADO_BG[estado] || "rgba(139,92,246,0.12)";
+  const balanceSeries = useMemo(() => {
+    let acc = 0;
+    return (reporte?.serie_diaria || []).map((d) => {
+      acc += d.neto;
+      return { etiqueta: d.etiqueta, balance: acc, neto: d.neto };
+    });
+  }, [reporte]);
 
-  const top5 = useMemo(() => (reporte?.top_valor || []).slice(0, 5), [reporte]);
+  const tipos = reporte?.por_tipo || [];
+  const top6 = useMemo(() => (reporte?.top_productos || []).slice(0, 6), [reporte]);
+  const usuarios = reporte?.usuarios_activos || [];
+  const recientes = reporte?.movimientos_recientes || [];
+
+  const maxUsuarioMovs = Math.max(1, ...usuarios.map((u) => u.movimientos));
 
   // ─── Exportar PDF ───────────────────────────────────────────────────
   const handleExport = async () => {
@@ -480,36 +460,41 @@ export default function ReportesInventario({ isDark = true }: { isDark?: boolean
     setExporting(true);
     const toastId = toast.loading("Generando reporte PDF…");
     try {
-      const refs: Array<[keyof InventoryReportChartImages, string]> = [
-        ["stock", "chart-stock"],
-        ["categoria", "chart-categoria"],
-        ["movimientos", "chart-movimientos"],
+      const refs: Array<[keyof MovementsReportChartImages, string]> = [
+        ["balance", "chart-balance"],
         ["tipos", "chart-tipos"],
+        ["hora", "chart-hora"],
         ["top", "chart-top"],
       ];
-      const chartImages: InventoryReportChartImages = {};
+      const chartImages: MovementsReportChartImages = {};
       for (const [key, id] of refs) {
         const node = document.getElementById(id);
         if (!node) continue;
         chartImages[key] = await toPng(node, { pixelRatio: 2, backgroundColor: t.cardBg });
       }
-      exportInventoryReportPdf({
+      exportMovementsReportPdf({
         meta: {
           desde: reporte.rango.desde,
           hasta: reporte.rango.hasta,
+          dias: reporte.rango.dias,
           periodo_completo: reporte.rango.periodo_completo,
         },
-        fecha_corte: reporte.fecha_corte,
         kpis: reporte.kpis,
-        entradas_totales: reporte.kpis.entradas_totales,
-        salidas_totales: reporte.kpis.salidas_totales,
-        porEstado: reporte.por_estado,
-        topValor: reporte.top_valor,
-        criticos: reporte.productos_criticos,
-        lotes: reporte.lotes_por_vencer,
+        crecimiento: reporte.crecimiento,
+        porTipo: reporte.por_tipo,
+        topProductos: reporte.top_productos,
+        usuariosActivos: reporte.usuarios_activos,
+        recientes: reporte.movimientos_recientes.map((m) => ({
+          id_movimiento: m.id_movimiento,
+          tipo_movimiento: m.tipo_movimiento,
+          fecha_hora: m.fecha_hora,
+          usuario: m.usuario,
+          unidades: m.unidades,
+          valor: m.valor,
+        })),
         chartImages,
       });
-      toast.success("Reporte de inventario exportado a PDF", { id: toastId });
+      toast.success("Reporte de movimientos exportado a PDF", { id: toastId });
     } catch {
       toast.error("No se pudo exportar el reporte", { id: toastId });
     } finally {
@@ -527,7 +512,7 @@ export default function ReportesInventario({ isDark = true }: { isDark?: boolean
 
   const axisTick = { fill: t.textMuted, fontSize: 11 };
 
-  const noData = !loading && !error && reporte && kpis && kpis.total_productos === 0;
+  const noData = !loading && !error && reporte && kpis && kpis.total_movimientos === 0;
 
   return (
     <div style={{ padding: "24px", background: t.mainBg, minHeight: "100vh" }}>
@@ -569,21 +554,21 @@ export default function ReportesInventario({ isDark = true }: { isDark?: boolean
                 width: 42,
                 height: 42,
                 borderRadius: 14,
-                background: `linear-gradient(135deg, ${t.accent} 0%, #6366f1 120%)`,
+                background: `linear-gradient(135deg, ${t.accent} 0%, #06b6d4 120%)`,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 boxShadow: `0 6px 16px ${t.accent}40`,
               }}
             >
-              <Boxes size={22} color="#ffffff" strokeWidth={2.2} />
+              <Layers size={22} color="#ffffff" strokeWidth={2.2} />
             </div>
             <div>
               <h1 style={{ fontSize: 24, fontWeight: 800, color: t.textPrimary, lineHeight: 1.1 }}>
-                Reporte de Inventario
+                Reporte de Movimientos
               </h1>
               <p style={{ fontSize: 12.5, color: t.textSecondary }}>
-                {reporte ? `Stock valorizado al ${fechaLarga(reporte.fecha_corte)} · ${periodLabel}` : periodLabel}
+                {reporte ? `${periodLabel} · ${numFmt(kpis?.total_movimientos || 0)} movimientos` : periodLabel}
               </p>
             </div>
           </div>
@@ -696,7 +681,7 @@ export default function ReportesInventario({ isDark = true }: { isDark?: boolean
 
           <button
             onClick={handleExport}
-            disabled={exporting || !reporte || !kpis || kpis.total_productos === 0}
+            disabled={exporting || !reporte || !kpis || kpis.total_movimientos === 0}
             style={{
               padding: "10px 18px",
               borderRadius: 14,
@@ -712,7 +697,7 @@ export default function ReportesInventario({ isDark = true }: { isDark?: boolean
               fontFamily: "'Cairo', sans-serif",
               transition: "all 0.2s",
               boxShadow: `0 4px 14px ${t.accent}40`,
-              opacity: exporting || !reporte || !kpis || kpis.total_productos === 0 ? 0.55 : 1,
+              opacity: exporting || !reporte || !kpis || kpis.total_movimientos === 0 ? 0.55 : 1,
             }}
           >
             <Download size={15} />
@@ -816,16 +801,17 @@ export default function ReportesInventario({ isDark = true }: { isDark?: boolean
             <Inbox size={32} color={t.textMuted} />
           </div>
           <h3 style={{ fontSize: 18, fontWeight: 700, color: t.textPrimary, marginBottom: 6 }}>
-            Aún no hay productos en el inventario
+            Aún no hay movimientos registrados
           </h3>
           <p style={{ fontSize: 13, color: t.textSecondary, maxWidth: 420, margin: "0 auto" }}>
-            Registra productos y lotes para que este reporte muestre la valorización del stock y sus alertas.
+            Registra compras, ventas, ajustes, devoluciones o mermas para que este reporte muestre
+            la actividad de tu inventario.
           </p>
         </div>
       )}
 
       {/* ─── Dashboard ──────────────────────────────────────────────── */}
-      {!loading && !error && reporte && kpis && kpis.total_productos > 0 && (
+      {!loading && !error && reporte && kpis && kpis.total_movimientos > 0 && (
         <>
           {/* KPIs */}
           <div
@@ -838,71 +824,111 @@ export default function ReportesInventario({ isDark = true }: { isDark?: boolean
           >
             <KpiCard
               index={0}
-              icon={<Package size={23} color="#ffffff" strokeWidth={2.4} />}
-              label="Productos Vigentes"
-              value={numFmt(kpis.total_productos)}
-              sub={`${kpis.total_categorias} categorías · ${kpis.total_proveedores} proveedores`}
-              gradient="linear-gradient(135deg, #6366f1 0%, #818cf8 45%, #4f46e5 130%)"
-              boxShadow="0 8px 22px rgba(99,102,241,0.28)"
+              icon={<Activity size={23} color="#ffffff" strokeWidth={2.4} />}
+              label="Total Movimientos"
+              value={numFmt(kpis.total_movimientos)}
+              sub={`${kpis.movimientos_hoy} hoy · ${kpis.usuarios_activos} usuarios activos`}
+              gradient="linear-gradient(135deg, #0891b2 0%, #22d3ee 45%, #0e7490 130%)"
+              boxShadow="0 8px 22px rgba(8,145,178,0.28)"
+              chips={
+                crecimiento?.movimientos !== null && crecimiento?.movimientos !== undefined ? (
+                  <span
+                    style={{
+                      padding: "4px 10px",
+                      borderRadius: 999,
+                      background: "rgba(255,255,255,0.16)",
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: "#ffffff",
+                    }}
+                  >
+                    {`${crecimiento.movimientos >= 0 ? "+" : ""}${crecimiento.movimientos.toFixed(1)}% vs período anterior`}
+                  </span>
+                ) : undefined
+              }
             />
             <KpiCard
               index={1}
               icon={<Boxes size={23} color="#ffffff" strokeWidth={2.4} />}
-              label="Unidades en Stock"
-              value={numFmt(kpis.unidades_totales)}
-              sub={`distribuidas en ${kpis.lotes_total} lotes activos`}
-              gradient="linear-gradient(135deg, #06b6d4 0%, #22d3ee 45%, #0891b2 130%)"
-              boxShadow="0 8px 22px rgba(6,182,212,0.28)"
+              label="Unidades Movidas"
+              value={numFmt(kpis.unidades_movidas)}
+              sub={`${kpis.productos_movidos} productos distintos`}
+              gradient="linear-gradient(135deg, #7c3aed 0%, #a78bfa 45%, #6d28d9 130%)"
+              boxShadow="0 8px 22px rgba(124,58,237,0.28)"
+              chips={
+                crecimiento?.unidades !== null && crecimiento?.unidades !== undefined ? (
+                  <span
+                    style={{
+                      padding: "4px 10px",
+                      borderRadius: 999,
+                      background: "rgba(255,255,255,0.16)",
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: "#ffffff",
+                    }}
+                  >
+                    {`${crecimiento.unidades >= 0 ? "+" : ""}${crecimiento.unidades.toFixed(1)}%`}
+                  </span>
+                ) : undefined
+              }
             />
             <KpiCard
               index={2}
               icon={<DollarSign size={23} color="#ffffff" strokeWidth={2.4} />}
-              label="Valor Inventario"
-              value={moneyFmt(kpis.valor_inventario)}
-              sub={`Margen potencial ${moneyFmt(kpis.margen_potencial)}`}
-              gradient="linear-gradient(135deg, #10b981 0%, #34d399 45%, #059669 130%)"
-              boxShadow="0 8px 22px rgba(16,185,129,0.28)"
+              label="Valor Movido"
+              value={moneyFmt(kpis.valor_total)}
+              sub={`Entradas ${moneyFmt(kpis.entradas_valor)} · Salidas ${moneyFmt(kpis.salidas_valor)}`}
+              gradient="linear-gradient(135deg, #059669 0%, #34d399 45%, #047857 130%)"
+              boxShadow="0 8px 22px rgba(5,150,105,0.28)"
             />
             <KpiCard
               index={3}
-              icon={<AlertTriangle size={23} color="#ffffff" strokeWidth={2.4} />}
-              label="Alertas de Stock"
-              value={numFmt(kpis.alertas_stock)}
-              sub={`${kpis.lotes_vencen_90} lotes vencen en 90 días · ${kpis.lotes_vencidos} vencidos`}
-              gradient="linear-gradient(135deg, #f59e0b 0%, #fbbf24 45%, #d97706 130%)"
-              boxShadow="0 8px 22px rgba(245,158,11,0.28)"
+              icon={<Repeat size={23} color="#ffffff" strokeWidth={2.4} />}
+              label="Balance Unidades"
+              value={`${kpis.balance_unidades >= 0 ? "+" : ""}${numFmt(kpis.balance_unidades)}`}
+              sub="entradas − salidas en el período"
+              gradient="linear-gradient(135deg, #d97706 0%, #fbbf24 45%, #b45309 130%)"
+              boxShadow="0 8px 22px rgba(217,119,6,0.28)"
               chips={
                 <>
-                  {[
-                    { estado: "OK", count: kpis.stock_ok, color: "#10b981" },
-                    { estado: "BAJO", count: kpis.stock_bajo, color: "#fbbf24" },
-                    { estado: "CRITICO", count: kpis.stock_critico, color: "#fb7185" },
-                    { estado: "AGOTADO", count: kpis.stock_agotado, color: "#cbd5e1" },
-                  ].map((c) => (
-                    <span
-                      key={c.estado}
-                      style={{
-                        padding: "4px 10px",
-                        borderRadius: 999,
-                        background: "rgba(255,255,255,0.14)",
-                        fontSize: 11,
-                        fontWeight: 700,
-                        color: "#ffffff",
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 5,
-                      }}
-                    >
-                      <span style={{ width: 7, height: 7, borderRadius: 999, background: c.color }} />
-                      {c.estado} {c.count}
-                    </span>
-                  ))}
+                  <span
+                    style={{
+                      padding: "4px 10px",
+                      borderRadius: 999,
+                      background: "rgba(255,255,255,0.16)",
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: "#ffffff",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 5,
+                    }}
+                  >
+                    <span style={{ width: 7, height: 7, borderRadius: 999, background: "#10b981" }} />
+                    Entradas {numFmt(kpis.entradas_unid)} · {kpis.entradas_mov} movs
+                  </span>
+                  <span
+                    style={{
+                      padding: "4px 10px",
+                      borderRadius: 999,
+                      background: "rgba(255,255,255,0.16)",
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: "#ffffff",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 5,
+                    }}
+                  >
+                    <span style={{ width: 7, height: 7, borderRadius: 999, background: "#f43f5e" }} />
+                    Salidas {numFmt(kpis.salidas_unid)} · {kpis.salidas_mov} movs
+                  </span>
                 </>
               }
             />
           </div>
 
-          {/* Fila 1: evolución + categorías */}
+          {/* Fila 1: balance acumulado + tipos */}
           <div
             style={{
               display: "grid",
@@ -911,12 +937,14 @@ export default function ReportesInventario({ isDark = true }: { isDark?: boolean
               marginBottom: 18,
             }}
           >
-            {/* Evolución del stock */}
+            {/* Balance acumulado */}
             <div style={chartCard(320)}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
                 <div>
-                  <h3 style={{ fontSize: 15, fontWeight: 800, color: t.textPrimary }}>Evolución del stock</h3>
-                  <p style={{ fontSize: 12, color: t.textSecondary }}>Nivel estimado de unidades en el período</p>
+                  <h3 style={{ fontSize: 15, fontWeight: 800, color: t.textPrimary }}>Balance acumulado</h3>
+                  <p style={{ fontSize: 12, color: t.textSecondary }}>
+                    Evolución del saldo neto de unidades (entradas − salidas)
+                  </p>
                 </div>
                 <div
                   style={{
@@ -925,24 +953,24 @@ export default function ReportesInventario({ isDark = true }: { isDark?: boolean
                     gap: 5,
                     padding: "4px 10px",
                     borderRadius: 999,
-                    background: "rgba(99,102,241,0.12)",
-                    color: "#6366f1",
+                    background: "rgba(16,185,129,0.12)",
+                    color: "#10b981",
                     fontSize: 12,
                     fontWeight: 700,
                   }}
                 >
                   <Activity size={13} />
-                  {numFmt(kpis.unidades_totales)} uds.
+                  {`${kpis.balance_unidades >= 0 ? "+" : ""}${numFmt(kpis.balance_unidades)} uds.`}
                 </div>
               </div>
-              <div id="chart-stock" style={{ width: "100%", height: 250 }}>
-                {reporte.serie_stock.length > 0 ? (
+              <div id="chart-balance" style={{ width: "100%", height: 250 }}>
+                {balanceSeries.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={reporte.serie_stock} margin={{ top: 8, right: 4, left: -8, bottom: 0 }}>
+                    <AreaChart data={balanceSeries} margin={{ top: 8, right: 4, left: -8, bottom: 0 }}>
                       <defs>
-                        <linearGradient id="gradStock" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#6366f1" stopOpacity={0.5} />
-                          <stop offset="100%" stopColor="#6366f1" stopOpacity={0.02} />
+                        <linearGradient id="gradBalance" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#10b981" stopOpacity={0.45} />
+                          <stop offset="100%" stopColor="#10b981" stopOpacity={0.02} />
                         </linearGradient>
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" stroke={t.border} vertical={false} />
@@ -954,21 +982,15 @@ export default function ReportesInventario({ isDark = true }: { isDark?: boolean
                         interval="preserveStartEnd"
                         minTickGap={28}
                       />
-                      <YAxis
-                        tick={axisTick}
-                        tickLine={false}
-                        axisLine={false}
-                        width={46}
-                        allowDecimals={false}
-                      />
-                      <Tooltip content={<ChangableTooltip theme={t} />} cursor={{ stroke: t.border, strokeDasharray: "3 3" }} />
+                      <YAxis tick={axisTick} tickLine={false} axisLine={false} width={46} allowDecimals={false} />
+                      <Tooltip content={<ChartTooltip theme={t} suffix=" uds" />} cursor={{ stroke: t.border, strokeDasharray: "3 3" }} />
                       <Area
                         type="monotone"
-                        dataKey="nivel"
-                        name="nivel"
-                        stroke="#6366f1"
+                        dataKey="balance"
+                        name="Balance"
+                        stroke="#10b981"
                         strokeWidth={2.5}
-                        fill="url(#gradStock)"
+                        fill="url(#gradBalance)"
                         dot={false}
                         activeDot={{ r: 5, strokeWidth: 2, stroke: t.cardBg }}
                       />
@@ -992,18 +1014,21 @@ export default function ReportesInventario({ isDark = true }: { isDark?: boolean
               </div>
             </div>
 
-            {/* Donut por categoría */}
+            {/* Donut por tipo */}
             <div style={chartCard(320)}>
-              <h3 style={{ fontSize: 15, fontWeight: 800, color: t.textPrimary, marginBottom: 2 }}>Unidades por categoría</h3>
-              <p style={{ fontSize: 12, color: t.textSecondary, marginBottom: 6 }}>Distribución del stock</p>
-              <div id="chart-categoria" style={{ position: "relative", width: "100%", height: 175 }}>
-                {reporte.por_categoria.length > 0 ? (
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                <ChartPie size={15} color={t.accent} />
+                <h3 style={{ fontSize: 15, fontWeight: 800, color: t.textPrimary }}>Movimientos por tipo</h3>
+              </div>
+              <p style={{ fontSize: 12, color: t.textSecondary, marginBottom: 6 }}>Documentos registrados</p>
+              <div id="chart-tipos" style={{ position: "relative", width: "100%", height: 175 }}>
+                {tipos.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
-                        data={reporte.por_categoria}
-                        dataKey="unidades"
-                        nameKey="categoria"
+                        data={tipos}
+                        dataKey="movimientos"
+                        nameKey="tipo"
                         cx="50%"
                         cy="50%"
                         innerRadius={46}
@@ -1012,141 +1037,8 @@ export default function ReportesInventario({ isDark = true }: { isDark?: boolean
                         cornerRadius={6}
                         stroke="none"
                       >
-                        {(reporte.por_categoria || []).map((_, i) => (
-                          <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip content={<ChartTooltip theme={t} suffix=" uds" />} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div
-                    style={{
-                      height: "100%",
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: 6,
-                    }}
-                  >
-                    <Inbox size={26} color={t.textMuted} />
-                    <p style={{ fontSize: 12.5, color: t.textMuted }}>Sin categorías.</p>
-                  </div>
-                )}
-                {reporte.por_categoria.length > 0 && (
-                  <div
-                    style={{
-                      position: "absolute",
-                      top: "50%",
-                      left: "50%",
-                      transform: "translate(-50%, -50%)",
-                      textAlign: "center",
-                      pointerEvents: "none",
-                    }}
-                  >
-                    <div style={{ fontSize: 18, fontWeight: 800, color: t.textPrimary }}>{reporte.por_categoria.length}</div>
-                    <div style={{ fontSize: 11, color: t.textSecondary, fontWeight: 600 }}>categorías</div>
-                  </div>
-                )}
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))", gap: 8, marginTop: 8 }}>
-                {(reporte.por_categoria || []).slice(0, 6).map((c, i) => (
-                  <div
-                    key={c.categoria}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 6,
-                      background: t.innerBg,
-                      borderRadius: 10,
-                      padding: "6px 8px",
-                    }}
-                  >
-                    <span style={{ width: 8, height: 8, borderRadius: 3, background: COLORS[i % COLORS.length], flexShrink: 0 }} />
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ fontSize: 10.5, color: t.textSecondary, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                        {c.categoria}
-                      </div>
-                      <div style={{ fontSize: 11.5, fontWeight: 800, color: t.textPrimary }}>{c.porcentaje.toFixed(0)}%</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Fila 2: movimientos + tipos + estado */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-              gap: 18,
-              marginBottom: 18,
-            }}
-          >
-            {/* Movimientos por día */}
-            <div style={chartCard(300)}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
-                <BarChart3 size={15} color={t.accent} />
-                <h3 style={{ fontSize: 15, fontWeight: 800, color: t.textPrimary }}>Movimientos por día</h3>
-              </div>
-              <p style={{ fontSize: 12, color: t.textSecondary, marginBottom: 6 }}>Entradas vs salidas de unidades</p>
-              <div id="chart-movimientos" style={{ width: "100%", height: 220 }}>
-                {reporte.serie_movimientos.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={reporte.serie_movimientos} margin={{ top: 8, right: 4, left: -18, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke={t.border} vertical={false} />
-                      <XAxis dataKey="etiqueta" tick={axisTick} tickLine={false} axisLine={false} interval="preserveStartEnd" minTickGap={24} />
-                      <YAxis tick={axisTick} tickLine={false} axisLine={false} allowDecimals={false} width={42} />
-                      <Tooltip content={<ChartTooltip theme={t} suffix=" uds" />} cursor={{ fill: `${t.accent}0d` }} />
-                      <Bar dataKey="entradas" name="Entradas" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={18} />
-                      <Bar dataKey="salidas" name="Salidas" fill="#f43f5e" radius={[4, 4, 0, 0]} maxBarSize={18} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div
-                    style={{
-                      height: "100%",
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: 6,
-                    }}
-                  >
-                    <Inbox size={26} color={t.textMuted} />
-                    <p style={{ fontSize: 12.5, color: t.textMuted }}>Sin movimientos registrados.</p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Tipo de movimientos */}
-            <div style={chartCard(300)}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
-                <Repeat size={15} color={t.accent} />
-                <h3 style={{ fontSize: 15, fontWeight: 800, color: t.textPrimary }}>Tipo de movimientos</h3>
-              </div>
-              <p style={{ fontSize: 12, color: t.textSecondary, marginBottom: 6 }}>Documentos registrados</p>
-              <div id="chart-tipos" style={{ position: "relative", width: "100%", height: 165 }}>
-                {reporte.por_tipo_movimiento.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={reporte.por_tipo_movimiento}
-                        dataKey="movimientos"
-                        nameKey="tipo"
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={40}
-                        outerRadius={66}
-                        paddingAngle={3}
-                        cornerRadius={5}
-                        stroke="none"
-                      >
-                        {(reporte.por_tipo_movimiento || []).map((_, i) => (
-                          <Cell key={i} fill={[COLORS[1], COLORS[4], COLORS[3], COLORS[2], COLORS[0]][i % 5]} />
+                        {tipos.map((pt, i) => (
+                          <Cell key={i} fill={tipoColor(pt.tipo)} />
                         ))}
                       </Pie>
                       <Tooltip content={<ChartTooltip theme={t} suffix=" movs" />} />
@@ -1167,7 +1059,7 @@ export default function ReportesInventario({ isDark = true }: { isDark?: boolean
                     <p style={{ fontSize: 12.5, color: t.textMuted }}>Sin tipos registrados.</p>
                   </div>
                 )}
-                {reporte.por_tipo_movimiento.length > 0 && (
+                {tipos.length > 0 && (
                   <div
                     style={{
                       position: "absolute",
@@ -1178,106 +1070,185 @@ export default function ReportesInventario({ isDark = true }: { isDark?: boolean
                       pointerEvents: "none",
                     }}
                   >
-                    <div style={{ fontSize: 17, fontWeight: 800, color: t.textPrimary }}>
-                      {reporte.por_tipo_movimiento.reduce((a, b) => a + b.movimientos, 0)}
-                    </div>
-                    <div style={{ fontSize: 10.5, color: t.textSecondary, fontWeight: 600 }}>movimientos</div>
+                    <div style={{ fontSize: 18, fontWeight: 800, color: t.textPrimary }}>{kpis.total_movimientos}</div>
+                    <div style={{ fontSize: 11, color: t.textSecondary, fontWeight: 600 }}>movimientos</div>
                   </div>
                 )}
               </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 4 }}>
-                {(reporte.por_tipo_movimiento || []).slice(0, 4).map((m, i) => (
+              <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 6 }}>
+                {tipos.slice(0, 5).map((pt) => {
+                  const cfg = tipoConfig(pt.tipo);
+                  return (
+                    <div
+                      key={pt.tipo}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        background: t.innerBg,
+                        borderRadius: 10,
+                        padding: "6px 10px",
+                      }}
+                    >
+                      <span
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 6,
+                          fontSize: 11.5,
+                          fontWeight: 700,
+                          color: t.textPrimary,
+                        }}
+                      >
+                        <span style={{ width: 8, height: 8, borderRadius: 3, background: cfg.color }} />
+                        {cfg.label}
+                      </span>
+                      <span style={{ fontSize: 11.5, fontWeight: 800, color: t.textSecondary }}>
+                        {pt.movimientos} movs · {pt.porcentaje.toFixed(0)}%
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* Fila 2: diario + hora + usuarios */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+              gap: 18,
+              marginBottom: 18,
+            }}
+          >
+            {/* Entradas vs salidas por día */}
+            <div style={chartCard(300)}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                <BarChart3 size={15} color={t.accent} />
+                <h3 style={{ fontSize: 15, fontWeight: 800, color: t.textPrimary }}>Entradas vs salidas diarias</h3>
+              </div>
+              <p style={{ fontSize: 12, color: t.textSecondary, marginBottom: 6 }}>Unidades por día en el período</p>
+              <div id="chart-diario" style={{ width: "100%", height: 220 }}>
+                {reporte.serie_diaria.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={reporte.serie_diaria} margin={{ top: 8, right: 4, left: -18, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke={t.border} vertical={false} />
+                      <XAxis dataKey="etiqueta" tick={axisTick} tickLine={false} axisLine={false} interval="preserveStartEnd" minTickGap={24} />
+                      <YAxis tick={axisTick} tickLine={false} axisLine={false} allowDecimals={false} width={42} />
+                      <Tooltip content={<ChartTooltip theme={t} suffix=" uds" />} cursor={{ fill: `${t.accent}0d` }} />
+                      <Bar dataKey="entradas" name="Entradas" fill={TIPO_COLORS.COMPRA} radius={[4, 4, 0, 0]} maxBarSize={20} />
+                      <Bar dataKey="salidas" name="Salidas" fill={TIPO_COLORS.MERMA} radius={[4, 4, 0, 0]} maxBarSize={20} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
                   <div
-                    key={m.tipo}
                     style={{
+                      height: "100%",
                       display: "flex",
+                      flexDirection: "column",
                       alignItems: "center",
-                      justifyContent: "space-between",
-                      background: t.innerBg,
-                      borderRadius: 10,
-                      padding: "6px 10px",
+                      justifyContent: "center",
+                      gap: 6,
                     }}
                   >
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11.5, fontWeight: 700, color: t.textPrimary }}>
-                      <span style={{ width: 8, height: 8, borderRadius: 3, background: [COLORS[1], COLORS[4], COLORS[3], COLORS[2]][i % 4] }} />
-                      {m.tipo}
-                    </span>
-                    <span style={{ fontSize: 11.5, fontWeight: 800, color: t.textSecondary }}>
-                      {m.movimientos} movs · {numFmt(m.unidades)} uds.
-                    </span>
+                    <Inbox size={26} color={t.textMuted} />
+                    <p style={{ fontSize: 12.5, color: t.textMuted }}>Sin movimientos diarios.</p>
                   </div>
-                ))}
+                )}
               </div>
             </div>
 
-            {/* Estado del stock */}
+            {/* Actividad por hora */}
             <div style={chartCard(300)}>
               <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
-                <ChartPie size={15} color={t.accent} />
-                <h3 style={{ fontSize: 15, fontWeight: 800, color: t.textPrimary }}>Estado del stock</h3>
+                <Clock size={15} color={t.accent} />
+                <h3 style={{ fontSize: 15, fontWeight: 800, color: t.textPrimary }}>Actividad por hora</h3>
               </div>
-              <p style={{ fontSize: 12, color: t.textSecondary, marginBottom: 14 }}>Resumen por nivel de inventario</p>
-              {(reporte.por_estado || []).length > 0 ? (
-                <>
-                  <div style={{ display: "flex", gap: 4, marginBottom: 16 }}>
-                    {(reporte.por_estado || []).map((e) => (
-                      <div
-                        key={e.estado}
-                        style={{
-                          flex: Math.max(e.productos, 1),
-                          height: 10,
-                          borderRadius: 6,
-                          background: estadoColor(e.estado),
-                          minWidth: 4,
-                        }}
-                      />
-                    ))}
+              <p style={{ fontSize: 12, color: t.textSecondary, marginBottom: 6 }}>Unidades movidas según la hora</p>
+              <div id="chart-hora" style={{ width: "100%", height: 220 }}>
+                {reporte.por_hora.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={reporte.por_hora} margin={{ top: 8, right: 4, left: -18, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke={t.border} vertical={false} />
+                      <XAxis dataKey="hora" tick={axisTick} tickLine={false} axisLine={false} interval={1} />
+                      <YAxis tick={axisTick} tickLine={false} axisLine={false} allowDecimals={false} width={42} />
+                      <Tooltip content={<ChartTooltip theme={t} suffix=" uds" />} cursor={{ fill: `${t.accent}0d` }} />
+                      <Bar dataKey="entradas" name="Entradas" stackId="h" fill={TIPO_COLORS.COMPRA} maxBarSize={22} />
+                      <Bar dataKey="salidas" name="Salidas" stackId="h" fill={TIPO_COLORS.MERMA} maxBarSize={22} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div
+                    style={{
+                      height: "100%",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 6,
+                    }}
+                  >
+                    <Inbox size={26} color={t.textMuted} />
+                    <p style={{ fontSize: 12.5, color: t.textMuted }}>Sin actividad horaria.</p>
                   </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                    {(reporte.por_estado || []).map((e) => {
-                      const pct = e.porcentaje;
-                      return (
-                        <div key={e.estado}>
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                            <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 700, color: t.textPrimary }}>
-                              <span style={{ width: 9, height: 9, borderRadius: 3, background: estadoColor(e.estado) }} />
-                              {e.estado}
-                            </span>
-                            <span style={{ fontSize: 12, fontWeight: 800, color: t.textPrimary }}>
-                              {e.productos} · {pct.toFixed(0)}%
-                            </span>
-                          </div>
+                )}
+              </div>
+            </div>
+
+            {/* Usuarios más activos */}
+            <div style={chartCard(300)}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                <Users size={15} color={t.accent} />
+                <h3 style={{ fontSize: 15, fontWeight: 800, color: t.textPrimary }}>Usuarios más activos</h3>
+              </div>
+              <p style={{ fontSize: 12, color: t.textSecondary, marginBottom: 16 }}>Movimientos registrados por usuario</p>
+              {usuarios.length > 0 ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                  {usuarios.slice(0, 5).map((u, i) => {
+                    const color = [TIPO_COLORS.COMPRA, TIPO_COLORS.VENTA, TIPO_COLORS.AJUSTE, TIPO_COLORS.DEVOLUCION, TIPO_COLORS.MERMA][i % 5];
+                    const pct = (u.movimientos / maxUsuarioMovs) * 100;
+                    return (
+                      <div key={u.nombre}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 700, color: t.textPrimary }}>
+                            <span style={{ width: 9, height: 9, borderRadius: 3, background: color }} />
+                            {u.nombre}
+                          </span>
+                          <span style={{ fontSize: 12, fontWeight: 800, color: t.textPrimary }}>
+                            {u.movimientos} movs · {numFmt(u.unidades)} uds
+                          </span>
+                        </div>
+                        <div
+                          style={{
+                            width: "100%",
+                            height: 8,
+                            background: t.innerBg,
+                            borderRadius: 999,
+                            overflow: "hidden",
+                          }}
+                        >
                           <div
                             style={{
-                              width: "100%",
-                              height: 8,
-                              background: t.innerBg,
+                              width: `${pct}%`,
+                              height: "100%",
+                              background: `linear-gradient(90deg, ${color} 0%, ${color}bb 100%)`,
                               borderRadius: 999,
-                              overflow: "hidden",
+                              transition: "width 0.6s ease",
                             }}
-                          >
-                            <div
-                              style={{
-                                width: `${pct}%`,
-                                height: "100%",
-                                background: estadoColor(e.estado),
-                                borderRadius: 999,
-                                transition: "width 0.6s ease",
-                              }}
-                            />
-                          </div>
+                          />
                         </div>
-                      );
-                    })}
-                  </div>
-                </>
+                      </div>
+                    );
+                  })}
+                </div>
               ) : (
-                <p style={{ fontSize: 13, color: t.textMuted }}>Sin datos de estado.</p>
+                <p style={{ fontSize: 13, color: t.textMuted }}>Sin usuarios con movimientos.</p>
               )}
             </div>
           </div>
 
-          {/* Fila 3: top valor + críticos */}
+          {/* Fila 3: top productos + recientes */}
           <div
             style={{
               display: "grid",
@@ -1286,12 +1257,12 @@ export default function ReportesInventario({ isDark = true }: { isDark?: boolean
               marginBottom: 18,
             }}
           >
-            {/* Top valor inventario */}
+            {/* Top productos movidos */}
             <div style={chartCard(360)}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
                 <div>
-                  <h3 style={{ fontSize: 15, fontWeight: 800, color: t.textPrimary }}>Top valor en inventario</h3>
-                  <p style={{ fontSize: 12, color: t.textSecondary }}>Productos con mayor capital invertido</p>
+                  <h3 style={{ fontSize: 15, fontWeight: 800, color: t.textPrimary }}>Top productos movidos</h3>
+                  <p style={{ fontSize: 12, color: t.textSecondary }}>Productos con mayor valor de movimiento</p>
                 </div>
                 <div
                   style={{
@@ -1307,305 +1278,104 @@ export default function ReportesInventario({ isDark = true }: { isDark?: boolean
                   }}
                 >
                   <Package size={13} />
-                  {top5.length} destacados
+                  {top6.length} destacados
                 </div>
               </div>
               <div id="chart-top" style={{ width: "100%", height: 250 }}>
-                {top5.length > 0 ? (
+                {top6.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={top5} layout="vertical" margin={{ top: 6, right: 14, left: 8, bottom: 0 }}>
+                    <BarChart data={top6} layout="vertical" margin={{ top: 6, right: 14, left: 8, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke={t.border} horizontal={false} />
                       <XAxis type="number" tick={axisTick} tickLine={false} axisLine={false} tickFormatter={(v) => moneyTick(Number(v))} />
                       <YAxis
                         type="category"
                         dataKey="nombre"
-                        tick={{ fill: t.textSecondary, fontSize: 11 }}
+                        tick={{ fill: t.textSecondary, fontSize: 10.5 }}
                         tickLine={false}
                         axisLine={false}
-                        width={118}
+                        width={150}
                       />
                       <Tooltip content={<ChartTooltip theme={t} money />} cursor={{ fill: `${t.accent}0d` }} />
-                      <Bar dataKey="valor" name="valor" radius={[0, 6, 6, 0]} maxBarSize={18}>
-                        {top5.map((_, i) => (
-                          <Cell key={i} fill={[COLORS[2], COLORS[0], COLORS[1], COLORS[3], COLORS[5]][i % 5]} />
+                      <Bar dataKey="valor" name="Valor" radius={[0, 6, 6, 0]} maxBarSize={18}>
+                        {top6.map((_, i) => (
+                          <Cell key={i} fill={[TIPO_COLORS.DEVOLUCION, TIPO_COLORS.COMPRA, TIPO_COLORS.VENTA, TIPO_COLORS.AJUSTE, TIPO_COLORS.MERMA][i % 5]} />
                         ))}
                       </Bar>
                     </BarChart>
                   </ResponsiveContainer>
                 ) : (
-                  <p style={{ fontSize: 13, color: t.textMuted }}>Sin productos con stock.</p>
+                  <p style={{ fontSize: 13, color: t.textMuted }}>Sin productos movidos.</p>
                 )}
               </div>
             </div>
 
-            {/* Productos críticos */}
+            {/* Últimos movimientos */}
             <div style={chartCard(360)}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-                <div>
-                  <h3 style={{ fontSize: 15, fontWeight: 800, color: t.textPrimary }}>Productos críticos</h3>
-                  <p style={{ fontSize: 12, color: t.textSecondary }}>Requieren reposición</p>
-                </div>
-                <div
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 5,
-                    padding: "3px 10px",
-                    borderRadius: 999,
-                    background: "rgba(244,63,94,0.12)",
-                    color: "#f43f5e",
-                    fontSize: 11,
-                    fontWeight: 800,
-                  }}
-                >
-                  {kpis.alertas_stock} alertas
-                </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                <Receipt size={15} color={t.accent} />
+                <h3 style={{ fontSize: 15, fontWeight: 800, color: t.textPrimary }}>Últimos movimientos</h3>
               </div>
-
-              <div style={{ display: "flex", flexDirection: "column", gap: 8, overflowY: "auto", height: 275 }}>
-                {reporte.productos_criticos.length > 0 ? (
-                  reporte.productos_criticos.map((p) => (
+              <p style={{ fontSize: 12, color: t.textSecondary, marginBottom: 12 }}>
+                {recientes.length} registros más recientes del período
+              </p>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 260, overflowY: "auto", paddingRight: 6 }}>
+                {recientes.map((mov) => {
+                  const cfg = tipoConfig(mov.tipo_movimiento);
+                  const IconComponent = cfg.icon;
+                  return (
                     <div
-                      key={p.id_producto}
+                      key={mov.id_movimiento}
                       style={{
                         display: "flex",
                         alignItems: "center",
                         gap: 12,
                         background: t.innerBg,
-                        borderRadius: 14,
+                        border: `1px solid ${t.border}`,
+                        borderRadius: 12,
                         padding: "10px 12px",
-                        transition: "background 0.2s",
                       }}
                     >
                       <div
                         style={{
-                          width: 38,
-                          height: 38,
-                          borderRadius: 12,
-                          flexShrink: 0,
-                          background: estadoBg(p.estado),
-                          color: estadoColor(p.estado),
+                          width: 36,
+                          height: 36,
+                          borderRadius: 10,
+                          background: cfg.bg,
+                          border: `1px solid ${cfg.color}30`,
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
-                          fontWeight: 800,
-                          fontSize: 14,
+                          flexShrink: 0,
                         }}
                       >
-                        {p.estado === "AGOTADO" ? <Inbox size={18} /> : <AlertTriangle size={18} />}
+                        <IconComponent size={16} color={cfg.color} strokeWidth={2.5} />
                       </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 12.5, fontWeight: 700, color: t.textPrimary, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                          {p.nombre}
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <span style={{ fontSize: 12.5, fontWeight: 800, color: cfg.color }}>{cfg.label}</span>
+                          <span style={{ fontSize: 11, color: t.textSecondary }}>{fechaHora(mov.fecha_hora)}</span>
                         </div>
-                        <div style={{ fontSize: 11, color: t.textMuted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                          {p.categoria}
-                        </div>
+                        <p
+                          style={{
+                            fontSize: 11.5,
+                            color: t.textSecondary,
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                          }}
+                        >
+                          {mov.usuario} · {numFmt(mov.unidades)} uds
+                        </p>
                       </div>
                       <div style={{ textAlign: "right", flexShrink: 0 }}>
-                        <div style={{ fontSize: 13, fontWeight: 800, color: t.textPrimary }}>
-                          {p.stock} <span style={{ fontSize: 10, color: t.textMuted, fontWeight: 600 }}>/ {p.minimo}</span>
-                        </div>
-                        <div
-                          style={{
-                            display: "inline-block",
-                            fontSize: 10,
-                            fontWeight: 800,
-                            padding: "2px 8px",
-                            borderRadius: 999,
-                            background: estadoBg(p.estado),
-                            color: estadoColor(p.estado),
-                          }}
-                        >
-                          {p.estado}
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: 6,
-                      height: "100%",
-                    }}
-                  >
-                    <CheckCircle2 size={26} color="#10b981" />
-                    <p style={{ fontSize: 12.5, color: t.textSecondary }}>Sin productos con stock crítico.</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Fila 4: lotes por vencer + resumen de lotes vencidos */}
-          <div style={{ background: t.cardBg, border: `1px solid ${t.borderCard}`, borderRadius: 20, padding: "20px 22px", marginBottom: 18 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
-              <div>
-                <h3 style={{ fontSize: 15, fontWeight: 800, color: t.textPrimary }}>Lotes por vencer (90 días)</h3>
-                <p style={{ fontSize: 12, color: t.textSecondary }}>Programación de vencimientos por lote</p>
-              </div>
-              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                <span
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 5,
-                    padding: "4px 10px",
-                    borderRadius: 999,
-                    background: "rgba(244,63,94,0.12)",
-                    color: "#f43f5e",
-                    fontSize: 11.5,
-                    fontWeight: 800,
-                  }}
-                >
-                  <Clock size={12} />
-                  ≤30d: {kpis.lotes_vencen_30}
-                </span>
-                <span
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 5,
-                    padding: "4px 10px",
-                    borderRadius: 999,
-                    background: "rgba(245,158,11,0.12)",
-                    color: "#f59e0b",
-                    fontSize: 11.5,
-                    fontWeight: 800,
-                  }}
-                >
-                  <Clock size={12} />
-                  60d: {kpis.lotes_vencen_60}
-                </span>
-                <span
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 5,
-                    padding: "4px 10px",
-                    borderRadius: 999,
-                    background: "rgba(129,140,248,0.12)",
-                    color: "#818cf8",
-                    fontSize: 11.5,
-                    fontWeight: 800,
-                  }}
-                >
-                  <Clock size={12} />
-                  90d: {kpis.lotes_vencen_90}
-                </span>
-                {kpis.lotes_vencidos > 0 && (
-                  <span
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 5,
-                      padding: "4px 10px",
-                      borderRadius: 999,
-                      background: "rgba(100,116,139,0.14)",
-                      color: t.textSecondary,
-                      fontSize: 11.5,
-                      fontWeight: 800,
-                    }}
-                  >
-                    <AlertTriangle size={12} />
-                    {kpis.lotes_vencidos} vencidos
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {reporte.lotes_por_vencer.length > 0 ? (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12, marginTop: 14 }}>
-                {reporte.lotes_por_vencer.map((l) => {
-                  const urgente = l.urgencia === "URGENTE";
-                  const color = urgente ? "#f43f5e" : "#f59e0b";
-                  const bgColor = urgente ? "rgba(244,63,94,0.12)" : "rgba(245,158,11,0.12)";
-                  return (
-                    <div
-                      key={l.id_inventario}
-                      style={{
-                        borderRadius: 14,
-                        border: `1px solid ${urgente ? "rgba(244,63,94,0.35)" : t.border}`,
-                        background: urgente ? "rgba(244,63,94,0.06)" : t.innerBg,
-                        padding: "14px 14px",
-                        transition: "all 0.2s",
-                      }}
-                      onMouseEnter={(e) => {
-                        (e.currentTarget as HTMLDivElement).style.transform = "translateY(-2px)";
-                        (e.currentTarget as HTMLDivElement).style.boxShadow = `0 4px 12px ${color}20`;
-                      }}
-                      onMouseLeave={(e) => {
-                        (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)";
-                        (e.currentTarget as HTMLDivElement).style.boxShadow = "none";
-                      }}
-                    >
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
-                        <div style={{ minWidth: 0, marginRight: 8 }}>
-                          <div style={{ fontSize: 13, fontWeight: 700, color: t.textPrimary, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                            {l.producto}
-                          </div>
-                          <div style={{ fontSize: 11, color: t.textMuted, marginTop: 2 }}>
-                            Lote {l.numero_lote} · {l.ubicacion}
-                          </div>
-                        </div>
-                        <span
-                          style={{
-                            flexShrink: 0,
-                            padding: "3px 9px",
-                            borderRadius: 8,
-                            background: bgColor,
-                            color,
-                            fontSize: 10.5,
-                            fontWeight: 800,
-                            textTransform: "uppercase",
-                            border: `1px solid ${color}30`,
-                          }}
-                        >
-                          {l.urgencia}
-                        </span>
-                      </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ height: 6, background: t.border, borderRadius: 999, overflow: "hidden" }}>
-                            <div
-                              style={{
-                                width: `${Math.min((l.dias / 90) * 100, 100)}%`,
-                                height: "100%",
-                                background: color,
-                                borderRadius: 999,
-                              }}
-                            />
-                          </div>
-                        </div>
-                        <span style={{ fontSize: 12.5, fontWeight: 800, color }}>{l.dias} días</span>
-                      </div>
-                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11.5, color: t.textSecondary, marginTop: 10 }}>
-                        <span>Vence: {l.fecha_vencimiento}</span>
-                        <span>Stock: {numFmt(l.stock)} uds</span>
+                        <div style={{ fontSize: 13, fontWeight: 800, color: t.accent }}>{moneyFmt(mov.valor)}</div>
+                        <div style={{ fontSize: 10, color: t.textMuted }}>N° {mov.id_movimiento}</div>
                       </div>
                     </div>
                   );
                 })}
               </div>
-            ) : (
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  gap: 6,
-                  padding: "28px 0",
-                  color: t.textMuted,
-                }}
-              >
-                <CheckCircle2 size={26} color="#10b981" />
-                <p style={{ fontSize: 12.5 }}>No hay lotes por vencer en los próximos 90 días.</p>
-              </div>
-            )}
+            </div>
           </div>
         </>
       )}

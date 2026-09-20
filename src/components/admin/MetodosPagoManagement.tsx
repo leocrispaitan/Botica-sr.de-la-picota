@@ -8,22 +8,36 @@ import {
   Eye,
   ChevronLeft,
   ChevronRight,
-  FlaskConical,
+  DollarSign,
   CheckCircle2,
   Archive,
-  Syringe,
+  Wallet,
+  CreditCard,
+  Banknote,
+  Smartphone,
+  ArchiveRestore,
   X,
   Save,
   AlertCircle,
   RefreshCw,
-  Package,
+  Receipt,
 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import {
-  viasAdministracionService,
-  type ViaAdministracion,
-  type NewViaAdministracionInput,
-} from "../services/viasAdministracionService";
+  metodosPagoService,
+  type MetodoPago,
+  type NewMetodoPagoInput,
+} from "../../services/metodosPagoService";
+
+/* ─── Helper Function: Get Icon by Method Name ──────────────────────── */
+const getMethodIcon = (nombre: string) => {
+  const upperName = (nombre || "").toUpperCase();
+  if (upperName.includes("EFECTIVO") || upperName.includes("CASH")) return Banknote;
+  if (upperName.includes("TARJETA") || upperName.includes("CARD")) return CreditCard;
+  if (upperName.includes("YAPE") || upperName.includes("PLIN") || upperName.includes("QR") || upperName.includes("SMARTPHONE")) return Smartphone;
+  if (upperName.includes("WALLET") || upperName.includes("BILLETERA")) return Wallet;
+  return DollarSign;
+};
 
 /* ─── Toast de éxito / error ─────────────────────────────────────── */
 const showToast = (
@@ -148,49 +162,50 @@ function getTheme(isDark: boolean) {
 
 /* ─── Form state inicial ─────────────────────────────────────────── */
 const emptyForm = {
-  nombre: "",
+  nombre_metodo: "",
+  descripcion: "",
 };
 
 /* ═══════════════════════════════════════════════════════════════════ */
-/*  VIAS ADMINISTRACION MANAGEMENT COMPONENT                          */
+/*  METODOS PAGO MANAGEMENT COMPONENT                                 */
 /* ═══════════════════════════════════════════════════════════════════ */
-export default function ViasAdministracionManagement({ isDark = true }: { isDark?: boolean }) {
+export default function MetodosPagoManagement({ isDark = true }: { isDark?: boolean }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<boolean | "all">("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
 
   // ═══ Datos reales desde el backend ═══
-  const [vias, setVias] = useState<ViaAdministracion[]>([]);
+  const [metodos, setMetodos] = useState<MetodoPago[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // ═══ Modal: Crear / Editar / Ver ═══
   const [showModal, setShowModal] = useState(false);
   const [modalMode, setModalMode] = useState<"create" | "edit" | "view">("create");
-  const [selectedVia, setSelectedVia] = useState<ViaAdministracion | null>(null);
+  const [selectedMetodo, setSelectedMetodo] = useState<MetodoPago | null>(null);
   const [formData, setFormData] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState(false);
 
   // ═══ Modal: Desactivar / Reactivar ═══
   const [showToggleModal, setShowToggleModal] = useState(false);
-  const [viaToToggle, setViaToToggle] = useState<ViaAdministracion | null>(null);
+  const [metodoToToggle, setMetodoToToggle] = useState<MetodoPago | null>(null);
   const [togglings, setTogglings] = useState(false);
 
-  const itemsPerPage = 8;
+  const itemsPerPage = 6;
   const t = getTheme(isDark);
 
-  const loadVias = useCallback(async () => {
+  const loadMetodos = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await viasAdministracionService.getAllViasAdministracion();
-      setVias(data);
+      const data = await metodosPagoService.getAllMetodosPago();
+      setMetodos(data);
     } catch (err: any) {
-      console.error("❌ Error al cargar vías de administración:", err);
+      console.error("❌ Error al cargar métodos de pago:", err);
       setError(
-        err?.response?.data?.message || "Error al cargar las vías de administración. Intenta nuevamente."
+        err?.response?.data?.message || "Error al cargar los métodos de pago. Intenta nuevamente."
       );
     } finally {
       setLoading(false);
@@ -198,54 +213,59 @@ export default function ViasAdministracionManagement({ isDark = true }: { isDark
   }, []);
 
   useEffect(() => {
-    loadVias();
-  }, [loadVias]);
+    loadMetodos();
+  }, [loadMetodos]);
 
   // Mantener la lista ordenada por nombre (igual que el backend)
-  const sortVias = (lista: ViaAdministracion[]) =>
-    [...lista].sort((a, b) => a.nombre.localeCompare(b.nombre));
+  const sortMetodos = (lista: MetodoPago[]) =>
+    [...lista].sort((a, b) => (a.nombre_metodo || "").localeCompare(b.nombre_metodo || ""));
 
-  // Filtered vías
-  const filteredVias = useMemo(() => {
-    return vias.filter((via) => {
-      const matchesSearch = (via.nombre || "").toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesStatus = statusFilter === "all" || via.estado_logico === statusFilter;
+  // Filtered métodos
+  const filteredMetodos = useMemo(() => {
+    return metodos.filter((metodo) => {
+      const matchesSearch =
+        (metodo.nombre_metodo || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (metodo.descripcion || "").toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesStatus = statusFilter === "all" || metodo.estado_logico === statusFilter;
       return matchesSearch && matchesStatus;
     });
-  }, [vias, searchTerm, statusFilter]);
+  }, [metodos, searchTerm, statusFilter]);
 
   // Pagination
-  const totalPages = Math.ceil(filteredVias.length / itemsPerPage);
+  const totalPages = Math.ceil(filteredMetodos.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const currentVias = filteredVias.slice(startIndex, endIndex);
+  const currentMetodos = filteredMetodos.slice(startIndex, endIndex);
 
   // Reset to page 1 when filters change
   const handleFilterChange = () => {
     setCurrentPage(1);
   };
 
-  // Total de vías (datos reales de todos los registros)
-  const totalVias = vias.length;
-  const viasActivas = vias.filter((v) => v.estado_logico).length;
-  const viasInactivas = vias.filter((v) => !v.estado_logico).length;
+  // Total de métodos (datos reales de todos los registros)
+  const totalMetodos = metodos.length;
+  const metodosActivos = metodos.filter((m) => m.estado_logico).length;
+  const metodosInactivos = metodos.filter((m) => !m.estado_logico).length;
 
   /* ─── Gestión del Modal ─── */
-  const handleOpenModal = (mode: "create" | "edit" | "view", via?: ViaAdministracion) => {
+  const handleOpenModal = (mode: "create" | "edit" | "view", metodo?: MetodoPago) => {
     setModalMode(mode);
-    setSelectedVia(via || null);
+    setSelectedMetodo(metodo || null);
 
     if (mode === "create") {
       setFormData(emptyForm);
-    } else if (via) {
-      setFormData({ nombre: via.nombre || "" });
+    } else if (metodo) {
+      setFormData({
+        nombre_metodo: metodo.nombre_metodo || "",
+        descripcion: metodo.descripcion || "",
+      });
     }
 
-    if (mode === "view" && via) {
+    if (mode === "view" && metodo) {
       setLoadingDetail(true);
-      viasAdministracionService
-        .getViaAdministracionById(via.id_via_administracion)
-        .then((detalle) => setSelectedVia(detalle))
+      metodosPagoService
+        .getMetodoPagoById(metodo.id_metodo_pago)
+        .then((detalle) => setSelectedMetodo(detalle))
         .catch((err) => {
           console.error("❌ Error al cargar el detalle:", err);
           showToast(
@@ -263,95 +283,101 @@ export default function ViasAdministracionManagement({ isDark = true }: { isDark
 
   const handleCloseModal = () => {
     setShowModal(false);
-    setSelectedVia(null);
+    setSelectedMetodo(null);
   };
 
-  /* ─── Guardar Vía de Administración (crear o editar) ─── */
-  const handleSaveVia = async () => {
-    if (!formData.nombre.trim()) {
-      showToast(false, "Datos incompletos", "Por favor completa el nombre de la vía de administración.", isDark);
+  /* ─── Guardar Método de Pago (crear o editar) ─── */
+  const handleSaveMetodo = async () => {
+    if (!formData.nombre_metodo.trim()) {
+      showToast(false, "Datos incompletos", "Por favor completa el nombre del método de pago.", isDark);
       return;
     }
-    if (formData.nombre.trim().length > 60) {
-      showToast(false, "Nombre muy largo", "El nombre no puede superar los 60 caracteres.", isDark);
+    if (formData.nombre_metodo.trim().length > 50) {
+      showToast(false, "Nombre muy largo", "El nombre no puede superar los 50 caracteres.", isDark);
+      return;
+    }
+    if (formData.descripcion.trim().length > 200) {
+      showToast(false, "Descripción muy larga", "La descripción no puede superar los 200 caracteres.", isDark);
       return;
     }
 
-    const payload: NewViaAdministracionInput = {
-      nombre: formData.nombre.trim(),
+    const payload: NewMetodoPagoInput = {
+      nombre_metodo: formData.nombre_metodo.trim(),
+      descripcion: formData.descripcion.trim() || null,
     };
 
     setSaving(true);
     try {
       if (modalMode === "create") {
-        const nueva = await viasAdministracionService.createViaAdministracion(payload);
-        setVias((prev) => sortVias([...prev, nueva]));
-        showToast(true, "¡Vía Creada!", `${nueva.nombre} se registró exitosamente.`, isDark);
-      } else if (modalMode === "edit" && selectedVia) {
-        const actualizada = await viasAdministracionService.updateViaAdministracion(
-          selectedVia.id_via_administracion,
+        const nuevo = await metodosPagoService.createMetodoPago(payload);
+        setMetodos((prev) => sortMetodos([...prev, nuevo]));
+        showToast(true, "¡Método Creado!", `${nuevo.nombre_metodo} se registró exitosamente.`, isDark);
+      } else if (modalMode === "edit" && selectedMetodo) {
+        const actualizado = await metodosPagoService.updateMetodoPago(
+          selectedMetodo.id_metodo_pago,
           payload
         );
-        setVias((prev) =>
-          sortVias(prev.map((v) => (v.id_via_administracion === actualizada.id_via_administracion ? actualizada : v)))
+        setMetodos((prev) =>
+          sortMetodos(prev.map((m) => (m.id_metodo_pago === actualizado.id_metodo_pago ? actualizado : m)))
         );
-        showToast(true, "¡Vía Actualizada!", `${actualizada.nombre} se actualizó correctamente.`, isDark);
+        showToast(true, "¡Método Actualizado!", `${actualizado.nombre_metodo} se actualizó correctamente.`, isDark);
       }
       handleCloseModal();
     } catch (err: any) {
-      console.error("❌ Error al guardar vía de administración:", err);
+      console.error("❌ Error al guardar método de pago:", err);
       const mensaje =
         err?.response?.data?.error?.[0] ||
         err?.response?.data?.message ||
-        "No se pudo guardar la vía de administración. Intenta nuevamente.";
+        "No se pudo guardar el método de pago. Intenta nuevamente.";
       showToast(false, "No se pudo guardar", mensaje, isDark);
     } finally {
       setSaving(false);
     }
   };
 
-  /* ─── Desactivar / Reactivar Vía de Administración ─── */
-  const handleOpenToggleModal = (via: ViaAdministracion) => {
-    setSelectedVia(via);
-    setViaToToggle(via);
+  /* ─── Desactivar / Reactivar Método de Pago ─── */
+  const handleOpenToggleModal = (metodo: MetodoPago) => {
+    setSelectedMetodo(metodo);
+    setMetodoToToggle(metodo);
     setShowToggleModal(true);
   };
 
   const closeToggleModal = () => {
     setShowToggleModal(false);
-    setViaToToggle(null);
+    setMetodoToToggle(null);
   };
 
   const handleConfirmToggle = async () => {
-    if (!viaToToggle) return;
+    if (!metodoToToggle) return;
 
-    const esActivacion = !viaToToggle.estado_logico;
+    const esActivacion = !metodoToToggle.estado_logico;
     setTogglings(true);
     try {
       if (esActivacion) {
-        const reactivada = await viasAdministracionService.updateViaAdministracion(viaToToggle.id_via_administracion, {
-          nombre: viaToToggle.nombre,
+        const reactivado = await metodosPagoService.updateMetodoPago(metodoToToggle.id_metodo_pago, {
+          nombre_metodo: metodoToToggle.nombre_metodo,
+          descripcion: metodoToToggle.descripcion,
           estado_logico: true,
         });
-        setVias((prev) =>
-          sortVias(prev.map((v) => (v.id_via_administracion === reactivada.id_via_administracion ? reactivada : v)))
+        setMetodos((prev) =>
+          sortMetodos(prev.map((m) => (m.id_metodo_pago === reactivado.id_metodo_pago ? reactivado : m)))
         );
-        showToast(true, "¡Vía Reactivada!", `${reactivada.nombre} se habilitó nuevamente.`, isDark);
+        showToast(true, "¡Método Reactivado!", `${reactivado.nombre_metodo} se habilitó nuevamente.`, isDark);
       } else {
-        const desactivada = await viasAdministracionService.deleteViaAdministracion(viaToToggle.id_via_administracion);
-        setVias((prev) =>
-          sortVias(prev.map((v) => (v.id_via_administracion === desactivada.id_via_administracion ? desactivada : v)))
+        const desactivado = await metodosPagoService.deleteMetodoPago(metodoToToggle.id_metodo_pago);
+        setMetodos((prev) =>
+          sortMetodos(prev.map((m) => (m.id_metodo_pago === desactivado.id_metodo_pago ? desactivado : m)))
         );
         showToast(
           true,
-          "¡Vía Desactivada!",
-          `${desactivada.nombre} se desactivó. Puedes reactivarla cuando lo necesites.`,
+          "¡Método Desactivado!",
+          `${desactivado.nombre_metodo} se desactivó. Puedes reactivarlo cuando lo necesites.`,
           isDark
         );
       }
       closeToggleModal();
     } catch (err: any) {
-      console.error("❌ Error al cambiar estado de la vía de administración:", err);
+      console.error("❌ Error al cambiar estado del método de pago:", err);
       const mensaje =
         err?.response?.data?.error?.[0] ||
         err?.response?.data?.message ||
@@ -360,6 +386,31 @@ export default function ViasAdministracionManagement({ isDark = true }: { isDark
     } finally {
       setTogglings(false);
     }
+  };
+
+  /* ─── Badge de estado de venta (para el detalle) ─── */
+  const VentaEstadoBadge = ({ estado }: { estado: string }) => {
+    const color =
+      estado === "PAGADA" ? "#22c55e" : estado === "PENDIENTE" ? "#f59e0b" : "#ef4444";
+    return (
+      <span
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: "4px",
+          padding: "2px 8px",
+          borderRadius: "6px",
+          background: `${color}1a`,
+          color,
+          border: `1px solid ${color}40`,
+          fontSize: "10px",
+          fontWeight: 700,
+          letterSpacing: "0.03em",
+        }}
+      >
+        {estado}
+      </span>
+    );
   };
 
   return (
@@ -382,79 +433,16 @@ export default function ViasAdministracionManagement({ isDark = true }: { isDark
       {/* Header */}
       <div style={{ marginBottom: "24px" }}>
         <h1 style={{ fontSize: "28px", fontWeight: 700, color: t.textPrimary, marginBottom: "8px" }}>
-          Vías de Administración
+          Métodos de Pago
         </h1>
         <p style={{ fontSize: "14px", color: t.textSecondary }}>
-          Administra las vías de administración del catálogo de medicamentos
+          Administra los métodos de pago disponibles en el sistema
         </p>
       </div>
 
       {/* Stats Cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "20px", marginBottom: "24px" }}>
-        {/* Total Vías - Cyan Gradient */}
-        <div
-          style={{
-            background: "linear-gradient(135deg, #06b6d4 0%, #22d3ee 40%, #0891b2 100%)",
-            borderRadius: "24px",
-            padding: "24px",
-            position: "relative",
-            overflow: "hidden",
-            boxShadow: "0 8px 24px rgba(6, 182, 212, 0.25)",
-            border: "1px solid rgba(255, 255, 255, 0.1)",
-          }}
-        >
-          <div style={{
-            position: "absolute",
-            top: "-40px",
-            right: "-40px",
-            width: "160px",
-            height: "160px",
-            borderRadius: "50%",
-            background: "rgba(255, 255, 255, 0.05)",
-            border: "1px solid rgba(255, 255, 255, 0.1)",
-          }} />
-          <div style={{
-            position: "absolute",
-            bottom: "-20px",
-            left: "-20px",
-            width: "100px",
-            height: "100px",
-            borderRadius: "50%",
-            background: "rgba(255, 255, 255, 0.03)",
-          }} />
-
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", position: "relative", zIndex: 1 }}>
-            <div>
-              <p style={{ fontSize: "11px", fontWeight: 600, color: "rgba(255,255,255,0.7)", marginBottom: "8px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                Total Vías
-              </p>
-              <p style={{ fontSize: "36px", fontWeight: 700, color: "#ffffff", marginBottom: "8px", lineHeight: 1 }}>
-                {loading ? "—" : totalVias}
-              </p>
-              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                <span style={{ fontSize: "12px", fontWeight: 700, color: "#a5f3fc" }}>
-                  Catálogo completo
-                </span>
-              </div>
-            </div>
-            <div style={{
-              width: "56px",
-              height: "56px",
-              borderRadius: "16px",
-              background: "rgba(255,255,255,0.15)",
-              backdropFilter: "blur(10px)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              border: "1px solid rgba(255,255,255,0.2)",
-              boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-            }}>
-              <FlaskConical size={28} color="#ffffff" strokeWidth={2.5} />
-            </div>
-          </div>
-        </div>
-
-        {/* Vías Activas - Green Gradient */}
+        {/* Total Métodos - Emerald Gradient */}
         <div
           style={{
             background: "linear-gradient(135deg, #10b981 0%, #34d399 40%, #059669 100%)",
@@ -489,14 +477,77 @@ export default function ViasAdministracionManagement({ isDark = true }: { isDark
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", position: "relative", zIndex: 1 }}>
             <div>
               <p style={{ fontSize: "11px", fontWeight: 600, color: "rgba(255,255,255,0.7)", marginBottom: "8px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                Vías Activas
+                Total Métodos
               </p>
               <p style={{ fontSize: "36px", fontWeight: 700, color: "#ffffff", marginBottom: "8px", lineHeight: 1 }}>
-                {loading ? "—" : viasActivas}
+                {loading ? "—" : totalMetodos}
               </p>
               <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                 <span style={{ fontSize: "12px", fontWeight: 700, color: "#a7f3d0" }}>
-                  Disponibles
+                  Opciones de pago
+                </span>
+              </div>
+            </div>
+            <div style={{
+              width: "56px",
+              height: "56px",
+              borderRadius: "16px",
+              background: "rgba(255,255,255,0.15)",
+              backdropFilter: "blur(10px)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              border: "1px solid rgba(255,255,255,0.2)",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+            }}>
+              <DollarSign size={28} color="#ffffff" strokeWidth={2.5} />
+            </div>
+          </div>
+        </div>
+
+        {/* Métodos Activos - Teal Gradient */}
+        <div
+          style={{
+            background: "linear-gradient(135deg, #14b8a6 0%, #2dd4bf 40%, #0d9488 100%)",
+            borderRadius: "24px",
+            padding: "24px",
+            position: "relative",
+            overflow: "hidden",
+            boxShadow: "0 8px 24px rgba(20, 184, 166, 0.25)",
+            border: "1px solid rgba(255, 255, 255, 0.1)",
+          }}
+        >
+          <div style={{
+            position: "absolute",
+            top: "-40px",
+            right: "-40px",
+            width: "160px",
+            height: "160px",
+            borderRadius: "50%",
+            background: "rgba(255, 255, 255, 0.05)",
+            border: "1px solid rgba(255, 255, 255, 0.1)",
+          }} />
+          <div style={{
+            position: "absolute",
+            bottom: "-20px",
+            left: "-20px",
+            width: "100px",
+            height: "100px",
+            borderRadius: "50%",
+            background: "rgba(255, 255, 255, 0.03)",
+          }} />
+
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", position: "relative", zIndex: 1 }}>
+            <div>
+              <p style={{ fontSize: "11px", fontWeight: 600, color: "rgba(255,255,255,0.7)", marginBottom: "8px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                Métodos Activos
+              </p>
+              <p style={{ fontSize: "36px", fontWeight: 700, color: "#ffffff", marginBottom: "8px", lineHeight: 1 }}>
+                {loading ? "—" : metodosActivos}
+              </p>
+              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <span style={{ fontSize: "12px", fontWeight: 700, color: "#99f6e4" }}>
+                  En uso
                 </span>
               </div>
             </div>
@@ -517,7 +568,7 @@ export default function ViasAdministracionManagement({ isDark = true }: { isDark
           </div>
         </div>
 
-        {/* Vías Inactivas - Gray Gradient */}
+        {/* Métodos Inactivos - Gray Gradient */}
         <div
           style={{
             background: "linear-gradient(135deg, #64748b 0%, #94a3b8 40%, #475569 100%)",
@@ -552,14 +603,14 @@ export default function ViasAdministracionManagement({ isDark = true }: { isDark
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", position: "relative", zIndex: 1 }}>
             <div>
               <p style={{ fontSize: "11px", fontWeight: 600, color: "rgba(255,255,255,0.7)", marginBottom: "8px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                Vías Inactivas
+                Métodos Inactivos
               </p>
               <p style={{ fontSize: "36px", fontWeight: 700, color: "#ffffff", marginBottom: "8px", lineHeight: 1 }}>
-                {loading ? "—" : viasInactivas}
+                {loading ? "—" : metodosInactivos}
               </p>
               <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                 <span style={{ fontSize: "12px", fontWeight: 700, color: "#cbd5e1" }}>
-                  Archivadas
+                  Archivados
                 </span>
               </div>
             </div>
@@ -591,7 +642,7 @@ export default function ViasAdministracionManagement({ isDark = true }: { isDark
               <Search size={18} style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: t.textMuted }} />
               <input
                 type="text"
-                placeholder="Buscar por nombre de vía de administración..."
+                placeholder="Buscar por nombre o descripción del método de pago..."
                 value={searchTerm}
                 onChange={(e) => {
                   setSearchTerm(e.target.value);
@@ -704,7 +755,7 @@ export default function ViasAdministracionManagement({ isDark = true }: { isDark
               }}
             >
               <Plus size={16} />
-              Nueva Vía
+              Nuevo Método
             </button>
           </div>
 
@@ -745,8 +796,8 @@ export default function ViasAdministracionManagement({ isDark = true }: { isDark
                   }}
                 >
                   <option value="all">Todos los estados</option>
-                  <option value="true">✓ Activas</option>
-                  <option value="false">✗ Inactivas</option>
+                  <option value="true">✓ Activos</option>
+                  <option value="false">✗ Inactivos</option>
                 </select>
               </div>
 
@@ -800,7 +851,7 @@ export default function ViasAdministracionManagement({ isDark = true }: { isDark
             animation: "spin 0.8s linear infinite",
           }} />
           <p style={{ fontSize: "15px", fontWeight: 600, color: t.textSecondary }}>
-            Cargando vías de administración...
+            Cargando métodos de pago...
           </p>
           <style>{`
             @keyframes spin {
@@ -815,13 +866,13 @@ export default function ViasAdministracionManagement({ isDark = true }: { isDark
         <div style={{ background: t.cardBg, border: `1px solid ${t.borderCard}`, borderRadius: "20px", padding: "80px 20px", display: "flex", flexDirection: "column", alignItems: "center", gap: "16px" }}>
           <span style={{ fontSize: "44px" }}>😕</span>
           <p style={{ fontSize: "16px", fontWeight: 600, color: t.textPrimary }}>
-            No se pudieron cargar las vías de administración
+            No se pudieron cargar los métodos de pago
           </p>
           <p style={{ fontSize: "14px", color: t.textSecondary, textAlign: "center", maxWidth: "420px" }}>
             {error}
           </p>
           <button
-            onClick={loadVias}
+            onClick={loadMetodos}
             style={{
               padding: "12px 20px",
               borderRadius: "14px",
@@ -857,16 +908,16 @@ export default function ViasAdministracionManagement({ isDark = true }: { isDark
           {/* Results Info */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "12px" }}>
             <p style={{ fontSize: "13px", color: t.textSecondary, fontWeight: 500 }}>
-              Mostrando {filteredVias.length > 0 ? startIndex + 1 : 0}-{Math.min(endIndex, filteredVias.length)} de {filteredVias.length} vías de administración
+              Mostrando {filteredMetodos.length > 0 ? startIndex + 1 : 0}-{Math.min(endIndex, filteredMetodos.length)} de {filteredMetodos.length} métodos de pago
             </p>
-            {filteredVias.length === 0 && searchTerm && (
+            {filteredMetodos.length === 0 && searchTerm && (
               <p style={{ fontSize: "13px", color: "#ef4444", fontWeight: 600 }}>
                 No se encontraron resultados para "{searchTerm}"
               </p>
             )}
           </div>
 
-          {/* Vías Table */}
+          {/* Métodos Table */}
           <div style={{ background: t.cardBg, border: `1px solid ${t.borderCard}`, borderRadius: "20px", overflow: "hidden" }}>
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -876,7 +927,10 @@ export default function ViasAdministracionManagement({ isDark = true }: { isDark
                       ID
                     </th>
                     <th style={{ padding: "16px 20px", textAlign: "left", fontSize: "12px", fontWeight: 700, color: t.textSecondary, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                      Vía de Administración
+                      Método de Pago
+                    </th>
+                    <th style={{ padding: "16px 20px", textAlign: "left", fontSize: "12px", fontWeight: 700, color: t.textSecondary, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      Descripción
                     </th>
                     <th style={{ padding: "16px 20px", textAlign: "left", fontSize: "12px", fontWeight: 700, color: t.textSecondary, textTransform: "uppercase", letterSpacing: "0.05em" }}>
                       Fecha Registro
@@ -890,13 +944,13 @@ export default function ViasAdministracionManagement({ isDark = true }: { isDark
                   </tr>
                 </thead>
                 <tbody>
-                  {currentVias.length === 0 ? (
+                  {currentMetodos.length === 0 ? (
                     <tr>
-                      <td colSpan={5} style={{ padding: "60px 20px", textAlign: "center" }}>
+                      <td colSpan={6} style={{ padding: "60px 20px", textAlign: "center" }}>
                         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "12px" }}>
                           <Search size={48} color={t.textMuted} />
                           <p style={{ fontSize: "16px", fontWeight: 600, color: t.textPrimary }}>
-                            No se encontraron vías de administración
+                            No se encontraron métodos de pago
                           </p>
                           <p style={{ fontSize: "14px", color: t.textSecondary }}>
                             Intenta ajustar los filtros de búsqueda
@@ -905,12 +959,13 @@ export default function ViasAdministracionManagement({ isDark = true }: { isDark
                       </td>
                     </tr>
                   ) : (
-                    currentVias.map((via, index) => {
+                    currentMetodos.map((metodo, index) => {
+                      const IconComponent = getMethodIcon(metodo.nombre_metodo);
                       return (
                         <tr
-                          key={via.id_via_administracion}
+                          key={metodo.id_metodo_pago}
                           style={{
-                            borderBottom: index < currentVias.length - 1 ? `1px solid ${t.border}` : "none",
+                            borderBottom: index < currentMetodos.length - 1 ? `1px solid ${t.border}` : "none",
                             transition: "background 0.2s",
                           }}
                           onMouseEnter={(e) => {
@@ -928,16 +983,16 @@ export default function ViasAdministracionManagement({ isDark = true }: { isDark
                                   width: "40px",
                                   height: "40px",
                                   borderRadius: "12px",
-                                  background: "linear-gradient(135deg, #06b6d4 0%, #22d3ee 100%)",
+                                  background: "linear-gradient(135deg, #10b981 0%, #34d399 100%)",
                                   display: "flex",
                                   alignItems: "center",
                                   justifyContent: "center",
-                                  boxShadow: "0 4px 12px rgba(6, 182, 212, 0.25)",
+                                  boxShadow: "0 4px 12px rgba(16, 185, 129, 0.25)",
                                   flexShrink: 0,
                                 }}
                               >
                                 <span style={{ fontSize: "14px", fontWeight: 700, color: "#ffffff" }}>
-                                  {via.id_via_administracion}
+                                  {metodo.id_metodo_pago}
                                 </span>
                               </div>
                             </div>
@@ -946,18 +1001,25 @@ export default function ViasAdministracionManagement({ isDark = true }: { isDark
                           {/* Nombre */}
                           <td style={{ padding: "16px 20px" }}>
                             <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                              <Syringe size={18} color={t.accent} strokeWidth={2} />
+                              <IconComponent size={18} color={t.accent} strokeWidth={2} />
                               <span style={{ fontSize: "14px", fontWeight: 600, color: t.textPrimary }}>
-                                {via.nombre}
+                                {metodo.nombre_metodo}
                               </span>
                             </div>
+                          </td>
+
+                          {/* Descripción */}
+                          <td style={{ padding: "16px 20px" }}>
+                            <span style={{ fontSize: "13px", color: t.textSecondary }}>
+                              {metodo.descripcion || "—"}
+                            </span>
                           </td>
 
                           {/* Fecha Registro */}
                           <td style={{ padding: "16px 20px" }}>
                             <span style={{ fontSize: "13px", color: t.textSecondary }}>
-                              {via.fecha_registro
-                                ? new Date(via.fecha_registro).toLocaleDateString("es-PE", {
+                              {metodo.fecha_registro
+                                ? new Date(metodo.fecha_registro).toLocaleDateString("es-PE", {
                                     day: "2-digit",
                                     month: "short",
                                     year: "numeric",
@@ -975,9 +1037,9 @@ export default function ViasAdministracionManagement({ isDark = true }: { isDark
                                 gap: "6px",
                                 padding: "6px 12px",
                                 borderRadius: "999px",
-                                background: via.estado_logico ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)",
-                                color: via.estado_logico ? "#22c55e" : "#ef4444",
-                                border: `1px solid ${via.estado_logico ? "rgba(34,197,94,0.3)" : "rgba(239,68,68,0.3)"}`,
+                                background: metodo.estado_logico ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)",
+                                color: metodo.estado_logico ? "#22c55e" : "#ef4444",
+                                border: `1px solid ${metodo.estado_logico ? "rgba(34,197,94,0.3)" : "rgba(239,68,68,0.3)"}`,
                                 fontSize: "11px",
                                 fontWeight: 700,
                                 textTransform: "uppercase",
@@ -985,8 +1047,8 @@ export default function ViasAdministracionManagement({ isDark = true }: { isDark
                                 whiteSpace: "nowrap",
                               }}
                             >
-                              <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: via.estado_logico ? "#22c55e" : "#ef4444" }} />
-                              {via.estado_logico ? "Activa" : "Inactiva"}
+                              <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: metodo.estado_logico ? "#22c55e" : "#ef4444" }} />
+                              {metodo.estado_logico ? "Activo" : "Inactivo"}
                             </span>
                           </td>
 
@@ -994,7 +1056,7 @@ export default function ViasAdministracionManagement({ isDark = true }: { isDark
                           <td style={{ padding: "16px 20px" }}>
                             <div style={{ display: "flex", justifyContent: "center", gap: "4px" }}>
                               <button
-                                onClick={() => handleOpenModal("view", via)}
+                                onClick={() => handleOpenModal("view", metodo)}
                                 title="Ver detalles"
                                 style={{
                                   padding: "8px",
@@ -1020,8 +1082,8 @@ export default function ViasAdministracionManagement({ isDark = true }: { isDark
                                 <Eye size={16} />
                               </button>
                               <button
-                                onClick={() => handleOpenModal("edit", via)}
-                                title="Editar vía"
+                                onClick={() => handleOpenModal("edit", metodo)}
+                                title="Editar método"
                                 style={{
                                   padding: "8px",
                                   borderRadius: "8px",
@@ -1046,8 +1108,8 @@ export default function ViasAdministracionManagement({ isDark = true }: { isDark
                                 <Edit2 size={16} />
                               </button>
                               <button
-                                onClick={() => handleOpenToggleModal(via)}
-                                title={via.estado_logico ? "Desactivar vía" : "Activar vía"}
+                                onClick={() => handleOpenToggleModal(metodo)}
+                                title={metodo.estado_logico ? "Desactivar método" : "Reactivar método"}
                                 style={{
                                   padding: "8px",
                                   borderRadius: "8px",
@@ -1061,15 +1123,24 @@ export default function ViasAdministracionManagement({ isDark = true }: { isDark
                                   transition: "all 0.2s",
                                 }}
                                 onMouseEnter={(e) => {
-                                  (e.currentTarget as HTMLButtonElement).style.background = "rgba(239,68,68,0.1)";
-                                  (e.currentTarget as HTMLButtonElement).style.color = "#ef4444";
+                                  if (metodo.estado_logico) {
+                                    (e.currentTarget as HTMLButtonElement).style.background = "rgba(239,68,68,0.1)";
+                                    (e.currentTarget as HTMLButtonElement).style.color = "#ef4444";
+                                  } else {
+                                    (e.currentTarget as HTMLButtonElement).style.background = "rgba(34,197,94,0.1)";
+                                    (e.currentTarget as HTMLButtonElement).style.color = "#22c55e";
+                                  }
                                 }}
                                 onMouseLeave={(e) => {
                                   (e.currentTarget as HTMLButtonElement).style.background = "transparent";
                                   (e.currentTarget as HTMLButtonElement).style.color = t.textSecondary;
                                 }}
                               >
-                                <Trash2 size={16} />
+                                {metodo.estado_logico ? (
+                                  <Trash2 size={16} />
+                                ) : (
+                                  <ArchiveRestore size={16} />
+                                )}
                               </button>
                             </div>
                           </td>
@@ -1082,7 +1153,7 @@ export default function ViasAdministracionManagement({ isDark = true }: { isDark
             </div>
 
             {/* Pagination */}
-            {filteredVias.length > 0 && (
+            {filteredMetodos.length > 0 && (
               <div style={{ padding: "20px", borderTop: `1px solid ${t.border}`, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
                 <p style={{ fontSize: "13px", color: t.textSecondary }}>
                   Página {currentPage} de {totalPages}
@@ -1226,7 +1297,7 @@ export default function ViasAdministracionManagement({ isDark = true }: { isDark
               left: "50%",
               transform: "translate(-50%, -50%)",
               width: "90%",
-              maxWidth: "520px",
+              maxWidth: "560px",
               maxHeight: "90vh",
               background: t.cardBg,
               borderRadius: "24px",
@@ -1262,10 +1333,10 @@ export default function ViasAdministracionManagement({ isDark = true }: { isDark
             >
               <div>
                 <h2 style={{ fontSize: "20px", fontWeight: 700, color: t.textPrimary, marginBottom: "4px" }}>
-                  {modalMode === "create" ? "Nueva Vía de Administración" : modalMode === "edit" ? "Editar Vía de Administración" : "Detalle de la Vía de Administración"}
+                  {modalMode === "create" ? "Nuevo Método de Pago" : modalMode === "edit" ? "Editar Método de Pago" : "Detalle del Método de Pago"}
                 </h2>
                 <p style={{ fontSize: "13px", color: t.textSecondary }}>
-                  {modalMode === "create" ? "Registra una nueva vía del catálogo" : modalMode === "edit" ? "Actualiza el nombre de la vía de administración" : "Información completa de la vía de administración"}
+                  {modalMode === "create" ? "Registra un nuevo método de pago" : modalMode === "edit" ? "Actualiza los datos del método de pago" : "Información completa del método de pago"}
                 </p>
               </div>
               <button
@@ -1299,7 +1370,7 @@ export default function ViasAdministracionManagement({ isDark = true }: { isDark
             {/* Modal Body */}
             <div style={{ padding: "24px", maxHeight: "calc(90vh - 180px)", overflowY: "auto" }}>
               {modalMode === "view" ? (
-                loadingDetail || !selectedVia ? (
+                loadingDetail || !selectedMetodo ? (
                   // ─── Cargando detalle ───
                   <div style={{ padding: "40px 20px", display: "flex", flexDirection: "column", alignItems: "center", gap: "16px" }}>
                     <div style={{
@@ -1324,21 +1395,33 @@ export default function ViasAdministracionManagement({ isDark = true }: { isDark
                   <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
                     <div style={{ padding: "16px", background: t.innerBg, borderRadius: "16px", border: `1px solid ${t.border}` }}>
                       <p style={{ fontSize: "12px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px", textTransform: "uppercase" }}>
-                        Nombre de la Vía de Administración
+                        Nombre del Método de Pago
                       </p>
                       <p style={{ fontSize: "15px", fontWeight: 600, color: t.textPrimary, display: "flex", alignItems: "center", gap: "8px" }}>
-                        <Syringe size={18} color={t.accent} strokeWidth={2} />
-                        {selectedVia.nombre}
+                        {(() => {
+                          const Icon = getMethodIcon(selectedMetodo.nombre_metodo);
+                          return <Icon size={18} color={t.accent} strokeWidth={2} />;
+                        })()}
+                        {selectedMetodo.nombre_metodo}
                       </p>
                     </div>
 
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px" }}>
+                    <div style={{ padding: "16px", background: t.innerBg, borderRadius: "16px", border: `1px solid ${t.border}` }}>
+                      <p style={{ fontSize: "12px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px", textTransform: "uppercase" }}>
+                        Descripción
+                      </p>
+                      <p style={{ fontSize: "15px", fontWeight: 600, color: t.textPrimary }}>
+                        {selectedMetodo.descripcion || "—"}
+                      </p>
+                    </div>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "16px" }}>
                       <div style={{ padding: "16px", background: t.innerBg, borderRadius: "16px", border: `1px solid ${t.border}` }}>
                         <p style={{ fontSize: "12px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px", textTransform: "uppercase" }}>
                           ID
                         </p>
                         <p style={{ fontSize: "15px", fontWeight: 600, color: t.textPrimary }}>
-                          #{selectedVia.id_via_administracion}
+                          #{selectedMetodo.id_metodo_pago}
                         </p>
                       </div>
 
@@ -1347,8 +1430,8 @@ export default function ViasAdministracionManagement({ isDark = true }: { isDark
                           Fecha de Registro
                         </p>
                         <p style={{ fontSize: "15px", fontWeight: 600, color: t.textPrimary }}>
-                          {selectedVia.fecha_registro
-                            ? new Date(selectedVia.fecha_registro).toLocaleDateString("es-PE", {
+                          {selectedMetodo.fecha_registro
+                            ? new Date(selectedMetodo.fecha_registro).toLocaleDateString("es-PE", {
                                 day: "2-digit",
                                 month: "short",
                                 year: "numeric",
@@ -1369,32 +1452,32 @@ export default function ViasAdministracionManagement({ isDark = true }: { isDark
                           gap: "6px",
                           padding: "6px 12px",
                           borderRadius: "999px",
-                          background: selectedVia.estado_logico ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)",
-                          color: selectedVia.estado_logico ? "#22c55e" : "#ef4444",
-                          border: `1px solid ${selectedVia.estado_logico ? "rgba(34,197,94,0.3)" : "rgba(239,68,68,0.3)"}`,
+                          background: selectedMetodo.estado_logico ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)",
+                          color: selectedMetodo.estado_logico ? "#22c55e" : "#ef4444",
+                          border: `1px solid ${selectedMetodo.estado_logico ? "rgba(34,197,94,0.3)" : "rgba(239,68,68,0.3)"}`,
                           fontSize: "11px",
                           fontWeight: 700,
                           textTransform: "uppercase",
                           letterSpacing: "0.05em",
                         }}
                       >
-                        <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: selectedVia.estado_logico ? "#22c55e" : "#ef4444" }} />
-                        {selectedVia.estado_logico ? "Activa" : "Inactiva"}
+                        <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: selectedMetodo.estado_logico ? "#22c55e" : "#ef4444" }} />
+                        {selectedMetodo.estado_logico ? "Activo" : "Inactivo"}
                       </span>
                     </div>
 
                     <div style={{ padding: "16px", background: `${t.accent}15`, borderRadius: "16px", border: `1px solid ${t.accent}30` }}>
                       <p style={{ fontSize: "12px", fontWeight: 600, color: t.accent, marginBottom: "8px", textTransform: "uppercase" }}>
-                        Productos Asociados
+                        Ventas asociadas
                       </p>
                       <p style={{ fontSize: "24px", fontWeight: 700, color: t.accent }}>
-                        {selectedVia.total_productos ?? 0}
+                        {selectedMetodo.total_ventas ?? 0}
                       </p>
-                      {selectedVia.productos && selectedVia.productos.length > 0 && (
-                        <div style={{ marginTop: "12px", display: "flex", flexDirection: "column", gap: "8px" }}>
-                          {selectedVia.productos.map((producto) => (
+                      {selectedMetodo.ventas && selectedMetodo.ventas.length > 0 && (
+                        <div style={{ marginTop: "12px", display: "flex", flexDirection: "column", gap: "8px", maxHeight: "220px", overflowY: "auto" }}>
+                          {selectedMetodo.ventas.map((venta) => (
                             <div
-                              key={producto.id_producto}
+                              key={venta.id_venta}
                               style={{
                                 display: "flex",
                                 alignItems: "center",
@@ -1407,14 +1490,17 @@ export default function ViasAdministracionManagement({ isDark = true }: { isDark
                               }}
                             >
                               <div style={{ display: "flex", alignItems: "center", gap: "8px", minWidth: 0 }}>
-                                <Package size={14} color={t.textMuted} style={{ flexShrink: 0 }} />
+                                <Receipt size={14} color={t.textMuted} style={{ flexShrink: 0 }} />
                                 <span style={{ fontSize: "13px", fontWeight: 600, color: t.textPrimary, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                                  {producto.nombre_comercial}
+                                  Venta #{venta.id_venta} · {new Date(venta.fecha_venta).toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric" })}
                                 </span>
                               </div>
-                              <span style={{ fontSize: "12px", color: t.textSecondary, flexShrink: 0 }}>
-                                S/ {(producto.precio_venta || 0).toLocaleString("es-PE", { minimumFractionDigits: 2 })}
-                              </span>
+                              <div style={{ display: "flex", alignItems: "center", gap: "10px", flexShrink: 0 }}>
+                                <VentaEstadoBadge estado={venta.estado_venta} />
+                                <span style={{ fontSize: "12px", color: t.textSecondary }}>
+                                  S/ {(venta.total_pagar || 0).toLocaleString("es-PE", { minimumFractionDigits: 2 })}
+                                </span>
+                              </div>
                             </div>
                           ))}
                         </div>
@@ -1427,14 +1513,14 @@ export default function ViasAdministracionManagement({ isDark = true }: { isDark
                 <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                   <div>
                     <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px" }}>
-                      Nombre de la Vía de Administración *
+                      Nombre del Método de Pago *
                     </label>
                     <input
                       type="text"
-                      placeholder="Ej: ORAL, TÓPICA, INYECTABLE..."
-                      maxLength={60}
-                      value={formData.nombre}
-                      onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+                      placeholder="Ej: EFECTIVO, TARJETA, YAPE_PLIN..."
+                      maxLength={50}
+                      value={formData.nombre_metodo}
+                      onChange={(e) => setFormData({ ...formData, nombre_metodo: e.target.value })}
                       style={{
                         width: "100%",
                         padding: "12px 14px",
@@ -1445,6 +1531,40 @@ export default function ViasAdministracionManagement({ isDark = true }: { isDark
                         fontSize: "14px",
                         fontFamily: "'Cairo', sans-serif",
                         outline: "none",
+                      }}
+                      onFocus={(e) => {
+                        e.currentTarget.style.borderColor = t.accent;
+                        e.currentTarget.style.boxShadow = `0 0 0 3px ${t.accent}20`;
+                      }}
+                      onBlur={(e) => {
+                        e.currentTarget.style.borderColor = t.border;
+                        e.currentTarget.style.boxShadow = "none";
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px" }}>
+                      Descripción
+                    </label>
+                    <textarea
+                      placeholder="Ej: Pago en efectivo"
+                      maxLength={200}
+                      rows={3}
+                      value={formData.descripcion}
+                      onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
+                      style={{
+                        width: "100%",
+                        padding: "12px 14px",
+                        borderRadius: "14px",
+                        border: `1px solid ${t.border}`,
+                        background: t.inputBg,
+                        color: t.textPrimary,
+                        fontSize: "14px",
+                        fontFamily: "'Cairo', sans-serif",
+                        outline: "none",
+                        resize: "vertical",
+                        minHeight: "80px",
                       }}
                       onFocus={(e) => {
                         e.currentTarget.style.borderColor = t.accent;
@@ -1470,7 +1590,7 @@ export default function ViasAdministracionManagement({ isDark = true }: { isDark
                   >
                     <AlertCircle size={18} color="#fb923c" />
                     <p style={{ fontSize: "12px", color: "#fb923c", lineHeight: 1.4 }}>
-                      El nombre se guarda en mayúsculas (máx. 60 caracteres). Los campos marcados con * son obligatorios.
+                      El nombre y la descripción se guardan en mayúsculas. Los campos marcados con * son obligatorios.
                     </p>
                   </div>
                 </div>
@@ -1515,7 +1635,7 @@ export default function ViasAdministracionManagement({ isDark = true }: { isDark
 
               {modalMode !== "view" && (
                 <button
-                  onClick={handleSaveVia}
+                  onClick={handleSaveMetodo}
                   disabled={saving}
                   style={{
                     padding: "12px 24px",
@@ -1546,7 +1666,7 @@ export default function ViasAdministracionManagement({ isDark = true }: { isDark
                   {saving
                     ? "Guardando..."
                     : modalMode === "create"
-                    ? "Crear Vía"
+                    ? "Crear Método"
                     : "Guardar Cambios"}
                 </button>
               )}
@@ -1556,7 +1676,7 @@ export default function ViasAdministracionManagement({ isDark = true }: { isDark
       )}
 
       {/* Modal: Confirmar Desactivar / Reactivar */}
-      {showToggleModal && viaToToggle && (
+      {showToggleModal && metodoToToggle && (
         <>
           <div
             style={{
@@ -1595,7 +1715,7 @@ export default function ViasAdministracionManagement({ isDark = true }: { isDark
                   height: "64px",
                   margin: "0 auto 16px",
                   borderRadius: "50%",
-                  background: viaToToggle.estado_logico
+                  background: metodoToToggle.estado_logico
                     ? "rgba(239,68,68,0.12)"
                     : "rgba(34,197,94,0.12)",
                   display: "flex",
@@ -1603,19 +1723,19 @@ export default function ViasAdministracionManagement({ isDark = true }: { isDark
                   justifyContent: "center",
                 }}
               >
-                {viaToToggle.estado_logico ? (
+                {metodoToToggle.estado_logico ? (
                   <Trash2 size={30} color="#ef4444" />
                 ) : (
                   <CheckCircle2 size={30} color="#22c55e" />
                 )}
               </div>
               <h2 style={{ fontSize: "20px", fontWeight: 700, color: t.textPrimary, marginBottom: "8px" }}>
-                {viaToToggle.estado_logico ? "¿Desactivar vía de administración?" : "¿Reactivar vía de administración?"}
+                {metodoToToggle.estado_logico ? "¿Desactivar método de pago?" : "¿Reactivar método de pago?"}
               </h2>
               <p style={{ fontSize: "14px", color: t.textSecondary, lineHeight: 1.5 }}>
-                {viaToToggle.estado_logico
-                  ? `"${viaToToggle.nombre}" dejará de estar disponible para nuevos productos. Los productos existentes conservan su vía.`
-                  : `"${viaToToggle.nombre}" volverá a estar disponible para el catálogo de productos.`}
+                {metodoToToggle.estado_logico
+                  ? `"${metodoToToggle.nombre_metodo}" dejará de estar disponible para nuevas ventas. Las ventas existentes que lo usan conservan este método en su historial.`
+                  : `"${metodoToToggle.nombre_metodo}" volverá a estar disponible para las ventas del sistema.`}
               </p>
             </div>
             <div style={{ padding: "0 24px 24px", display: "flex", gap: "12px" }}>
@@ -1653,7 +1773,7 @@ export default function ViasAdministracionManagement({ isDark = true }: { isDark
                   padding: "12px",
                   borderRadius: "12px",
                   border: "none",
-                  background: viaToToggle.estado_logico ? "#ef4444" : "#22c55e",
+                  background: metodoToToggle.estado_logico ? "#ef4444" : "#22c55e",
                   color: "#fff",
                   fontSize: "14px",
                   fontWeight: 600,
@@ -1675,7 +1795,7 @@ export default function ViasAdministracionManagement({ isDark = true }: { isDark
               >
                 {togglings
                   ? "Procesando..."
-                  : viaToToggle.estado_logico
+                  : metodoToToggle.estado_logico
                   ? "Desactivar"
                   : "Reactivar"}
               </button>

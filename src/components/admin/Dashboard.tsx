@@ -35,8 +35,8 @@ import {
   ClipboardList,
   Shield,
 } from "lucide-react";
-import { useAuth } from "../contexts/AuthContext";
-import { usePermissions } from "../hooks/usePermissions";
+import { useAuth } from "../../contexts/AuthContext";
+import { usePermissions } from "../../hooks/usePermissions";
 import UsersManagement from "./UsersManagement";
 import ProductsManagement from "./ProductsManagement";
 import CategoriesManagement from "./CategoriesManagement";
@@ -45,8 +45,8 @@ import StockCriticoManagement from "./StockCriticoManagement";
 import NewPurchase from "./NewPurchase";
 import PurchaseHistory from "./PurchaseHistory";
 import SuppliersManagement from "./SuppliersManagement";
-import NewSale from "./NewSale";
-import SalesHistory from "./SalesHistory";
+import NewSale from "../vendedor/NewSale";
+import SalesHistory from "../vendedor/SalesHistory";
 import CustomersManagement from "./CustomersManagement";
 import FormasFarmaceuticasManagement from "./FormasFarmaceuticasManagement";
 import ViasAdministracionManagement from "./ViasAdministracionManagement";
@@ -55,7 +55,7 @@ import LaboratoriosManagement from "./LaboratoriosManagement";
 import ReportesVentas from "./ReportesVentas";
 import ReportesInventario from "./ReportesInventario";
 import ReportesMovimientos from "./ReportesMovimientos";
-import MiPerfil from "./MiPerfil";
+import MiPerfil from "../shared/MiPerfil";
 import SolicitudesRegistro from "./SolicitudesRegistro";
 
 import {
@@ -94,7 +94,7 @@ import {
   imgGroup,
   imgGroup1,
   imgGroup2,
-} from "./assets";
+} from "../shared/assets";
 
 /* ─── Premium Theme Toggle ──────────────────────────────────────────── */
 function ThemeToggle({ isDark, onToggle }: { isDark: boolean; onToggle: () => void }) {

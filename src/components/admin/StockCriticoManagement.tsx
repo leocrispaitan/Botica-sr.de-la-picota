@@ -23,8 +23,8 @@ import {
   Box,
 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
-import { productsService, type Producto } from "../services/productsService";
-import { lotesService } from "../services/lotesService";
+import { productsService, type Producto } from "../../services/productsService";
+import { lotesService } from "../../services/lotesService";
 
 /* ─── Types ─────────────────────────────────────────────────────────── */
 interface ProductoStockCritico extends Producto {

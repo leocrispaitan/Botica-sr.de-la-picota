@@ -18,12 +18,12 @@ import {
   ShoppingCart as ShoppingCartIcon,
 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
-import purchasesService from "../services/purchasesService";
+import purchasesService from "../../services/purchasesService";
 import type {
   ProductoCompra,
   ProveedorCompra,
   PurchaseItemInput,
-} from "../services/purchasesService";
+} from "../../services/purchasesService";
 
 /* ─── Types ─────────────────────────────────────────────────────── */
 interface PurchaseItem {

@@ -17,26 +17,25 @@ import {
 import { toPng } from "html-to-image";
 import toast, { Toaster } from "react-hot-toast";
 import {
+  Package,
+  Boxes,
   DollarSign,
-  ShoppingCart,
-  CreditCard,
-  Users,
+  AlertTriangle,
   Download,
   RefreshCw,
   Calendar,
-  TrendingUp,
-  TrendingDown,
-  Package,
   Clock,
-  Receipt,
   BarChart3,
-  AlertTriangle,
+  ChartPie,
+  CheckCircle2,
   Inbox,
+  Repeat,
+  Activity,
 } from "lucide-react";
-import reportesService from "../services/reportesService";
-import type { ReporteVentas } from "../services/reportesService";
-import { exportSalesReportPdf } from "../utils/pdfUtils";
-import type { SalesReportChartImages } from "../utils/pdfUtils";
+import reportesService from "../../services/reportesService";
+import type { ReporteInventario } from "../../services/reportesService";
+import { exportInventoryReportPdf } from "../../utils/pdfUtils";
+import type { InventoryReportChartImages } from "../../utils/pdfUtils";
 
 /* ─── Theme ────────────────────────────────────────────────────────── */
 type Theme = ReturnType<typeof getTheme>;
@@ -75,26 +74,29 @@ function getTheme(isDark: boolean) {
 }
 
 /* ─── Paleta ────────────────────────────────────────────────────────── */
-const COLORS = ["#10b981", "#3b82f6", "#8b5cf6", "#f59e0b", "#f43f5e", "#06b6d4", "#f97316"];
+const COLORS = ["#6366f1", "#10b981", "#3b82f6", "#f59e0b", "#f43f5e", "#06b6d4", "#8b5cf6", "#f97316"];
 
-const ESTADO_COLORS: Record<string, string> = {
-  PAGADA: "#10b981",
-  PENDIENTE: "#f59e0b",
-  ANULADA: "#f43f5e",
+const DEFAULT_ESTADO_COLORS: Record<string, string> = {
+  OK: "#10b981",
+  BAJO: "#f59e0b",
+  CRITICO: "#f43f5e",
+  AGOTADO: "#64748b",
 };
 
-const ESTADO_BG: Record<string, string> = {
-  PAGADA: "rgba(16,185,129,0.14)",
-  PENDIENTE: "rgba(245,158,11,0.14)",
-  ANULADA: "rgba(244,63,94,0.14)",
+const DEFAULT_ESTADO_BG: Record<string, string> = {
+  OK: "rgba(16,185,129,0.14)",
+  BAJO: "rgba(245,158,11,0.14)",
+  CRITICO: "rgba(244,63,94,0.14)",
+  AGOTADO: "rgba(100,116,139,0.14)",
 };
 
 /* ─── Helpers ───────────────────────────────────────────────────────── */
 const moneyFmt = (v: number) =>
   v.toLocaleString("es-PE", { style: "currency", currency: "PEN", minimumFractionDigits: 2 });
 
-const moneyTick = (v: number) =>
-  v >= 1000 ? `S/${(v / 1000).toFixed(1)}k` : `S/${v}`;
+const moneyTick = (v: number) => (v >= 1000 ? `S/${(v / 1000).toFixed(1)}k` : `S/${v}`);
+
+const numFmt = (v: number) => v.toLocaleString("es-PE");
 
 const toYMD = (d: Date) => {
   const m = (d.getMonth() + 1).toString().padStart(2, "0");
@@ -108,15 +110,8 @@ const addDays = (d: Date, n: number) => {
   return c;
 };
 
-const horaMin = (iso: string) => {
-  const d = new Date(iso.replace(" ", "T"));
-  const hh = d.getHours().toString().padStart(2, "0");
-  const mm = d.getMinutes().toString().padStart(2, "0");
-  return `${hh}:${mm}`;
-};
-
 const fechaLarga = (iso: string) =>
-  new Date(`${iso}T00:00:00`).toLocaleDateString("es-PE", {
+  new Date(`${iso.slice(0, 10)}T00:00:00`).toLocaleDateString("es-PE", {
     day: "2-digit",
     month: "long",
     year: "numeric",
@@ -211,7 +206,7 @@ function ChartTooltip({
             {p.name}
           </span>
           <span style={{ fontSize: 12, fontWeight: 700, color: theme.textPrimary }}>
-            {money ? moneyFmt(Number(p.value) || 0) : `${p.value ?? 0}${suffix || ""}`}
+            {money ? moneyFmt(Number(p.value) || 0) : `${numFmt(Number(p.value) || 0)}${suffix || ""}`}
           </span>
         </div>
       ))}
@@ -219,8 +214,8 @@ function ChartTooltip({
   );
 }
 
-/* ─── Tooltip para barras con ingresos + ventas ───────────────────────── */
-function ChartTooltip2({
+/* ─── Tooltip para el área de stock (nivel + neto) ───────────────────── */
+function ChangableTooltip({
   active,
   payload,
   label,
@@ -232,8 +227,9 @@ function ChartTooltip2({
   theme: Theme;
 }) {
   if (!active || !payload || payload.length === 0) return null;
-  const ingresos = payload.find((p) => p.name === "ingresos")?.value || 0;
-  const ventas = payload.find((p) => p.name === "ventas")?.value || 0;
+  const nivel = payload.find((p) => p.name === "nivel")?.value || 0;
+  const entradas = payload.find((p) => p.name === "entradas")?.value || 0;
+  const salidas = payload.find((p) => p.name === "salidas")?.value || 0;
   return (
     <div
       style={{
@@ -242,25 +238,30 @@ function ChartTooltip2({
         borderRadius: 12,
         padding: "10px 12px",
         boxShadow: "0 10px 30px rgba(0,0,0,0.18)",
-        minWidth: 130,
+        minWidth: 150,
       }}
     >
-      <div style={{ fontSize: 11, fontWeight: 700, color: theme.textSecondary, marginBottom: 6 }}>
-        {label}
-      </div>
+      <div style={{ fontSize: 11, fontWeight: 700, color: theme.textSecondary, marginBottom: 6 }}>{label}</div>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 18 }}>
         <span style={{ fontSize: 12, color: theme.textSecondary }}>
-          <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 3, background: "#3b82f6", marginRight: 6 }} />
-          Ventas
+          <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 3, background: "#6366f1", marginRight: 6 }} />
+          Nivel stock
         </span>
-        <span style={{ fontSize: 12, fontWeight: 700, color: theme.textPrimary }}>{ventas}</span>
+        <span style={{ fontSize: 12, fontWeight: 700, color: theme.textPrimary }}>{numFmt(nivel)}</span>
       </div>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 18 }}>
         <span style={{ fontSize: 12, color: theme.textSecondary }}>
           <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 3, background: "#10b981", marginRight: 6 }} />
-          Ingresos
+          Entradas
         </span>
-        <span style={{ fontSize: 12, fontWeight: 700, color: theme.textPrimary }}>{moneyFmt(ingresos)}</span>
+        <span style={{ fontSize: 12, fontWeight: 700, color: theme.textPrimary }}>{numFmt(entradas)}</span>
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 18 }}>
+        <span style={{ fontSize: 12, color: theme.textSecondary }}>
+          <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 3, background: "#f43f5e", marginRight: 6 }} />
+          Salidas
+        </span>
+        <span style={{ fontSize: 12, fontWeight: 700, color: theme.textPrimary }}>{numFmt(salidas)}</span>
       </div>
     </div>
   );
@@ -271,20 +272,20 @@ function KpiCard({
   icon,
   label,
   value,
-  growth,
   gradient,
   boxShadow,
   index,
   sub,
+  chips,
 }: {
   icon: ReactNode;
   label: string;
   value: string;
-  growth: number | null;
   gradient: string;
   boxShadow: string;
   index: number;
   sub: string;
+  chips?: ReactNode;
 }) {
   return (
     <motion.div
@@ -327,25 +328,6 @@ function KpiCard({
           >
             {icon}
           </div>
-          {growth !== null && growth !== undefined ? (
-            <div
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 3,
-                padding: "4px 9px",
-                borderRadius: 999,
-                background: growth >= 0 ? "rgba(255,255,255,0.18)" : "rgba(255,255,255,0.22)",
-                fontSize: 12,
-                fontWeight: 700,
-                color: "#ffffff",
-              }}
-            >
-              {growth >= 0 ? <TrendingUp size={13} /> : <TrendingDown size={13} />}
-              {growth >= 0 ? "+" : ""}
-              {growth.toFixed(1)}%
-            </div>
-          ) : null}
         </div>
         <p
           style={{
@@ -359,8 +341,9 @@ function KpiCard({
         >
           {label}
         </p>
-        <p style={{ fontSize: 30, fontWeight: 800, color: "#ffffff", lineHeight: 1.1 }}>{value}</p>
+        <p style={{ fontSize: 28, fontWeight: 800, color: "#ffffff", lineHeight: 1.1 }}>{value}</p>
         <p style={{ fontSize: 11.5, color: "rgba(255,255,255,0.62)", marginTop: 6 }}>{sub}</p>
+        {chips ? <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 10 }}>{chips}</div> : null}
       </div>
     </motion.div>
   );
@@ -412,7 +395,7 @@ function SkeletonCard({ h, theme }: { h: number; theme: Theme }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════ */
-/*  REPORTES VENTAS COMPONENT                                          */
+/*  REPORTES INVENTARIO COMPONENT                                      */
 /* ═══════════════════════════════════════════════════════════════════ */
 
 type PresetOption = { id: Preset; label: string };
@@ -426,7 +409,7 @@ const PRESETS: PresetOption[] = [
   { id: "custom", label: "Personalizado" },
 ];
 
-export default function ReportesVentas({ isDark = true }: { isDark?: boolean }) {
+export default function ReportesInventario({ isDark = true }: { isDark?: boolean }) {
   const t = getTheme(isDark);
 
   const [preset, setPreset] = useState<Preset>("30d");
@@ -434,7 +417,7 @@ export default function ReportesVentas({ isDark = true }: { isDark?: boolean }) 
   const [hastaInput, setHastaInput] = useState("");
   const [refreshKey, setRefreshKey] = useState(0);
 
-  const [reporte, setReporte] = useState<ReporteVentas | null>(null);
+  const [reporte, setReporte] = useState<ReporteInventario | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
@@ -454,7 +437,7 @@ export default function ReportesVentas({ isDark = true }: { isDark?: boolean }) 
     setError(null);
 
     reportesService
-      .getReporteVentas(r.desde, r.hasta)
+      .getReporteInventario(r.desde, r.hasta)
       .then((data) => {
         if (!cancelled) setReporte(data);
       })
@@ -478,15 +461,18 @@ export default function ReportesVentas({ isDark = true }: { isDark?: boolean }) 
 
   const periodLabel = useMemo(() => {
     if (!reporte) return "Cargando período…";
-    if (reporte.rango.periodo_completo) return "Todo el período registrado";
-    return `Del ${reporte.rango.desde ? fechaLarga(reporte.rango.desde) : "—"} al ${
+    if (reporte.rango.periodo_completo) return "Todo el historial de movimientos";
+    return `Movimientos del ${reporte.rango.desde ? fechaLarga(reporte.rango.desde) : "—"} al ${
       reporte.rango.hasta ? fechaLarga(reporte.rango.hasta) : "—"
     }`;
   }, [reporte]);
 
   const kpis = reporte?.kpis;
 
-  const top5 = useMemo(() => (reporte?.top_productos || []).slice(0, 5), [reporte]);
+  const estadoColor = (estado: string) => reporte?.paleta_estados?.[estado] || DEFAULT_ESTADO_COLORS[estado] || "#8b5cf6";
+  const estadoBg = (estado: string) => DEFAULT_ESTADO_BG[estado] || "rgba(139,92,246,0.12)";
+
+  const top5 = useMemo(() => (reporte?.top_valor || []).slice(0, 5), [reporte]);
 
   // ─── Exportar PDF ───────────────────────────────────────────────────
   const handleExport = async () => {
@@ -494,33 +480,36 @@ export default function ReportesVentas({ isDark = true }: { isDark?: boolean }) 
     setExporting(true);
     const toastId = toast.loading("Generando reporte PDF…");
     try {
-      const refs: Array<[keyof SalesReportChartImages, string]> = [
-        ["area", "chart-area"],
-        ["horas", "chart-horas"],
-        ["metodo", "chart-metodo"],
-        ["comprobante", "chart-comprobante"],
-        ["productos", "chart-productos"],
+      const refs: Array<[keyof InventoryReportChartImages, string]> = [
+        ["stock", "chart-stock"],
+        ["categoria", "chart-categoria"],
+        ["movimientos", "chart-movimientos"],
+        ["tipos", "chart-tipos"],
+        ["top", "chart-top"],
       ];
-      const chartImages: SalesReportChartImages = {};
+      const chartImages: InventoryReportChartImages = {};
       for (const [key, id] of refs) {
         const node = document.getElementById(id);
         if (!node) continue;
         chartImages[key] = await toPng(node, { pixelRatio: 2, backgroundColor: t.cardBg });
       }
-      exportSalesReportPdf({
+      exportInventoryReportPdf({
         meta: {
           desde: reporte.rango.desde,
           hasta: reporte.rango.hasta,
-          dias: reporte.rango.dias,
           periodo_completo: reporte.rango.periodo_completo,
         },
+        fecha_corte: reporte.fecha_corte,
         kpis: reporte.kpis,
-        crecimiento: reporte.crecimiento,
-        topProductos: reporte.top_productos,
-        ventasRecientes: reporte.ventas_recientes,
+        entradas_totales: reporte.kpis.entradas_totales,
+        salidas_totales: reporte.kpis.salidas_totales,
+        porEstado: reporte.por_estado,
+        topValor: reporte.top_valor,
+        criticos: reporte.productos_criticos,
+        lotes: reporte.lotes_por_vencer,
         chartImages,
       });
-      toast.success("Reporte de ventas exportado a PDF", { id: toastId });
+      toast.success("Reporte de inventario exportado a PDF", { id: toastId });
     } catch {
       toast.error("No se pudo exportar el reporte", { id: toastId });
     } finally {
@@ -538,7 +527,7 @@ export default function ReportesVentas({ isDark = true }: { isDark?: boolean }) 
 
   const axisTick = { fill: t.textMuted, fontSize: 11 };
 
-  const noData = !loading && !error && reporte && kpis && kpis.total_ventas === 0;
+  const noData = !loading && !error && reporte && kpis && kpis.total_productos === 0;
 
   return (
     <div style={{ padding: "24px", background: t.mainBg, minHeight: "100vh" }}>
@@ -580,20 +569,22 @@ export default function ReportesVentas({ isDark = true }: { isDark?: boolean }) 
                 width: 42,
                 height: 42,
                 borderRadius: 14,
-                background: `linear-gradient(135deg, ${t.accent} 0%, #3b82f6 120%)`,
+                background: `linear-gradient(135deg, ${t.accent} 0%, #6366f1 120%)`,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 boxShadow: `0 6px 16px ${t.accent}40`,
               }}
             >
-              <BarChart3 size={22} color="#ffffff" strokeWidth={2.2} />
+              <Boxes size={22} color="#ffffff" strokeWidth={2.2} />
             </div>
             <div>
               <h1 style={{ fontSize: 24, fontWeight: 800, color: t.textPrimary, lineHeight: 1.1 }}>
-                Reporte de Ventas
+                Reporte de Inventario
               </h1>
-              <p style={{ fontSize: 12.5, color: t.textSecondary }}>{periodLabel}</p>
+              <p style={{ fontSize: 12.5, color: t.textSecondary }}>
+                {reporte ? `Stock valorizado al ${fechaLarga(reporte.fecha_corte)} · ${periodLabel}` : periodLabel}
+              </p>
             </div>
           </div>
         </div>
@@ -705,7 +696,7 @@ export default function ReportesVentas({ isDark = true }: { isDark?: boolean }) 
 
           <button
             onClick={handleExport}
-            disabled={exporting || !reporte || !kpis || kpis.total_ventas === 0}
+            disabled={exporting || !reporte || !kpis || kpis.total_productos === 0}
             style={{
               padding: "10px 18px",
               borderRadius: 14,
@@ -721,7 +712,7 @@ export default function ReportesVentas({ isDark = true }: { isDark?: boolean }) 
               fontFamily: "'Cairo', sans-serif",
               transition: "all 0.2s",
               boxShadow: `0 4px 14px ${t.accent}40`,
-              opacity: exporting || !reporte || !kpis || kpis.total_ventas === 0 ? 0.55 : 1,
+              opacity: exporting || !reporte || !kpis || kpis.total_productos === 0 ? 0.55 : 1,
             }}
           >
             <Download size={15} />
@@ -741,13 +732,12 @@ export default function ReportesVentas({ isDark = true }: { isDark?: boolean }) 
             }}
           >
             {[0, 1, 2, 3].map((i) => (
-              <SkeletonCard key={i} h={150} theme={t} />
+              <SkeletonCard key={i} h={160} theme={t} />
             ))}
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 20 }}>
-            <SkeletonCard h={300} theme={t} />
-            <SkeletonCard h={300} theme={t} />
-            <SkeletonCard h={300} theme={t} />
+            <SkeletonCard h={320} theme={t} />
+            <SkeletonCard h={320} theme={t} />
           </div>
         </div>
       )}
@@ -826,34 +816,16 @@ export default function ReportesVentas({ isDark = true }: { isDark?: boolean }) 
             <Inbox size={32} color={t.textMuted} />
           </div>
           <h3 style={{ fontSize: 18, fontWeight: 700, color: t.textPrimary, marginBottom: 6 }}>
-            Aún no hay ventas en este período
+            Aún no hay productos en el inventario
           </h3>
-          <p style={{ fontSize: 13, color: t.textSecondary, marginBottom: 20, maxWidth: 420, margin: "0 auto 20px" }}>
-            Registra ventas en el módulo de punto de venta o cambia el período para ver el reporte.
+          <p style={{ fontSize: 13, color: t.textSecondary, maxWidth: 420, margin: "0 auto" }}>
+            Registra productos y lotes para que este reporte muestre la valorización del stock y sus alertas.
           </p>
-          <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
-            <button
-              onClick={() => setPreset("todo")}
-              style={{
-                padding: "10px 20px",
-                borderRadius: 14,
-                border: "none",
-                background: t.accent,
-                color: "#fff",
-                fontSize: 13,
-                fontWeight: 700,
-                cursor: "pointer",
-                fontFamily: "'Cairo', sans-serif",
-              }}
-            >
-              Ver todo el período
-            </button>
-          </div>
         </div>
       )}
 
       {/* ─── Dashboard ──────────────────────────────────────────────── */}
-      {!loading && !error && reporte && kpis && kpis.total_ventas > 0 && (
+      {!loading && !error && reporte && kpis && kpis.total_productos > 0 && (
         <>
           {/* KPIs */}
           <div
@@ -866,47 +838,71 @@ export default function ReportesVentas({ isDark = true }: { isDark?: boolean }) 
           >
             <KpiCard
               index={0}
+              icon={<Package size={23} color="#ffffff" strokeWidth={2.4} />}
+              label="Productos Vigentes"
+              value={numFmt(kpis.total_productos)}
+              sub={`${kpis.total_categorias} categorías · ${kpis.total_proveedores} proveedores`}
+              gradient="linear-gradient(135deg, #6366f1 0%, #818cf8 45%, #4f46e5 130%)"
+              boxShadow="0 8px 22px rgba(99,102,241,0.28)"
+            />
+            <KpiCard
+              index={1}
+              icon={<Boxes size={23} color="#ffffff" strokeWidth={2.4} />}
+              label="Unidades en Stock"
+              value={numFmt(kpis.unidades_totales)}
+              sub={`distribuidas en ${kpis.lotes_total} lotes activos`}
+              gradient="linear-gradient(135deg, #06b6d4 0%, #22d3ee 45%, #0891b2 130%)"
+              boxShadow="0 8px 22px rgba(6,182,212,0.28)"
+            />
+            <KpiCard
+              index={2}
               icon={<DollarSign size={23} color="#ffffff" strokeWidth={2.4} />}
-              label="Total Ingresos"
-              value={moneyFmt(kpis.total_ingresos)}
-              growth={reporte.crecimiento.ingresos}
-              sub={`vs período anterior · ${kpis.unidades_vendidas} unidades`}
+              label="Valor Inventario"
+              value={moneyFmt(kpis.valor_inventario)}
+              sub={`Margen potencial ${moneyFmt(kpis.margen_potencial)}`}
               gradient="linear-gradient(135deg, #10b981 0%, #34d399 45%, #059669 130%)"
               boxShadow="0 8px 22px rgba(16,185,129,0.28)"
             />
             <KpiCard
-              index={1}
-              icon={<ShoppingCart size={23} color="#ffffff" strokeWidth={2.4} />}
-              label="Total Ventas"
-              value={String(kpis.total_ventas)}
-              growth={reporte.crecimiento.ventas}
-              sub="transacciones realizadas"
-              gradient="linear-gradient(135deg, #3b82f6 0%, #60a5fa 45%, #2563eb 130%)"
-              boxShadow="0 8px 22px rgba(59,130,246,0.28)"
-            />
-            <KpiCard
-              index={2}
-              icon={<CreditCard size={23} color="#ffffff" strokeWidth={2.4} />}
-              label="Ticket Promedio"
-              value={moneyFmt(kpis.ticket_promedio)}
-              growth={reporte.crecimiento.ticket}
-              sub="por transacción"
-              gradient="linear-gradient(135deg, #8b5cf6 0%, #a78bfa 45%, #7c3aed 130%)"
-              boxShadow="0 8px 22px rgba(139,92,246,0.28)"
-            />
-            <KpiCard
               index={3}
-              icon={<Users size={23} color="#ffffff" strokeWidth={2.4} />}
-              label="Clientes Únicos"
-              value={String(kpis.clientes_unicos)}
-              growth={reporte.crecimiento.clientes}
-              sub="clientes diferentes"
+              icon={<AlertTriangle size={23} color="#ffffff" strokeWidth={2.4} />}
+              label="Alertas de Stock"
+              value={numFmt(kpis.alertas_stock)}
+              sub={`${kpis.lotes_vencen_90} lotes vencen en 90 días · ${kpis.lotes_vencidos} vencidos`}
               gradient="linear-gradient(135deg, #f59e0b 0%, #fbbf24 45%, #d97706 130%)"
               boxShadow="0 8px 22px rgba(245,158,11,0.28)"
+              chips={
+                <>
+                  {[
+                    { estado: "OK", count: kpis.stock_ok, color: "#10b981" },
+                    { estado: "BAJO", count: kpis.stock_bajo, color: "#fbbf24" },
+                    { estado: "CRITICO", count: kpis.stock_critico, color: "#fb7185" },
+                    { estado: "AGOTADO", count: kpis.stock_agotado, color: "#cbd5e1" },
+                  ].map((c) => (
+                    <span
+                      key={c.estado}
+                      style={{
+                        padding: "4px 10px",
+                        borderRadius: 999,
+                        background: "rgba(255,255,255,0.14)",
+                        fontSize: 11,
+                        fontWeight: 700,
+                        color: "#ffffff",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 5,
+                      }}
+                    >
+                      <span style={{ width: 7, height: 7, borderRadius: 999, background: c.color }} />
+                      {c.estado} {c.count}
+                    </span>
+                  ))}
+                </>
+              }
             />
           </div>
 
-          {/* Fila 1: tendencia + métodos */}
+          {/* Fila 1: evolución + categorías */}
           <div
             style={{
               display: "grid",
@@ -915,12 +911,12 @@ export default function ReportesVentas({ isDark = true }: { isDark?: boolean }) 
               marginBottom: 18,
             }}
           >
-            {/* Tendencia */}
+            {/* Evolución del stock */}
             <div style={chartCard(320)}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
                 <div>
-                  <h3 style={{ fontSize: 15, fontWeight: 800, color: t.textPrimary }}>Tendencia de ventas</h3>
-                  <p style={{ fontSize: 12, color: t.textSecondary }}>Ingresos diarios del período</p>
+                  <h3 style={{ fontSize: 15, fontWeight: 800, color: t.textPrimary }}>Evolución del stock</h3>
+                  <p style={{ fontSize: 12, color: t.textSecondary }}>Nivel estimado de unidades en el período</p>
                 </div>
                 <div
                   style={{
@@ -929,101 +925,135 @@ export default function ReportesVentas({ isDark = true }: { isDark?: boolean }) 
                     gap: 5,
                     padding: "4px 10px",
                     borderRadius: 999,
-                    background: "rgba(16,185,129,0.12)",
-                    color: "#10b981",
+                    background: "rgba(99,102,241,0.12)",
+                    color: "#6366f1",
                     fontSize: 12,
                     fontWeight: 700,
                   }}
                 >
-                  <Package size={13} />
-                  {kpis.unidades_vendidas} uds.
+                  <Activity size={13} />
+                  {numFmt(kpis.unidades_totales)} uds.
                 </div>
               </div>
-              <div id="chart-area" style={{ width: "100%", height: 250 }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={reporte.serie_diaria} margin={{ top: 8, right: 4, left: -8, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="gradIngresos" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#10b981" stopOpacity={0.55} />
-                        <stop offset="100%" stopColor="#10b981" stopOpacity={0.02} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke={t.border} vertical={false} />
-                    <XAxis
-                      dataKey="etiqueta"
-                      tick={axisTick}
-                      tickLine={false}
-                      axisLine={false}
-                      interval="preserveStartEnd"
-                      minTickGap={28}
-                    />
-                    <YAxis
-                      tick={axisTick}
-                      tickLine={false}
-                      axisLine={false}
-                      width={52}
-                      tickFormatter={(v) => moneyTick(Number(v))}
-                    />
-                    <Tooltip content={<ChartTooltip2 theme={t} />} cursor={{ stroke: t.border, strokeDasharray: "3 3" }} />
-                    <Area
-                      type="monotone"
-                      dataKey="ingresos"
-                      name="ingresos"
-                      stroke="#10b981"
-                      strokeWidth={2.5}
-                      fill="url(#gradIngresos)"
-                      dot={false}
-                      activeDot={{ r: 5, strokeWidth: 2, stroke: t.cardBg }}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
+              <div id="chart-stock" style={{ width: "100%", height: 250 }}>
+                {reporte.serie_stock.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={reporte.serie_stock} margin={{ top: 8, right: 4, left: -8, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="gradStock" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#6366f1" stopOpacity={0.5} />
+                          <stop offset="100%" stopColor="#6366f1" stopOpacity={0.02} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke={t.border} vertical={false} />
+                      <XAxis
+                        dataKey="etiqueta"
+                        tick={axisTick}
+                        tickLine={false}
+                        axisLine={false}
+                        interval="preserveStartEnd"
+                        minTickGap={28}
+                      />
+                      <YAxis
+                        tick={axisTick}
+                        tickLine={false}
+                        axisLine={false}
+                        width={46}
+                        allowDecimals={false}
+                      />
+                      <Tooltip content={<ChangableTooltip theme={t} />} cursor={{ stroke: t.border, strokeDasharray: "3 3" }} />
+                      <Area
+                        type="monotone"
+                        dataKey="nivel"
+                        name="nivel"
+                        stroke="#6366f1"
+                        strokeWidth={2.5}
+                        fill="url(#gradStock)"
+                        dot={false}
+                        activeDot={{ r: 5, strokeWidth: 2, stroke: t.cardBg }}
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div
+                    style={{
+                      height: "100%",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 6,
+                    }}
+                  >
+                    <Inbox size={26} color={t.textMuted} />
+                    <p style={{ fontSize: 12.5, color: t.textMuted }}>Sin movimientos en el período.</p>
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* Donut métodos */}
+            {/* Donut por categoría */}
             <div style={chartCard(320)}>
-              <h3 style={{ fontSize: 15, fontWeight: 800, color: t.textPrimary, marginBottom: 2 }}>Métodos de pago</h3>
-              <p style={{ fontSize: 12, color: t.textSecondary, marginBottom: 6 }}>Distribución por ingresos</p>
-              <div id="chart-metodo" style={{ position: "relative", width: "100%", height: 190 }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={reporte.por_metodo}
-                      dataKey="ingresos"
-                      nameKey="metodo"
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={52}
-                      outerRadius={82}
-                      paddingAngle={3}
-                      cornerRadius={6}
-                      stroke="none"
-                    >
-                      {(reporte.por_metodo || []).map((_, i) => (
-                        <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip content={<ChartTooltip theme={t} money suffix="%" />} />
-                  </PieChart>
-                </ResponsiveContainer>
-                <div
-                  style={{
-                    position: "absolute",
-                    top: "50%",
-                    left: "50%",
-                    transform: "translate(-50%, -50%)",
-                    textAlign: "center",
-                    pointerEvents: "none",
-                  }}
-                >
-                  <div style={{ fontSize: 19, fontWeight: 800, color: t.textPrimary }}>{reporte.por_metodo.length}</div>
-                  <div style={{ fontSize: 11, color: t.textSecondary, fontWeight: 600 }}>métodos</div>
-                </div>
+              <h3 style={{ fontSize: 15, fontWeight: 800, color: t.textPrimary, marginBottom: 2 }}>Unidades por categoría</h3>
+              <p style={{ fontSize: 12, color: t.textSecondary, marginBottom: 6 }}>Distribución del stock</p>
+              <div id="chart-categoria" style={{ position: "relative", width: "100%", height: 175 }}>
+                {reporte.por_categoria.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={reporte.por_categoria}
+                        dataKey="unidades"
+                        nameKey="categoria"
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={46}
+                        outerRadius={74}
+                        paddingAngle={3}
+                        cornerRadius={6}
+                        stroke="none"
+                      >
+                        {(reporte.por_categoria || []).map((_, i) => (
+                          <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip content={<ChartTooltip theme={t} suffix=" uds" />} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div
+                    style={{
+                      height: "100%",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 6,
+                    }}
+                  >
+                    <Inbox size={26} color={t.textMuted} />
+                    <p style={{ fontSize: 12.5, color: t.textMuted }}>Sin categorías.</p>
+                  </div>
+                )}
+                {reporte.por_categoria.length > 0 && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: "50%",
+                      left: "50%",
+                      transform: "translate(-50%, -50%)",
+                      textAlign: "center",
+                      pointerEvents: "none",
+                    }}
+                  >
+                    <div style={{ fontSize: 18, fontWeight: 800, color: t.textPrimary }}>{reporte.por_categoria.length}</div>
+                    <div style={{ fontSize: 11, color: t.textSecondary, fontWeight: 600 }}>categorías</div>
+                  </div>
+                )}
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))", gap: 8, marginTop: 8 }}>
-                {(reporte.por_metodo || []).slice(0, 5).map((m, i) => (
+                {(reporte.por_categoria || []).slice(0, 6).map((c, i) => (
                   <div
-                    key={m.metodo}
+                    key={c.categoria}
                     style={{
                       display: "flex",
                       alignItems: "center",
@@ -1036,11 +1066,9 @@ export default function ReportesVentas({ isDark = true }: { isDark?: boolean }) 
                     <span style={{ width: 8, height: 8, borderRadius: 3, background: COLORS[i % COLORS.length], flexShrink: 0 }} />
                     <div style={{ minWidth: 0 }}>
                       <div style={{ fontSize: 10.5, color: t.textSecondary, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                        {m.metodo}
+                        {c.categoria}
                       </div>
-                      <div style={{ fontSize: 11.5, fontWeight: 800, color: t.textPrimary }}>
-                        {m.porcentaje.toFixed(0)}%
-                      </div>
+                      <div style={{ fontSize: 11.5, fontWeight: 800, color: t.textPrimary }}>{c.porcentaje.toFixed(0)}%</div>
                     </div>
                   </div>
                 ))}
@@ -1048,7 +1076,7 @@ export default function ReportesVentas({ isDark = true }: { isDark?: boolean }) 
             </div>
           </div>
 
-          {/* Fila 2: horas + comprobantes + estados */}
+          {/* Fila 2: movimientos + tipos + estado */}
           <div
             style={{
               display: "grid",
@@ -1057,57 +1085,138 @@ export default function ReportesVentas({ isDark = true }: { isDark?: boolean }) 
               marginBottom: 18,
             }}
           >
-            {/* Por hora */}
-            <div style={chartCard(300)}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
-                <Clock size={15} color={t.accent} />
-                <h3 style={{ fontSize: 15, fontWeight: 800, color: t.textPrimary }}>Ventas por hora</h3>
-              </div>
-              <p style={{ fontSize: 12, color: t.textSecondary, marginBottom: 6 }}>Horario con más actividad</p>
-              <div id="chart-horas" style={{ width: "100%", height: 230 }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={reporte.por_hora} margin={{ top: 8, right: 4, left: -18, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={t.border} vertical={false} />
-                    <XAxis dataKey="hora" tick={axisTick} tickLine={false} axisLine={false} interval="preserveStartEnd" minTickGap={24} />
-                    <YAxis tick={axisTick} tickLine={false} axisLine={false} allowDecimals={false} width={42} />
-                    <Tooltip content={<ChartTooltip theme={t} suffix=" ventas" />} cursor={{ fill: `${t.accent}0d` }} />
-                    <Bar dataKey="ventas" name="ventas" fill="#3b82f6" radius={[6, 6, 0, 0]} maxBarSize={26} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
-            {/* Comprobantes */}
-            <div style={chartCard(300)}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
-                <Receipt size={15} color={t.accent} />
-                <h3 style={{ fontSize: 15, fontWeight: 800, color: t.textPrimary }}>Tipo de comprobante</h3>
-              </div>
-              <p style={{ fontSize: 12, color: t.textSecondary, marginBottom: 6 }}>Cantidad por documento</p>
-              <div id="chart-comprobante" style={{ width: "100%", height: 230 }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={reporte.por_comprobante} margin={{ top: 8, right: 4, left: -18, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={t.border} vertical={false} />
-                    <XAxis dataKey="comprobante" tick={axisTick} tickLine={false} axisLine={false} />
-                    <YAxis tick={axisTick} tickLine={false} axisLine={false} allowDecimals={false} width={42} />
-                    <Tooltip content={<ChartTooltip theme={t} suffix=" ventas" />} cursor={{ fill: `${t.accent}0d` }} />
-                    <Bar dataKey="ventas" name="ventas" radius={[6, 6, 0, 0]} maxBarSize={44}>
-                      {(reporte.por_comprobante || []).map((_, i) => (
-                        <Cell key={i} fill={[COLORS[4], COLORS[0], COLORS[3]][i % 3]} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
-            {/* Estados */}
+            {/* Movimientos por día */}
             <div style={chartCard(300)}>
               <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
                 <BarChart3 size={15} color={t.accent} />
-                <h3 style={{ fontSize: 15, fontWeight: 800, color: t.textPrimary }}>Estado de ventas</h3>
+                <h3 style={{ fontSize: 15, fontWeight: 800, color: t.textPrimary }}>Movimientos por día</h3>
               </div>
-              <p style={{ fontSize: 12, color: t.textSecondary, marginBottom: 14 }}>Resumen general</p>
+              <p style={{ fontSize: 12, color: t.textSecondary, marginBottom: 6 }}>Entradas vs salidas de unidades</p>
+              <div id="chart-movimientos" style={{ width: "100%", height: 220 }}>
+                {reporte.serie_movimientos.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={reporte.serie_movimientos} margin={{ top: 8, right: 4, left: -18, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke={t.border} vertical={false} />
+                      <XAxis dataKey="etiqueta" tick={axisTick} tickLine={false} axisLine={false} interval="preserveStartEnd" minTickGap={24} />
+                      <YAxis tick={axisTick} tickLine={false} axisLine={false} allowDecimals={false} width={42} />
+                      <Tooltip content={<ChartTooltip theme={t} suffix=" uds" />} cursor={{ fill: `${t.accent}0d` }} />
+                      <Bar dataKey="entradas" name="Entradas" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={18} />
+                      <Bar dataKey="salidas" name="Salidas" fill="#f43f5e" radius={[4, 4, 0, 0]} maxBarSize={18} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div
+                    style={{
+                      height: "100%",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 6,
+                    }}
+                  >
+                    <Inbox size={26} color={t.textMuted} />
+                    <p style={{ fontSize: 12.5, color: t.textMuted }}>Sin movimientos registrados.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Tipo de movimientos */}
+            <div style={chartCard(300)}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                <Repeat size={15} color={t.accent} />
+                <h3 style={{ fontSize: 15, fontWeight: 800, color: t.textPrimary }}>Tipo de movimientos</h3>
+              </div>
+              <p style={{ fontSize: 12, color: t.textSecondary, marginBottom: 6 }}>Documentos registrados</p>
+              <div id="chart-tipos" style={{ position: "relative", width: "100%", height: 165 }}>
+                {reporte.por_tipo_movimiento.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={reporte.por_tipo_movimiento}
+                        dataKey="movimientos"
+                        nameKey="tipo"
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={40}
+                        outerRadius={66}
+                        paddingAngle={3}
+                        cornerRadius={5}
+                        stroke="none"
+                      >
+                        {(reporte.por_tipo_movimiento || []).map((_, i) => (
+                          <Cell key={i} fill={[COLORS[1], COLORS[4], COLORS[3], COLORS[2], COLORS[0]][i % 5]} />
+                        ))}
+                      </Pie>
+                      <Tooltip content={<ChartTooltip theme={t} suffix=" movs" />} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div
+                    style={{
+                      height: "100%",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 6,
+                    }}
+                  >
+                    <Inbox size={26} color={t.textMuted} />
+                    <p style={{ fontSize: 12.5, color: t.textMuted }}>Sin tipos registrados.</p>
+                  </div>
+                )}
+                {reporte.por_tipo_movimiento.length > 0 && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: "50%",
+                      left: "50%",
+                      transform: "translate(-50%, -50%)",
+                      textAlign: "center",
+                      pointerEvents: "none",
+                    }}
+                  >
+                    <div style={{ fontSize: 17, fontWeight: 800, color: t.textPrimary }}>
+                      {reporte.por_tipo_movimiento.reduce((a, b) => a + b.movimientos, 0)}
+                    </div>
+                    <div style={{ fontSize: 10.5, color: t.textSecondary, fontWeight: 600 }}>movimientos</div>
+                  </div>
+                )}
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 4 }}>
+                {(reporte.por_tipo_movimiento || []).slice(0, 4).map((m, i) => (
+                  <div
+                    key={m.tipo}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      background: t.innerBg,
+                      borderRadius: 10,
+                      padding: "6px 10px",
+                    }}
+                  >
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11.5, fontWeight: 700, color: t.textPrimary }}>
+                      <span style={{ width: 8, height: 8, borderRadius: 3, background: [COLORS[1], COLORS[4], COLORS[3], COLORS[2]][i % 4] }} />
+                      {m.tipo}
+                    </span>
+                    <span style={{ fontSize: 11.5, fontWeight: 800, color: t.textSecondary }}>
+                      {m.movimientos} movs · {numFmt(m.unidades)} uds.
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Estado del stock */}
+            <div style={chartCard(300)}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                <ChartPie size={15} color={t.accent} />
+                <h3 style={{ fontSize: 15, fontWeight: 800, color: t.textPrimary }}>Estado del stock</h3>
+              </div>
+              <p style={{ fontSize: 12, color: t.textSecondary, marginBottom: 14 }}>Resumen por nivel de inventario</p>
               {(reporte.por_estado || []).length > 0 ? (
                 <>
                   <div style={{ display: "flex", gap: 4, marginBottom: 16 }}>
@@ -1115,10 +1224,10 @@ export default function ReportesVentas({ isDark = true }: { isDark?: boolean }) 
                       <div
                         key={e.estado}
                         style={{
-                          flex: e.ventas,
+                          flex: Math.max(e.productos, 1),
                           height: 10,
                           borderRadius: 6,
-                          background: ESTADO_COLORS[e.estado] || COLORS[4],
+                          background: estadoColor(e.estado),
                           minWidth: 4,
                         }}
                       />
@@ -1126,17 +1235,16 @@ export default function ReportesVentas({ isDark = true }: { isDark?: boolean }) 
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                     {(reporte.por_estado || []).map((e) => {
-                      const total = (reporte.por_estado || []).reduce((a, b) => a + b.ventas, 0);
-                      const pct = total > 0 ? (e.ventas / total) * 100 : 0;
+                      const pct = e.porcentaje;
                       return (
                         <div key={e.estado}>
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                             <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 700, color: t.textPrimary }}>
-                              <span style={{ width: 9, height: 9, borderRadius: 3, background: ESTADO_COLORS[e.estado] || COLORS[4] }} />
+                              <span style={{ width: 9, height: 9, borderRadius: 3, background: estadoColor(e.estado) }} />
                               {e.estado}
                             </span>
                             <span style={{ fontSize: 12, fontWeight: 800, color: t.textPrimary }}>
-                              {e.ventas} · {pct.toFixed(0)}%
+                              {e.productos} · {pct.toFixed(0)}%
                             </span>
                           </div>
                           <div
@@ -1152,7 +1260,7 @@ export default function ReportesVentas({ isDark = true }: { isDark?: boolean }) 
                               style={{
                                 width: `${pct}%`,
                                 height: "100%",
-                                background: ESTADO_COLORS[e.estado] || COLORS[4],
+                                background: estadoColor(e.estado),
                                 borderRadius: 999,
                                 transition: "width 0.6s ease",
                               }}
@@ -1169,20 +1277,21 @@ export default function ReportesVentas({ isDark = true }: { isDark?: boolean }) 
             </div>
           </div>
 
-          {/* Fila 3: top productos + últimas ventas */}
+          {/* Fila 3: top valor + críticos */}
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1.15fr)",
+              gridTemplateColumns: "minmax(0, 1.1fr) minmax(0, 1fr)",
               gap: 18,
+              marginBottom: 18,
             }}
           >
-            {/* Top productos */}
+            {/* Top valor inventario */}
             <div style={chartCard(360)}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
                 <div>
-                  <h3 style={{ fontSize: 15, fontWeight: 800, color: t.textPrimary }}>Top productos</h3>
-                  <p style={{ fontSize: 12, color: t.textSecondary }}>Mayores ingresos del período</p>
+                  <h3 style={{ fontSize: 15, fontWeight: 800, color: t.textPrimary }}>Top valor en inventario</h3>
+                  <p style={{ fontSize: 12, color: t.textSecondary }}>Productos con mayor capital invertido</p>
                 </div>
                 <div
                   style={{
@@ -1201,14 +1310,10 @@ export default function ReportesVentas({ isDark = true }: { isDark?: boolean }) 
                   {top5.length} destacados
                 </div>
               </div>
-              <div id="chart-productos" style={{ width: "100%", height: 250 }}>
+              <div id="chart-top" style={{ width: "100%", height: 250 }}>
                 {top5.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={top5}
-                      layout="vertical"
-                      margin={{ top: 6, right: 14, left: 8, bottom: 0 }}
-                    >
+                    <BarChart data={top5} layout="vertical" margin={{ top: 6, right: 14, left: 8, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke={t.border} horizontal={false} />
                       <XAxis type="number" tick={axisTick} tickLine={false} axisLine={false} tickFormatter={(v) => moneyTick(Number(v))} />
                       <YAxis
@@ -1220,7 +1325,7 @@ export default function ReportesVentas({ isDark = true }: { isDark?: boolean }) 
                         width={118}
                       />
                       <Tooltip content={<ChartTooltip theme={t} money />} cursor={{ fill: `${t.accent}0d` }} />
-                      <Bar dataKey="ingresos" name="ingresos" radius={[0, 6, 6, 0]} maxBarSize={18}>
+                      <Bar dataKey="valor" name="valor" radius={[0, 6, 6, 0]} maxBarSize={18}>
                         {top5.map((_, i) => (
                           <Cell key={i} fill={[COLORS[2], COLORS[0], COLORS[1], COLORS[3], COLORS[5]][i % 5]} />
                         ))}
@@ -1228,40 +1333,40 @@ export default function ReportesVentas({ isDark = true }: { isDark?: boolean }) 
                     </BarChart>
                   </ResponsiveContainer>
                 ) : (
-                  <p style={{ fontSize: 13, color: t.textMuted }}>Sin productos vendidos.</p>
+                  <p style={{ fontSize: 13, color: t.textMuted }}>Sin productos con stock.</p>
                 )}
               </div>
             </div>
 
-            {/* Últimas ventas */}
+            {/* Productos críticos */}
             <div style={chartCard(360)}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
                 <div>
-                  <h3 style={{ fontSize: 15, fontWeight: 800, color: t.textPrimary }}>Últimas ventas</h3>
-                  <p style={{ fontSize: 12, color: t.textSecondary }}>Actividad más reciente</p>
+                  <h3 style={{ fontSize: 15, fontWeight: 800, color: t.textPrimary }}>Productos críticos</h3>
+                  <p style={{ fontSize: 12, color: t.textSecondary }}>Requieren reposición</p>
                 </div>
                 <div
                   style={{
                     display: "inline-flex",
                     alignItems: "center",
                     gap: 5,
-                    padding: "4px 10px",
+                    padding: "3px 10px",
                     borderRadius: 999,
-                    background: t.innerBg,
-                    color: t.textSecondary,
-                    fontSize: 11.5,
-                    fontWeight: 700,
+                    background: "rgba(244,63,94,0.12)",
+                    color: "#f43f5e",
+                    fontSize: 11,
+                    fontWeight: 800,
                   }}
                 >
-                  {reporte.ventas_recientes.length} registros
+                  {kpis.alertas_stock} alertas
                 </div>
               </div>
 
-              <div style={{ display: "flex", flexDirection: "column", gap: 8, overflowY: "auto", height: 250 }}>
-                {reporte.ventas_recientes.length > 0 ? (
-                  reporte.ventas_recientes.map((v) => (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, overflowY: "auto", height: 275 }}>
+                {reporte.productos_criticos.length > 0 ? (
+                  reporte.productos_criticos.map((p) => (
                     <div
-                      key={v.id_venta}
+                      key={p.id_producto}
                       style={{
                         display: "flex",
                         alignItems: "center",
@@ -1278,8 +1383,8 @@ export default function ReportesVentas({ isDark = true }: { isDark?: boolean }) 
                           height: 38,
                           borderRadius: 12,
                           flexShrink: 0,
-                          background: ESTADO_BG[v.estado_venta] || t.hoverBg,
-                          color: ESTADO_COLORS[v.estado_venta] || t.textMuted,
+                          background: estadoBg(p.estado),
+                          color: estadoColor(p.estado),
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
@@ -1287,18 +1392,20 @@ export default function ReportesVentas({ isDark = true }: { isDark?: boolean }) 
                           fontSize: 14,
                         }}
                       >
-                        {(v.cliente || "?").charAt(0)}
+                        {p.estado === "AGOTADO" ? <Inbox size={18} /> : <AlertTriangle size={18} />}
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 12.5, fontWeight: 700, color: t.textPrimary, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                          {v.id_venta} · {v.cliente}
+                          {p.nombre}
                         </div>
                         <div style={{ fontSize: 11, color: t.textMuted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                          {horaMin(v.fecha_venta)} · {v.vendedor} · {v.metodo}
+                          {p.categoria}
                         </div>
                       </div>
                       <div style={{ textAlign: "right", flexShrink: 0 }}>
-                        <div style={{ fontSize: 13, fontWeight: 800, color: t.textPrimary }}>{moneyFmt(v.total_pagar)}</div>
+                        <div style={{ fontSize: 13, fontWeight: 800, color: t.textPrimary }}>
+                          {p.stock} <span style={{ fontSize: 10, color: t.textMuted, fontWeight: 600 }}>/ {p.minimo}</span>
+                        </div>
                         <div
                           style={{
                             display: "inline-block",
@@ -1306,20 +1413,199 @@ export default function ReportesVentas({ isDark = true }: { isDark?: boolean }) 
                             fontWeight: 800,
                             padding: "2px 8px",
                             borderRadius: 999,
-                            background: ESTADO_BG[v.estado_venta] || t.hoverBg,
-                            color: ESTADO_COLORS[v.estado_venta] || t.textMuted,
+                            background: estadoBg(p.estado),
+                            color: estadoColor(p.estado),
                           }}
                         >
-                          {v.estado_venta}
+                          {p.estado}
                         </div>
                       </div>
                     </div>
                   ))
                 ) : (
-                  <p style={{ fontSize: 13, color: t.textMuted }}>Sin ventas recientes.</p>
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 6,
+                      height: "100%",
+                    }}
+                  >
+                    <CheckCircle2 size={26} color="#10b981" />
+                    <p style={{ fontSize: 12.5, color: t.textSecondary }}>Sin productos con stock crítico.</p>
+                  </div>
                 )}
               </div>
             </div>
+          </div>
+
+          {/* Fila 4: lotes por vencer + resumen de lotes vencidos */}
+          <div style={{ background: t.cardBg, border: `1px solid ${t.borderCard}`, borderRadius: 20, padding: "20px 22px", marginBottom: 18 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
+              <div>
+                <h3 style={{ fontSize: 15, fontWeight: 800, color: t.textPrimary }}>Lotes por vencer (90 días)</h3>
+                <p style={{ fontSize: 12, color: t.textSecondary }}>Programación de vencimientos por lote</p>
+              </div>
+              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 5,
+                    padding: "4px 10px",
+                    borderRadius: 999,
+                    background: "rgba(244,63,94,0.12)",
+                    color: "#f43f5e",
+                    fontSize: 11.5,
+                    fontWeight: 800,
+                  }}
+                >
+                  <Clock size={12} />
+                  ≤30d: {kpis.lotes_vencen_30}
+                </span>
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 5,
+                    padding: "4px 10px",
+                    borderRadius: 999,
+                    background: "rgba(245,158,11,0.12)",
+                    color: "#f59e0b",
+                    fontSize: 11.5,
+                    fontWeight: 800,
+                  }}
+                >
+                  <Clock size={12} />
+                  60d: {kpis.lotes_vencen_60}
+                </span>
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 5,
+                    padding: "4px 10px",
+                    borderRadius: 999,
+                    background: "rgba(129,140,248,0.12)",
+                    color: "#818cf8",
+                    fontSize: 11.5,
+                    fontWeight: 800,
+                  }}
+                >
+                  <Clock size={12} />
+                  90d: {kpis.lotes_vencen_90}
+                </span>
+                {kpis.lotes_vencidos > 0 && (
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 5,
+                      padding: "4px 10px",
+                      borderRadius: 999,
+                      background: "rgba(100,116,139,0.14)",
+                      color: t.textSecondary,
+                      fontSize: 11.5,
+                      fontWeight: 800,
+                    }}
+                  >
+                    <AlertTriangle size={12} />
+                    {kpis.lotes_vencidos} vencidos
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {reporte.lotes_por_vencer.length > 0 ? (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12, marginTop: 14 }}>
+                {reporte.lotes_por_vencer.map((l) => {
+                  const urgente = l.urgencia === "URGENTE";
+                  const color = urgente ? "#f43f5e" : "#f59e0b";
+                  const bgColor = urgente ? "rgba(244,63,94,0.12)" : "rgba(245,158,11,0.12)";
+                  return (
+                    <div
+                      key={l.id_inventario}
+                      style={{
+                        borderRadius: 14,
+                        border: `1px solid ${urgente ? "rgba(244,63,94,0.35)" : t.border}`,
+                        background: urgente ? "rgba(244,63,94,0.06)" : t.innerBg,
+                        padding: "14px 14px",
+                        transition: "all 0.2s",
+                      }}
+                      onMouseEnter={(e) => {
+                        (e.currentTarget as HTMLDivElement).style.transform = "translateY(-2px)";
+                        (e.currentTarget as HTMLDivElement).style.boxShadow = `0 4px 12px ${color}20`;
+                      }}
+                      onMouseLeave={(e) => {
+                        (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)";
+                        (e.currentTarget as HTMLDivElement).style.boxShadow = "none";
+                      }}
+                    >
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+                        <div style={{ minWidth: 0, marginRight: 8 }}>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: t.textPrimary, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                            {l.producto}
+                          </div>
+                          <div style={{ fontSize: 11, color: t.textMuted, marginTop: 2 }}>
+                            Lote {l.numero_lote} · {l.ubicacion}
+                          </div>
+                        </div>
+                        <span
+                          style={{
+                            flexShrink: 0,
+                            padding: "3px 9px",
+                            borderRadius: 8,
+                            background: bgColor,
+                            color,
+                            fontSize: 10.5,
+                            fontWeight: 800,
+                            textTransform: "uppercase",
+                            border: `1px solid ${color}30`,
+                          }}
+                        >
+                          {l.urgencia}
+                        </span>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ height: 6, background: t.border, borderRadius: 999, overflow: "hidden" }}>
+                            <div
+                              style={{
+                                width: `${Math.min((l.dias / 90) * 100, 100)}%`,
+                                height: "100%",
+                                background: color,
+                                borderRadius: 999,
+                              }}
+                            />
+                          </div>
+                        </div>
+                        <span style={{ fontSize: 12.5, fontWeight: 800, color }}>{l.dias} días</span>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11.5, color: t.textSecondary, marginTop: 10 }}>
+                        <span>Vence: {l.fecha_vencimiento}</span>
+                        <span>Stock: {numFmt(l.stock)} uds</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: 6,
+                  padding: "28px 0",
+                  color: t.textMuted,
+                }}
+              >
+                <CheckCircle2 size={26} color="#10b981" />
+                <p style={{ fontSize: 12.5 }}>No hay lotes por vencer en los próximos 90 días.</p>
+              </div>
+            )}
           </div>
         </>
       )}

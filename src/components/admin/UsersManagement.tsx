@@ -23,8 +23,8 @@ import {
   Image,
   CheckCircle2,
 } from "lucide-react";
-import { usersService, type Usuario } from "../services/usersService";
-import { api } from "../services/api";
+import { usersService, type Usuario } from "../../services/usersService";
+import { api } from "../../services/api";
 import toast, { Toaster } from "react-hot-toast";
 
 /* ─── Types ─────────────────────────────────────────────────────────── */

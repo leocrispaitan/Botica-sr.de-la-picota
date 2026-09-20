@@ -1,9 +1,9 @@
 import { useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import Dashboard from "./components/Dashboard";
-import Login from "./components/Login";
-import ResetPassword from "./components/ResetPassword";
-import SellerPOS from "./components/SellerPOS";
+import Dashboard from "./components/admin/Dashboard";
+import Login from "./components/shared/Login";
+import ResetPassword from "./components/shared/ResetPassword";
+import SellerPOS from "./components/vendedor/SellerPOS";
 import { useAuth } from "./contexts/AuthContext";
 
 function App() {

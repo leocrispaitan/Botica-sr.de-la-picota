@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback } from "react";
 import LottieModule from "lottie-react";
 import { motion } from "framer-motion";
-import animationData from "../assets/pharmacist-animation.json";
+import animationData from "../../assets/pharmacist-animation.json";
 import {
   Eye,
   EyeOff,
@@ -17,7 +17,7 @@ import {
   User,
   UserPlus,
 } from "lucide-react";
-import authService from "../services/authService";
+import authService from "../../services/authService";
 import ForgotPassword from "./ForgotPassword";
 
 /* ─── Premium Light Theme ─────────────────────────── */

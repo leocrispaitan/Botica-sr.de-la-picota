@@ -18,12 +18,12 @@ import {
   RefreshCw,
   AlertCircle,
 } from "lucide-react";
-import { purchasesService, type CompraHistorial as Purchase } from "../services/purchasesService";
+import { purchasesService, type CompraHistorial as Purchase } from "../../services/purchasesService";
 import {
   exportPurchaseComprobante,
   exportPurchaseHistoryReport,
   type ComprobanteDetail,
-} from "../utils/pdfUtils";
+} from "../../utils/pdfUtils";
 import toast, { Toaster } from "react-hot-toast";
 
 /* ─── Tipo para el detalle completo (getPurchaseById) ────────────────── */

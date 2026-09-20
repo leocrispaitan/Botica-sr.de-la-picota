@@ -22,7 +22,7 @@ import {
   formasFarmaceuticasService,
   type FormaFarmaceutica,
   type NewFormaFarmaceuticaInput,
-} from "../services/formasFarmaceuticasService";
+} from "../../services/formasFarmaceuticasService";
 
 /* ─── Toast de éxito / error ─────────────────────────────────────── */
 const showToast = (

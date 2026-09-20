@@ -23,7 +23,7 @@ import {
   Calendar,
 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
-import { categoriesService, type Categoria, type CategoriaDetalle } from "../services/categoriesService";
+import { categoriesService, type Categoria, type CategoriaDetalle } from "../../services/categoriesService";
 
 /* ─── Theme ────────────────────────────────────────────────────────── */
 function getTheme(isDark: boolean) {
