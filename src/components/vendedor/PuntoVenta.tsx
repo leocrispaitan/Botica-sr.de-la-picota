@@ -1,10 +1,8 @@
 import { useMemo, useState } from "react";
-import type { CSSProperties } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
   Banknote,
   Bell,
-  BadgePercent,
   ChevronRight,
   ClipboardList,
   CreditCard,
@@ -13,257 +11,35 @@ import {
   LayoutGrid,
   LogOut,
   Menu,
-  Minus,
-  Package,
   Pill,
-  Plus,
   ReceiptText,
   Search,
   Settings,
-  ShieldCheck,
   ShoppingCart,
-  Stethoscope,
   Trash2,
   UserRound,
   Users,
   X,
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
+import MenuProductos from "./MenuProductos";
+import OrdenActual from "./OrdenActual";
+import HistorialVentas from "./HistorialVentas";
+import Clientes from "./Clientes";
+import PerfilVendedor from "./PerfilVendedor";
+import {
+  formatCurrency,
+  getInitialSelections,
+  products,
+  type CartItem,
+  type CategoryId,
+  type PaymentMethod,
+  type Product,
+  type ProductSelection,
+  type SellerView,
+} from "./posData";
 
-type CategoryId =
-  | "all"
-  | "pain"
-  | "antibiotics"
-  | "digestive"
-  | "allergy"
-  | "respiratory"
-  | "diabetes";
-
-type PaymentMethod = "cash" | "card" | "yape";
-type SellerView = "menu" | "orders" | "history" | "clients" | "profile";
-
-interface SaleOption {
-  label: string;
-  shortLabel: string;
-  price: number;
-}
-
-interface Product {
-  id: number;
-  name: string;
-  genericName: string;
-  category: CategoryId;
-  categoryLabel: string;
-  stock: number;
-  sold: number;
-  requiresPrescription: boolean;
-  laboratory: string;
-  image: string;
-  accent: string;
-  saleOptions: SaleOption[];
-}
-
-interface ProductSelection {
-  saleType: string;
-  quantity: number;
-}
-
-interface CartItem {
-  key: string;
-  product: Product;
-  saleType: string;
-  unitPrice: number;
-  quantity: number;
-}
-
-const categories: Array<{ id: CategoryId; label: string; icon: LucideIcon }> = [
-  { id: "all", label: "Todo", icon: LayoutGrid },
-  { id: "pain", label: "Analgésicos", icon: Pill },
-  { id: "antibiotics", label: "Antibióticos", icon: ShieldCheck },
-  { id: "digestive", label: "Digestivo", icon: Package },
-  { id: "allergy", label: "Alergias", icon: BadgePercent },
-  { id: "respiratory", label: "Respiratorio", icon: Stethoscope },
-  { id: "diabetes", label: "Diabetes", icon: ReceiptText },
-];
-
-const products: Product[] = [
-  {
-    id: 1,
-    name: "Paracetamol 500 mg",
-    genericName: "Paracetamol",
-    category: "pain",
-    categoryLabel: "Analgésico",
-    stock: 500,
-    sold: 64,
-    requiresPrescription: false,
-    laboratory: "Genfar",
-    image:
-      "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&w=640&q=80",
-    accent: "#0fbf70",
-    saleOptions: [
-      { label: "Tableta", shortLabel: "TAB", price: 0.5 },
-      { label: "Blister", shortLabel: "BL", price: 5 },
-      { label: "Caja", shortLabel: "CJ", price: 42 },
-    ],
-  },
-  {
-    id: 2,
-    name: "Ibuprofeno 400 mg",
-    genericName: "Ibuprofeno",
-    category: "pain",
-    categoryLabel: "Antiinflamatorio",
-    stock: 300,
-    sold: 51,
-    requiresPrescription: false,
-    laboratory: "Medifarma",
-    image:
-      "https://images.unsplash.com/photo-1550572017-edd951aa8f72?auto=format&fit=crop&w=640&q=80",
-    accent: "#22a7f0",
-    saleOptions: [
-      { label: "Tableta", shortLabel: "TAB", price: 0.8 },
-      { label: "Blister", shortLabel: "BL", price: 8 },
-      { label: "Caja", shortLabel: "CJ", price: 68 },
-    ],
-  },
-  {
-    id: 3,
-    name: "Amoxicilina 500 mg",
-    genericName: "Amoxicilina",
-    category: "antibiotics",
-    categoryLabel: "Antibiótico",
-    stock: 118,
-    sold: 22,
-    requiresPrescription: true,
-    laboratory: "Portugal",
-    image:
-      "https://images.unsplash.com/photo-1607619056574-7b8d3ee536b2?auto=format&fit=crop&w=640&q=80",
-    accent: "#f59e0b",
-    saleOptions: [
-      { label: "Cápsula", shortLabel: "CAP", price: 1.2 },
-      { label: "Blister", shortLabel: "BL", price: 12 },
-      { label: "Caja", shortLabel: "CJ", price: 98 },
-    ],
-  },
-  {
-    id: 4,
-    name: "Omeprazol 20 mg",
-    genericName: "Omeprazol",
-    category: "digestive",
-    categoryLabel: "Digestivo",
-    stock: 240,
-    sold: 39,
-    requiresPrescription: false,
-    laboratory: "Farmindustria",
-    image:
-      "https://images.unsplash.com/photo-1585435557343-3b092031a831?auto=format&fit=crop&w=640&q=80",
-    accent: "#8b5cf6",
-    saleOptions: [
-      { label: "Cápsula", shortLabel: "CAP", price: 1.5 },
-      { label: "Blister", shortLabel: "BL", price: 15 },
-      { label: "Caja", shortLabel: "CJ", price: 125 },
-    ],
-  },
-  {
-    id: 5,
-    name: "Loratadina 10 mg",
-    genericName: "Loratadina",
-    category: "allergy",
-    categoryLabel: "Alergias",
-    stock: 350,
-    sold: 45,
-    requiresPrescription: false,
-    laboratory: "Bago",
-    image:
-      "https://images.unsplash.com/photo-1631549916768-4119b2e5f926?auto=format&fit=crop&w=640&q=80",
-    accent: "#06b6d4",
-    saleOptions: [
-      { label: "Tableta", shortLabel: "TAB", price: 0.6 },
-      { label: "Blister", shortLabel: "BL", price: 6 },
-      { label: "Caja", shortLabel: "CJ", price: 52 },
-    ],
-  },
-  {
-    id: 6,
-    name: "Salbutamol inhalador",
-    genericName: "Salbutamol 100 mcg",
-    category: "respiratory",
-    categoryLabel: "Respiratorio",
-    stock: 48,
-    sold: 16,
-    requiresPrescription: true,
-    laboratory: "Glaxo",
-    image:
-      "https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&w=640&q=80",
-    accent: "#ef4444",
-    saleOptions: [
-      { label: "Unidad", shortLabel: "UND", price: 25 },
-      { label: "Pack x2", shortLabel: "P2", price: 48 },
-      { label: "Caja", shortLabel: "CJ", price: 290 },
-    ],
-  },
-  {
-    id: 7,
-    name: "Metformina 850 mg",
-    genericName: "Metformina",
-    category: "diabetes",
-    categoryLabel: "Diabetes",
-    stock: 600,
-    sold: 72,
-    requiresPrescription: true,
-    laboratory: "AC Farma",
-    image:
-      "https://images.unsplash.com/photo-1471864190281-a93a3070b6de?auto=format&fit=crop&w=640&q=80",
-    accent: "#14b8a6",
-    saleOptions: [
-      { label: "Tableta", shortLabel: "TAB", price: 0.9 },
-      { label: "Blister", shortLabel: "BL", price: 9 },
-      { label: "Caja", shortLabel: "CJ", price: 76 },
-    ],
-  },
-  {
-    id: 8,
-    name: "Vitamina C 1 g",
-    genericName: "Ácido ascórbico",
-    category: "allergy",
-    categoryLabel: "Suplemento",
-    stock: 180,
-    sold: 31,
-    requiresPrescription: false,
-    laboratory: "Mason",
-    image:
-      "https://images.unsplash.com/photo-1628771065518-0d82f1938462?auto=format&fit=crop&w=640&q=80",
-    accent: "#f97316",
-    saleOptions: [
-      { label: "Tableta", shortLabel: "TAB", price: 1.1 },
-      { label: "Tubo", shortLabel: "TUB", price: 16 },
-      { label: "Caja", shortLabel: "CJ", price: 90 },
-    ],
-  },
-];
-
-const recentSales = [
-  { id: "#V-1048", customer: "Cliente mostrador", time: "09:42", total: 37.5, items: 3 },
-  { id: "#V-1047", customer: "Rosa Velásquez", time: "09:18", total: 82.8, items: 5 },
-  { id: "#V-1046", customer: "Farmacia San Martín", time: "08:55", total: 156.4, items: 9 },
-];
-
-const formatCurrency = (value: number) =>
-  new Intl.NumberFormat("es-PE", {
-    style: "currency",
-    currency: "PEN",
-    minimumFractionDigits: 2,
-  }).format(value);
-
-const getInitialSelections = () =>
-  products.reduce<Record<number, ProductSelection>>((acc, product) => {
-    acc[product.id] = {
-      saleType: product.saleOptions[0].label,
-      quantity: 1,
-    };
-    return acc;
-  }, {});
-
-export default function SellerPOS() {
+export default function PuntoVenta() {
   const { user, logout } = useAuth();
   const [activeView, setActiveView] = useState<SellerView>("menu");
   const [activeCategory, setActiveCategory] = useState<CategoryId>("all");
@@ -419,248 +195,33 @@ export default function SellerPOS() {
 
   const renderWorkspace = () => {
     if (activeView === "history") {
-      return (
-        <section className="seller-panel-view">
-          <div>
-            <p className="seller-eyebrow">Ventas recientes</p>
-            <h2>Historial del turno</h2>
-          </div>
-          <div className="seller-history-list">
-            {recentSales.map((sale) => (
-              <article key={sale.id} className="seller-history-row">
-                <div>
-                  <strong>{sale.id}</strong>
-                  <span>{sale.customer}</span>
-                </div>
-                <div>
-                  <span>{sale.items} items</span>
-                  <strong>{formatCurrency(sale.total)}</strong>
-                  <small>{sale.time}</small>
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
-      );
+      return <HistorialVentas />;
     }
 
     if (activeView === "clients") {
-      return (
-        <section className="seller-panel-view">
-          <div>
-            <p className="seller-eyebrow">Clientes</p>
-            <h2>Atención rápida</h2>
-          </div>
-          <div className="seller-client-grid">
-            {["Cliente mostrador", "Rosa Velásquez", "Farmacia San Martín", "Carlos Paredes"].map((client, index) => (
-              <button key={client} className="seller-client-card" onClick={() => setCustomerName(client)}>
-                <span>{client.charAt(0)}</span>
-                <strong>{client}</strong>
-                <small>{index === 0 ? "Sin documento" : index === 2 ? "RUC activo" : "DNI registrado"}</small>
-              </button>
-            ))}
-          </div>
-        </section>
-      );
+      return <Clientes onSelectCustomer={setCustomerName} />;
     }
 
     if (activeView === "profile") {
-      return (
-        <section className="seller-panel-view">
-          <div>
-            <p className="seller-eyebrow">Cuenta</p>
-            <h2>Perfil del vendedor</h2>
-          </div>
-          <article className="seller-profile-card">
-            <img src={userAvatar} alt={userName} />
-            <div>
-              <h3>{userName}</h3>
-              <p>{userEmail}</p>
-              <span>Rol vendedor activo</span>
-            </div>
-          </article>
-        </section>
-      );
+      return <PerfilVendedor userName={userName} userEmail={userEmail} userAvatar={userAvatar} />;
     }
 
     if (activeView === "orders") {
-      return (
-        <section className="seller-panel-view">
-          <div>
-            <p className="seller-eyebrow">Orden actual</p>
-            <h2>Carrito de venta</h2>
-          </div>
-          <div className="seller-order-list seller-order-list-large">
-            {cartItems.length === 0 ? (
-              <div className="seller-empty-cart">
-                <ShoppingCart size={34} />
-                <span>No hay productos agregados.</span>
-              </div>
-            ) : (
-              cartItems.map((item) => (
-                <article key={item.key} className="seller-order-row">
-                  <div>
-                    <strong>{item.product.name}</strong>
-                    <span>
-                      {item.saleType} · {formatCurrency(item.unitPrice)}
-                    </span>
-                  </div>
-                  <div className="seller-order-actions">
-                    <button onClick={() => updateCartQuantity(item.key, item.quantity - 1)} aria-label="Restar">
-                      <Minus size={14} />
-                    </button>
-                    <strong>{item.quantity}</strong>
-                    <button onClick={() => updateCartQuantity(item.key, item.quantity + 1)} aria-label="Sumar">
-                      <Plus size={14} />
-                    </button>
-                  </div>
-                </article>
-              ))
-            )}
-          </div>
-        </section>
-      );
+      return <OrdenActual cartItems={cartItems} onUpdateQuantity={updateCartQuantity} />;
     }
 
     return (
-      <>
-        <div className="seller-section-heading">
-          <div>
-            <p className="seller-eyebrow">Categorías</p>
-            <h2>Selecciona productos</h2>
-          </div>
-          <span>Mostrando {filteredProducts.length} productos</span>
-        </div>
-
-        <div className="seller-categories" aria-label="Categorias de productos">
-          {categories.map((category) => {
-            const Icon = category.icon;
-            const isActive = activeCategory === category.id;
-
-            return (
-              <button
-                key={category.id}
-                className={`seller-category ${isActive ? "is-active" : ""}`}
-                onClick={() => setActiveCategory(category.id)}
-              >
-                <Icon size={26} />
-                <span>{category.label}</span>
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="seller-section-heading seller-product-heading">
-          <div>
-            <p className="seller-eyebrow">Mostrador</p>
-            <h2>Productos disponibles</h2>
-          </div>
-          <span>{products.reduce((sum, product) => sum + product.stock, 0)} unidades en stock</span>
-        </div>
-
-        <div className="seller-product-grid">
-          {filteredProducts.map((product) => {
-            const selection = selectionByProduct[product.id];
-            const option =
-              product.saleOptions.find((item) => item.label === selection.saleType) || product.saleOptions[0];
-            const isSelected = selectedProductId === product.id;
-
-            return (
-              <article
-                key={product.id}
-                className={`seller-product-card ${isSelected ? "is-selected" : ""}`}
-                onClick={() => setSelectedProductId(product.id)}
-                style={{ "--product-accent": product.accent } as CSSProperties}
-              >
-                <div className="seller-product-top">
-                  <div className="seller-product-image">
-                    <img
-                      src={product.image}
-                      alt={product.name}
-                      onError={(event) => {
-                        event.currentTarget.style.display = "none";
-                      }}
-                    />
-                    <Pill className="seller-product-fallback" size={34} />
-                  </div>
-                  <div>
-                    <h3>{product.name}</h3>
-                    <p>
-                      {product.stock} disponibles · {product.sold} vendidos
-                    </p>
-                    <strong>{formatCurrency(option.price)}</strong>
-                  </div>
-                </div>
-
-                <div className="seller-card-row">
-                  <span>Forma de venta</span>
-                  <span>Receta</span>
-                </div>
-                <div className="seller-option-row">
-                  {product.saleOptions.map((saleOption) => (
-                    <button
-                      key={saleOption.label}
-                      className={selection.saleType === saleOption.label ? "is-active" : ""}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        updateProductSelection(product.id, { saleType: saleOption.label });
-                      }}
-                    >
-                      {saleOption.shortLabel}
-                    </button>
-                  ))}
-                  <button
-                    className={product.requiresPrescription ? "is-warning" : "is-active"}
-                    onClick={(event) => event.stopPropagation()}
-                  >
-                    {product.requiresPrescription ? "SI" : "NO"}
-                  </button>
-                </div>
-
-                <div className="seller-card-row seller-card-row-spaced">
-                  <span>Laboratorio</span>
-                  <span>Cantidad</span>
-                </div>
-                <div className="seller-product-bottom">
-                  <span className="seller-lab-pill">{product.laboratory}</span>
-                  <div className="seller-amount">
-                    <button
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        changeQuantity(product.id, "down");
-                      }}
-                      aria-label="Restar cantidad"
-                    >
-                      <Minus size={14} />
-                    </button>
-                    <strong>{selection.quantity}</strong>
-                    <button
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        changeQuantity(product.id, "up");
-                      }}
-                      aria-label="Sumar cantidad"
-                    >
-                      <Plus size={14} />
-                    </button>
-                  </div>
-                </div>
-
-                <button
-                  className="seller-add-button"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    addProductToCart(product);
-                  }}
-                >
-                  <ShoppingCart size={17} />
-                  Agregar al carrito
-                </button>
-              </article>
-            );
-          })}
-        </div>
-      </>
+      <MenuProductos
+        activeCategory={activeCategory}
+        filteredProducts={filteredProducts}
+        selectionByProduct={selectionByProduct}
+        selectedProductId={selectedProductId}
+        onSelectCategory={setActiveCategory}
+        onSelectProduct={setSelectedProductId}
+        onUpdateSelection={updateProductSelection}
+        onChangeQuantity={changeQuantity}
+        onAddToCart={addProductToCart}
+      />
     );
   };
 

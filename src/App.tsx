@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Dashboard from "./components/admin/Dashboard";
 import Login from "./components/shared/Login";
 import ResetPassword from "./components/shared/ResetPassword";
-import SellerPOS from "./components/vendedor/SellerPOS";
+import PuntoVenta from "./components/vendedor/PuntoVenta";
 import { useAuth } from "./contexts/AuthContext";
 
 function App() {
@@ -69,7 +69,7 @@ function App() {
           element={
             isAuthenticated ? (
               isSellerRole ? (
-                <SellerPOS />
+                <PuntoVenta />
               ) : (
                 <Dashboard />
               )

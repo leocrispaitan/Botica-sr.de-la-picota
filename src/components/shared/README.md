@@ -44,7 +44,7 @@ import ResetPassword from './components/shared/ResetPassword';
 // Desde admin/Dashboard.tsx
 import MiPerfil from '../shared/MiPerfil';
 
-// Desde vendedor/SellerPOS.tsx  
+// Desde vendedor/PuntoVenta.tsx  
 import MiPerfil from '../shared/MiPerfil';
 
 // Importar assets

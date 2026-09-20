@@ -4,19 +4,27 @@ Componentes exclusivos para el rol de **Vendedor** con interfaz optimizada para 
 
 ## 📋 Lista de Componentes
 
-### 🛒 Punto de Venta
-- **SellerPOS.tsx** - Interfaz completa de punto de venta (Point of Sale)
+### 🛒 Punto de Venta (modular)
+- **PuntoVenta.tsx** - Punto de venta principal: layout, sidebar, carrito y facturación
   - Diseño táctil y responsivo
   - Búsqueda rápida de productos
   - Carrito de compras interactivo
   - Múltiples métodos de pago
   - Generación de comprobantes
 
+#### 📦 Módulos del Punto de Venta (uno por opción del sidebar)
+- **MenuProductos.tsx** - Selección de productos por categoría y búsqueda
+- **OrdenActual.tsx** - Carrito de venta / orden actual del turno
+- **HistorialVentas.tsx** - Historial de ventas del turno
+- **Clientes.tsx** - Atención rápida y selección de clientes
+- **PerfilVendedor.tsx** - Perfil del vendedor logueado
+- **posData.ts** - Datos compartidos (productos, categorías, tipos y utilidades)
+
 ### 💰 Gestión de Ventas
 - **NewSale.tsx** - Registro de nueva venta (usado también por admin)
 - **SalesHistory.tsx** - Historial de ventas realizadas
 
-## ✨ Características del SellerPOS
+## ✨ Características del PuntoVenta
 
 ### 🎨 Interfaz de Usuario
 - Diseño moderno con tema claro/oscuro
@@ -50,16 +58,20 @@ Componentes exclusivos para el rol de **Vendedor** con interfaz optimizada para 
 
 ### Desde App.tsx
 ```typescript
-import SellerPOS from './components/vendedor/SellerPOS';
+import PuntoVenta from './components/vendedor/PuntoVenta';
 
 // Renderizar según rol
-{isSellerRole ? <SellerPOS /> : <Dashboard />}
+{isSellerRole ? <PuntoVenta /> : <Dashboard />}
 ```
 
 ### Entre componentes de vendedor
 ```typescript
-import NewSale from './NewSale';
-import SalesHistory from './SalesHistory';
+import PuntoVenta from './PuntoVenta';
+import MenuProductos from './MenuProductos';
+import OrdenActual from './OrdenActual';
+import HistorialVentas from './HistorialVentas';
+import Clientes from './Clientes';
+import PerfilVendedor from './PerfilVendedor';
 ```
 
 ### Desde otros roles
@@ -77,7 +89,7 @@ Los componentes de vendedor requieren:
 
 ## 📱 Responsive Design
 
-El SellerPOS está optimizado para:
+El PuntoVenta está optimizado para:
 - 🖥️ Desktop (1920px+)
 - 💻 Laptop (1366px - 1920px)
 - 📱 Tablet (768px - 1366px)

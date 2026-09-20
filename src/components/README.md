@@ -94,13 +94,17 @@ Componentes para el rol de **Vendedor** con interfaz optimizada para punto de ve
 
 ### Componentes Disponibles
 
-- `SellerPOS.tsx` - Punto de venta completo (POS) con interfaz táctil
-- `NewSale.tsx` - Registro de nueva venta
-- `SalesHistory.tsx` - Historial de ventas realizadas
+- `PuntoVenta.tsx` - Punto de venta principal (POS) con interfaz táctil
+- `MenuProductos.tsx` - Módulo de selección de productos
+- `OrdenActual.tsx` - Módulo de carrito / orden actual
+- `HistorialVentas.tsx` - Módulo de historial de ventas
+- `Clientes.tsx` - Módulo de atención a clientes
+- `PerfilVendedor.tsx` - Módulo de perfil del vendedor
+- `posData.ts` - Datos y tipos compartidos del POS
 
 ### Características del POS
 
-El `SellerPOS.tsx` incluye:
+El `PuntoVenta.tsx` incluye:
 - 🛒 Carrito de compras interactivo
 - 📦 Búsqueda de productos por categoría
 - 💳 Múltiples métodos de pago (efectivo, tarjeta, Yape/Plin)
@@ -110,8 +114,8 @@ El `SellerPOS.tsx` incluye:
 ### Rutas de Importación
 
 ```typescript
-import SellerPOS from './components/vendedor/SellerPOS';
-import NewSale from './components/vendedor/NewSale';
+import PuntoVenta from './components/vendedor/PuntoVenta';
+import MenuProductos from './components/vendedor/MenuProductos';
 ```
 
 ---
@@ -280,7 +284,7 @@ import SellerPOS from './components/SellerPOS';
 // ✅ Nuevo
 import Dashboard from './components/admin/Dashboard';
 import Login from './components/shared/Login';
-import SellerPOS from './components/vendedor/SellerPOS';
+import PuntoVenta from './components/vendedor/PuntoVenta';
 ```
 
 ---
