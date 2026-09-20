@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import {
   Search,
   Plus,
@@ -19,9 +19,11 @@ import {
 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import purchasesService from "../../services/purchasesService";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "../../lib/queryKeys";
+import { usePurchaseDataQuery } from "../../hooks/useAdminQueries";
 import type {
   ProductoCompra,
-  ProveedorCompra,
   PurchaseItemInput,
 } from "../../services/purchasesService";
 
@@ -278,37 +280,30 @@ export default function NewPurchase({ isDark = true }: { isDark?: boolean }) {
   const [lote, setLote] = useState("");
   const [searchProduct, setSearchProduct] = useState("");
 
-  // API data
-  const [products, setProducts] = useState<ProductoCompra[]>([]);
-  const [suppliers, setSuppliers] = useState<ProveedorCompra[]>([]);
-  const [loadingData, setLoadingData] = useState(true);
-  const [errorData, setErrorData] = useState<string | null>(null);
+  // ═══ Datos desde caché (TanStack Query) ═══
+  const queryClient = useQueryClient();
+  const {
+    data: purchaseData,
+    isLoading: loadingData,
+    error: loadError,
+  } = usePurchaseDataQuery();
+  const products = purchaseData?.productos ?? [];
+  const suppliers = purchaseData?.proveedores ?? [];
+  const errorData = loadError
+    ? loadError instanceof Error
+      ? loadError.message
+      : "Error al cargar datos"
+    : null;
+
+  // Revalidar productos/proveedores desde el servidor (botón "Reintentar")
+  const fetchData = () => {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.purchaseData });
+  };
 
   // Submit state
   const [saving, setSaving] = useState(false);
 
   const t = getTheme(isDark);
-
-  // ─── Fetch products, suppliers from API ───
-  const fetchData = useCallback(async () => {
-    setLoadingData(true);
-    setErrorData(null);
-    try {
-      const data = await purchasesService.getPurchaseData();
-      setProducts(data.productos);
-      setSuppliers(data.proveedores);
-    } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : "Error al cargar datos";
-      setErrorData(message);
-    } finally {
-      setLoadingData(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
 
   // Calculate totals
   const subtotalGeneral = purchaseItems.reduce(
@@ -404,8 +399,13 @@ export default function NewPurchase({ isDark = true }: { isDark?: boolean }) {
 
       showPurchaseSuccessToast(isDark, totalGeneral);
       resetForm();
-      // Reload products to get updated stock
-      fetchData();
+      // Revalidar cachés afectadas por la compra: stock de productos,
+      // lotes (entradas) e historial de compras
+      void queryClient.invalidateQueries({ queryKey: queryKeys.products.all });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.products.catalog });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.products.management });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.lotes.all });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.purchaseHistory });
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : "Error al registrar la compra";

@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo } from "react";
 import {
   Search,
   Filter,
@@ -25,7 +25,9 @@ import {
 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import { lotesService, type Lote } from "../../services/lotesService";
-import { productsService, type Producto } from "../../services/productsService";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "../../lib/queryKeys";
+import { useLotesQuery, useProductsQuery } from "../../hooks/useAdminQueries";
 
 /* ─── Theme ────────────────────────────────────────────────────────── */
 function getTheme(isDark: boolean) {
@@ -274,16 +276,28 @@ export default function LotesManagement({ isDark = true }: { isDark?: boolean })
   const [showFilters, setShowFilters] = useState(false);
   const itemsPerPage = 6;
 
-  // ═══ Datos reales desde el backend ═══
-  const [lotes, setLotes] = useState<Lote[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // ═══ Datos desde caché (TanStack Query) ═══
+  const queryClient = useQueryClient();
+  const {
+    data: lotesData,
+    isLoading,
+    error: loadError,
+  } = useLotesQuery();
+  const lotes = lotesData ?? [];
+  const loading = isLoading;
+  const error = loadError
+    ? (loadError as any)?.response?.data?.message ||
+      "Error al cargar los lotes. Intenta nuevamente."
+    : null;
 
   // ═══ Modal: Nuevo Lote ═══
   const [showNewModal, setShowNewModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [productos, setProductos] = useState<Producto[]>([]);
-  const [loadingProductos, setLoadingProductos] = useState(false);
+  const {
+    data: productosData,
+    isLoading: loadingProductos,
+  } = useProductsQuery();
+  const productos = (productosData ?? []).filter((p) => p.estado_logico === true);
   const [formData, setFormData] = useState<NewLoteFormData>(emptyNewLoteForm);
   const [formErrors, setFormErrors] = useState<NewLoteFormErrors>({});
 
@@ -312,50 +326,17 @@ export default function LotesManagement({ isDark = true }: { isDark?: boolean })
 
   const t = getTheme(isDark);
 
-  const loadLotes = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await lotesService.getAllLotes();
-      setLotes(data);
-    } catch (err: any) {
-      console.error("❌ Error al cargar lotes:", err);
-      setError(
-        err?.response?.data?.message || "Error al cargar los lotes. Intenta nuevamente."
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  /** Revalidar la lista desde el servidor (botón "Reintentar"). */
+  const loadLotes = () => {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.lotes.all });
+  };
 
-  useEffect(() => {
-    loadLotes();
-  }, [loadLotes]);
-
-  // ═══ Formulario: Nuevo Lote ═══
-  const loadProductOptions = useCallback(async () => {
-    if (productos.length > 0) return;
-    setLoadingProductos(true);
-    try {
-      const data = await productsService.getAllProducts();
-      setProductos(data.filter((p) => p.estado_logico === true));
-    } catch (err) {
-      console.error("❌ Error al cargar productos:", err);
-      showLoteErrorToast(
-        "No se pudieron cargar los productos disponibles.",
-        isDark,
-        "Error al cargar productos"
-      );
-    } finally {
-      setLoadingProductos(false);
-    }
-  }, [productos.length, isDark]);
+  // Los productos disponibles del formulario se obtienen de la caché (useProductsQuery).
 
   const handleOpenNewModal = async () => {
     setFormData(emptyNewLoteForm);
     setFormErrors({});
     setShowNewModal(true);
-    loadProductOptions();
   };
 
   const handleInputChange = (field: keyof NewLoteFormData, value: string) => {
@@ -428,7 +409,7 @@ export default function LotesManagement({ isDark = true }: { isDark?: boolean })
       setFormData(emptyNewLoteForm);
       setFormErrors({});
 
-      setLotes((prev) => sortLotes([...prev, nuevoLote]));
+      queryClient.setQueryData<Lote[]>(queryKeys.lotes.all, (prev) => sortLotes([...(prev ?? []), nuevoLote]));
 
       showLoteSuccessToast(
         nuevoLote,
@@ -479,7 +460,6 @@ export default function LotesManagement({ isDark = true }: { isDark?: boolean })
     });
     setEditFormErrors({});
     setShowEditModal(true);
-    loadProductOptions();
   };
 
   const handleEditInputChange = (field: keyof NewLoteFormData, value: string) => {
@@ -556,8 +536,8 @@ export default function LotesManagement({ isDark = true }: { isDark?: boolean })
       setEditFormData(emptyNewLoteForm);
       setEditFormErrors({});
 
-      setLotes((prev) =>
-        sortLotes(prev.map((l) => (l.id_inventario === actualizado.id_inventario ? actualizado : l)))
+      queryClient.setQueryData<Lote[]>(queryKeys.lotes.all, (prev) =>
+        sortLotes((prev ?? []).map((l) => (l.id_inventario === actualizado.id_inventario ? actualizado : l)))
       );
 
       showLoteSuccessToast(
@@ -590,8 +570,8 @@ export default function LotesManagement({ isDark = true }: { isDark?: boolean })
       const desactivado = await lotesService.deleteLote(loteToDelete.id_inventario);
       setShowDeleteModal(false);
       setLoteToDelete(null);
-      setLotes((prev) =>
-        sortLotes(prev.map((l) => (l.id_inventario === desactivado.id_inventario ? desactivado : l)))
+      queryClient.setQueryData<Lote[]>(queryKeys.lotes.all, (prev) =>
+        sortLotes((prev ?? []).map((l) => (l.id_inventario === desactivado.id_inventario ? desactivado : l)))
       );
       showLoteSuccessToast(
         desactivado,
@@ -632,8 +612,8 @@ export default function LotesManagement({ isDark = true }: { isDark?: boolean })
       });
       setShowReactivateModal(false);
       setLoteToReactivate(null);
-      setLotes((prev) =>
-        sortLotes(prev.map((l) => (l.id_inventario === reactivado.id_inventario ? reactivado : l)))
+      queryClient.setQueryData<Lote[]>(queryKeys.lotes.all, (prev) =>
+        sortLotes((prev ?? []).map((l) => (l.id_inventario === reactivado.id_inventario ? reactivado : l)))
       );
       showLoteSuccessToast(
         reactivado,

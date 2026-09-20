@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useMemo } from "react";
 import {
   Search,
   Filter,
@@ -23,8 +23,11 @@ import {
   Box,
 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
-import { productsService, type Producto } from "../../services/productsService";
+import type { Producto } from "../../services/productsService";
 import { lotesService } from "../../services/lotesService";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "../../lib/queryKeys";
+import { useProductsQuery } from "../../hooks/useAdminQueries";
 
 /* ─── Types ─────────────────────────────────────────────────────────── */
 interface ProductoStockCritico extends Producto {
@@ -241,9 +244,18 @@ export default function StockCriticoManagement({ isDark = true }: { isDark?: boo
   const itemsPerPage = 6;
 
   // ═══ Datos reales desde el backend ═══
-  const [productos, setProductos] = useState<ProductoStockCritico[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // ═══ Datos desde caché (TanStack Query) ═══
+  const queryClient = useQueryClient();
+  const {
+    data: productosData,
+    isLoading,
+    error: loadError,
+  } = useProductsQuery();
+  const loading = isLoading;
+  const error = loadError
+    ? (loadError as any)?.response?.data?.message ||
+      "Error al cargar los productos con stock crítico. Intenta nuevamente."
+    : null;
 
   // ═══ Modal: Ver Detalle ═══
   const [showViewModal, setShowViewModal] = useState(false);
@@ -258,52 +270,41 @@ export default function StockCriticoManagement({ isDark = true }: { isDark?: boo
 
   const t = getTheme(isDark);
 
-  const loadProductos = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await productsService.getAllProducts();
-      const criticos = data
-        .filter(
-          (p) =>
-            p.estado_logico === true &&
-            (Number(p.stock_actual) || 0) <= (Number(p.stock_minimo_alerta) || 0)
-        )
-        .map<ProductoStockCritico>((p) => {
-          const stock = Number(p.stock_actual) || 0;
-          const minimo = Number(p.stock_minimo_alerta) || 0;
-          const porcentaje = minimo > 0 ? (stock / minimo) * 100 : stock > 0 ? 100 : 0;
-          return {
-            ...p,
-            diferencia: stock - minimo,
-            porcentaje_disponible: porcentaje,
-            nivel_criticidad: porcentaje <= 30 ? "critico" : porcentaje <= 60 ? "bajo" : "alerta",
-          };
-        })
-        .sort((a, b) => {
-          if (a.nivel_criticidad !== b.nivel_criticidad) {
-            const orden = { critico: 0, bajo: 1, alerta: 2 } as const;
-            return orden[a.nivel_criticidad] - orden[b.nivel_criticidad];
-          }
-          if (a.porcentaje_disponible !== b.porcentaje_disponible) {
-            return a.porcentaje_disponible - b.porcentaje_disponible;
-          }
-          return a.nombre_comercial.localeCompare(b.nombre_comercial);
-        });
-      setProductos(criticos);
-    } catch (err: any) {
-      console.error("❌ Error al cargar stock crítico:", err);
-      setError(
-        err?.response?.data?.message || "Error al cargar los productos con stock crítico. Intenta nuevamente."
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  /** Revalidar productos desde el servidor (botón "Reintentar"). */
+  const loadProductos = () => {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.products.all });
+  };
 
-  useEffect(() => {
-    loadProductos();
-  }, [loadProductos]);
+  // Derivar los productos con stock crítico desde la caché de productos
+  const productos: ProductoStockCritico[] = useMemo(() => {
+    return (productosData ?? [])
+      .filter(
+        (p) =>
+          p.estado_logico === true &&
+          (Number(p.stock_actual) || 0) <= (Number(p.stock_minimo_alerta) || 0)
+      )
+      .map<ProductoStockCritico>((p) => {
+        const stock = Number(p.stock_actual) || 0;
+        const minimo = Number(p.stock_minimo_alerta) || 0;
+        const porcentaje = minimo > 0 ? (stock / minimo) * 100 : stock > 0 ? 100 : 0;
+        return {
+          ...p,
+          diferencia: stock - minimo,
+          porcentaje_disponible: porcentaje,
+          nivel_criticidad: porcentaje <= 30 ? "critico" : porcentaje <= 60 ? "bajo" : "alerta",
+        };
+      })
+      .sort((a, b) => {
+        if (a.nivel_criticidad !== b.nivel_criticidad) {
+          const orden = { critico: 0, bajo: 1, alerta: 2 } as const;
+          return orden[a.nivel_criticidad] - orden[b.nivel_criticidad];
+        }
+        if (a.porcentaje_disponible !== b.porcentaje_disponible) {
+          return a.porcentaje_disponible - b.porcentaje_disponible;
+        }
+        return a.nombre_comercial.localeCompare(b.nombre_comercial);
+      });
+  }, [productosData]);
 
   const filteredProductos = useMemo(() => {
     return productos.filter((prod) => {
@@ -429,6 +430,7 @@ export default function StockCriticoManagement({ isDark = true }: { isDark?: boo
       );
 
       loadProductos();
+      void queryClient.invalidateQueries({ queryKey: queryKeys.lotes.all });
     } catch (err: any) {
       console.error("❌ Error al reponer stock:", err);
       const mensaje =

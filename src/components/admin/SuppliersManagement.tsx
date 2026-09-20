@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useMemo } from "react";
 import {
   Search,
   Filter,
@@ -26,6 +26,9 @@ import {
   type Proveedor,
   type NewProveedorInput,
 } from "../../services/suppliersService";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "../../lib/queryKeys";
+import { useSuppliersQuery } from "../../hooks/useAdminQueries";
 
 /* ─── Toast de éxito / error ─────────────────────────────────────── */
 const showToast = (
@@ -166,10 +169,19 @@ export default function SuppliersManagement({ isDark = true }: { isDark?: boolea
   const [currentPage, setCurrentPage] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
 
-  // ═══ Datos reales desde el backend ═══
-  const [proveedores, setProveedores] = useState<Proveedor[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // ═══ Datos desde caché (TanStack Query) ═══
+  const queryClient = useQueryClient();
+  const {
+    data: proveedoresData,
+    isLoading,
+    error: loadError,
+  } = useSuppliersQuery();
+  const proveedores = proveedoresData ?? [];
+  const loading = isLoading;
+  const error = loadError
+    ? (loadError as any)?.response?.data?.message ||
+      "Error al cargar los proveedores. Intenta nuevamente."
+    : null;
 
   // ═══ Modal: Crear / Editar / Ver ═══
   const [showModal, setShowModal] = useState(false);
@@ -186,25 +198,10 @@ export default function SuppliersManagement({ isDark = true }: { isDark?: boolea
   const itemsPerPage = 8;
   const t = getTheme(isDark);
 
-  const loadSuppliers = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await suppliersService.getAllSuppliers();
-      setProveedores(data);
-    } catch (err: any) {
-      console.error("❌ Error al cargar proveedores:", err);
-      setError(
-        err?.response?.data?.message || "Error al cargar los proveedores. Intenta nuevamente."
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadSuppliers();
-  }, [loadSuppliers]);
+  /** Revalidar la lista desde el servidor (botón "Reintentar"). */
+  const loadSuppliers = () => {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.suppliers.all });
+  };
 
   // Filtered suppliers
   const filteredSuppliers = useMemo(() => {
@@ -290,12 +287,12 @@ export default function SuppliersManagement({ isDark = true }: { isDark?: boolea
     try {
       if (modalMode === "create") {
         const nuevo = await suppliersService.createSupplier(payload);
-        setProveedores((prev) => [nuevo, ...prev]);
+        queryClient.setQueryData<Proveedor[]>(queryKeys.suppliers.all, (prev) => [nuevo, ...(prev ?? [])]);
         showToast(true, "¡Proveedor Creado!", `${nuevo.nombre_proveedor} se registró exitosamente.`, isDark);
       } else if (modalMode === "edit" && selectedSupplier) {
         const actualizado = await suppliersService.updateSupplier(selectedSupplier.id_proveedor, payload);
-        setProveedores((prev) =>
-          prev.map((p) => (p.id_proveedor === actualizado.id_proveedor ? actualizado : p))
+        queryClient.setQueryData<Proveedor[]>(queryKeys.suppliers.all, (prev) =>
+          (prev ?? []).map((p) => (p.id_proveedor === actualizado.id_proveedor ? actualizado : p))
         );
         showToast(true, "¡Proveedor Actualizado!", `${actualizado.nombre_proveedor} se actualizó correctamente.`, isDark);
       }
@@ -339,14 +336,14 @@ export default function SuppliersManagement({ isDark = true }: { isDark?: boolea
           direccion: supplierToToggle.direccion || "",
           estado_logico: true,
         });
-        setProveedores((prev) =>
-          prev.map((p) => (p.id_proveedor === reactivado.id_proveedor ? reactivado : p))
+        queryClient.setQueryData<Proveedor[]>(queryKeys.suppliers.all, (prev) =>
+          (prev ?? []).map((p) => (p.id_proveedor === reactivado.id_proveedor ? reactivado : p))
         );
         showToast(true, "¡Proveedor Reactivado!", `${reactivado.nombre_proveedor} se habilitó nuevamente.`, isDark);
       } else {
         const desactivado = await suppliersService.deleteSupplier(supplierToToggle.id_proveedor);
-        setProveedores((prev) =>
-          prev.map((p) => (p.id_proveedor === desactivado.id_proveedor ? desactivado : p))
+        queryClient.setQueryData<Proveedor[]>(queryKeys.suppliers.all, (prev) =>
+          (prev ?? []).map((p) => (p.id_proveedor === desactivado.id_proveedor ? desactivado : p))
         );
         showToast(
           true,

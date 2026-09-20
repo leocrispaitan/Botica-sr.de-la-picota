@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useMemo } from "react";
 import {
   Search,
   Filter,
@@ -35,19 +35,23 @@ import {
 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import { productsService } from "../../services/productsService";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "../../lib/queryKeys";
+import { useProductsManagementQuery } from "../../hooks/useAdminQueries";
 
 const { updateProduct, deleteProduct } = productsService;
 import type {
   Categoria,
-  CondicionVenta,
   Producto,
   NewProductoInput,
-  Proveedor,
-  FormaFarmaceutica,
-  ViaAdministracion,
-  ClasificacionATC,
-  Laboratorio,
+  ProductCatalog,
 } from "../../services/productsService";
+
+// Forma de la caché combinada "products/management": productos + catálogo
+type ProductsManagementData = {
+  productos: Producto[];
+  catalogo: ProductCatalog;
+};
 
 /* ─── Default Image ─────────────────────────────────────────────────── */
 const DEFAULT_PRODUCT_IMAGE =
@@ -479,17 +483,27 @@ export default function ProductsManagement({ isDark = true }: { isDark?: boolean
   const [showFilters, setShowFilters] = useState(false);
   const itemsPerPage = 6;
 
-  // ═══ Datos reales desde el backend ═══
-  const [productos, setProductos] = useState<Producto[]>([]);
-  const [categorias, setCategorias] = useState<Categoria[]>([]);
-  const [condicionesVenta, setCondicionesVenta] = useState<CondicionVenta[]>([]);
-  const [proveedores, setProveedores] = useState<Proveedor[]>([]);
-  const [formasFarmaceuticas, setFormasFarmaceuticas] = useState<FormaFarmaceutica[]>([]);
-  const [viasAdministracion, setViasAdministracion] = useState<ViaAdministracion[]>([]);
-  const [laboratorios, setLaboratorios] = useState<Laboratorio[]>([]);
-  const [clasificacionesAtc, setClasificacionesAtc] = useState<ClasificacionATC[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // ═══ Datos desde caché (TanStack Query) ═══
+  const queryClient = useQueryClient();
+  const {
+    data: managementData,
+    isLoading,
+    error: loadError,
+  } = useProductsManagementQuery();
+  const productos = managementData?.productos ?? [];
+  const catalogo = managementData?.catalogo;
+  const categorias = catalogo?.categorias ?? [];
+  const condicionesVenta = catalogo?.condiciones_venta ?? [];
+  const proveedores = catalogo?.proveedores ?? [];
+  const formasFarmaceuticas = catalogo?.formas_farmaceuticas ?? [];
+  const viasAdministracion = catalogo?.vias_administracion ?? [];
+  const laboratorios = catalogo?.laboratorios ?? [];
+  const clasificacionesAtc = catalogo?.clasificaciones_atc ?? [];
+  const loading = isLoading;
+  const error = loadError
+    ? (loadError as any)?.response?.data?.message ||
+      "Error al cargar los productos. Intenta nuevamente."
+    : null;
 
   // ═══ Modal: Nuevo Producto ═══
   const [showNewProductModal, setShowNewProductModal] = useState(false);
@@ -513,35 +527,10 @@ export default function ProductsManagement({ isDark = true }: { isDark?: boolean
   const [productToReactivate, setProductToReactivate] = useState<Producto | null>(null);
   const [reactivating, setReactivating] = useState(false);
 
-  const loadProducts = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [productsData, catalogData] = await Promise.all([
-        productsService.getAllProducts(),
-        productsService.getProductCatalog(),
-      ]);
-      setProductos(productsData);
-      setCategorias(catalogData.categorias);
-      setCondicionesVenta(catalogData.condiciones_venta);
-      setProveedores(catalogData.proveedores);
-      setFormasFarmaceuticas(catalogData.formas_farmaceuticas);
-      setViasAdministracion(catalogData.vias_administracion);
-      setLaboratorios(catalogData.laboratorios);
-      setClasificacionesAtc(catalogData.clasificaciones_atc);
-    } catch (err: any) {
-      console.error("❌ Error al cargar productos:", err);
-      setError(
-        err?.response?.data?.message || "Error al cargar los productos. Intenta nuevamente."
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadProducts();
-  }, [loadProducts]);
+  /** Revalidar productos + catálogo desde el servidor (botón "Reintentar"). */
+  const loadProducts = () => {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.products.management });
+  };
 
   const t = getTheme(isDark);
 
@@ -645,7 +634,9 @@ export default function ProductsManagement({ isDark = true }: { isDark?: boolean
       setFormData(emptyNewProductForm);
       setFormErrors({});
 
-      setProductos((prev) => [nuevoProducto, ...prev]);
+      queryClient.setQueryData(queryKeys.products.management, (prev: ProductsManagementData | undefined) =>
+        prev ? { ...prev, productos: [nuevoProducto, ...prev.productos] } : prev
+      );
 
       showProductSuccessToast(
         nuevoProducto,
@@ -711,8 +702,15 @@ export default function ProductsManagement({ isDark = true }: { isDark?: boolean
       const eliminado = productToDelete;
       setShowDeleteModal(false);
       setProductToDelete(null);
-      setProductos((prev) =>
-        prev.map((p) => (p.id_producto === eliminado.id_producto ? { ...p, estado_logico: false } : p))
+      queryClient.setQueryData(queryKeys.products.management, (prev: ProductsManagementData | undefined) =>
+        prev
+          ? {
+              ...prev,
+              productos: prev.productos.map((p) =>
+                p.id_producto === eliminado.id_producto ? { ...p, estado_logico: false } : p
+              ),
+            }
+          : prev
       );
       showProductDeleteSuccessToast(eliminado, isDark);
     } catch (err: any) {
@@ -758,8 +756,15 @@ export default function ProductsManagement({ isDark = true }: { isDark?: boolean
       });
       setShowReactivateModal(false);
       setProductToReactivate(null);
-      setProductos((prev) =>
-        prev.map((p) => (p.id_producto === reactivado.id_producto ? reactivado : p))
+      queryClient.setQueryData(queryKeys.products.management, (prev: ProductsManagementData | undefined) =>
+        prev
+          ? {
+              ...prev,
+              productos: prev.productos.map((p) =>
+                p.id_producto === reactivado.id_producto ? reactivado : p
+              ),
+            }
+          : prev
       );
       showProductSuccessToast(
         reactivado,
@@ -795,8 +800,15 @@ export default function ProductsManagement({ isDark = true }: { isDark?: boolean
     try {
       const product = await updateProduct(editingProductId, buildProductPayload(formData));
       setShowEditModal(false);
-      setProductos((prev) =>
-        prev.map((p) => (p.id_producto === product.id_producto ? product : p))
+      queryClient.setQueryData(queryKeys.products.management, (prev: ProductsManagementData | undefined) =>
+        prev
+          ? {
+              ...prev,
+              productos: prev.productos.map((p) =>
+                p.id_producto === product.id_producto ? product : p
+              ),
+            }
+          : prev
       );
       showProductSuccessToast(
         product,

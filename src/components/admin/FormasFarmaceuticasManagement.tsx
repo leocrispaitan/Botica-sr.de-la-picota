@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useMemo } from "react";
 import {
   Search,
   Filter,
@@ -23,6 +23,9 @@ import {
   type FormaFarmaceutica,
   type NewFormaFarmaceuticaInput,
 } from "../../services/formasFarmaceuticasService";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "../../lib/queryKeys";
+import { useFormasFarmaceuticasQuery } from "../../hooks/useAdminQueries";
 
 /* ─── Toast de éxito / error ─────────────────────────────────────── */
 const showToast = (
@@ -159,10 +162,19 @@ export default function FormasFarmaceuticasManagement({ isDark = true }: { isDar
   const [currentPage, setCurrentPage] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
 
-  // ═══ Datos reales desde el backend ═══
-  const [formas, setFormas] = useState<FormaFarmaceutica[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // ═══ Datos desde caché (TanStack Query) ═══
+  const queryClient = useQueryClient();
+  const {
+    data: formasData,
+    isLoading,
+    error: loadError,
+  } = useFormasFarmaceuticasQuery();
+  const formas = formasData ?? [];
+  const loading = isLoading;
+  const error = loadError
+    ? (loadError as any)?.response?.data?.message ||
+      "Error al cargar las formas farmacéuticas. Intenta nuevamente."
+    : null;
 
   // ═══ Modal: Crear / Editar / Ver ═══
   const [showModal, setShowModal] = useState(false);
@@ -180,25 +192,10 @@ export default function FormasFarmaceuticasManagement({ isDark = true }: { isDar
   const itemsPerPage = 8;
   const t = getTheme(isDark);
 
-  const loadFormas = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await formasFarmaceuticasService.getAllFormasFarmaceuticas();
-      setFormas(data);
-    } catch (err: any) {
-      console.error("❌ Error al cargar formas farmacéuticas:", err);
-      setError(
-        err?.response?.data?.message || "Error al cargar las formas farmacéuticas. Intenta nuevamente."
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadFormas();
-  }, [loadFormas]);
+  /** Revalidar la lista desde el servidor (botón "Reintentar"). */
+  const loadFormas = () => {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.formasFarmaceuticas.all });
+  };
 
   // Mantener la lista ordenada por nombre (igual que el backend)
   const sortFormas = (lista: FormaFarmaceutica[]) =>
@@ -284,15 +281,21 @@ export default function FormasFarmaceuticasManagement({ isDark = true }: { isDar
     try {
       if (modalMode === "create") {
         const nueva = await formasFarmaceuticasService.createFormaFarmaceutica(payload);
-        setFormas((prev) => sortFormas([...prev, nueva]));
+        queryClient.setQueryData<FormaFarmaceutica[]>(queryKeys.formasFarmaceuticas.all, (prev) =>
+          sortFormas([...(prev ?? []), nueva])
+        );
         showToast(true, "¡Forma Farmacéutica Creada!", `${nueva.nombre} se registró exitosamente.`, isDark);
       } else if (modalMode === "edit" && selectedForma) {
         const actualizada = await formasFarmaceuticasService.updateFormaFarmaceutica(
           selectedForma.id_forma_farmaceutica,
           payload
         );
-        setFormas((prev) =>
-          sortFormas(prev.map((f) => (f.id_forma_farmaceutica === actualizada.id_forma_farmaceutica ? actualizada : f)))
+        queryClient.setQueryData<FormaFarmaceutica[]>(queryKeys.formasFarmaceuticas.all, (prev) =>
+          sortFormas(
+            (prev ?? []).map((f) =>
+              f.id_forma_farmaceutica === actualizada.id_forma_farmaceutica ? actualizada : f
+            )
+          )
         );
         showToast(true, "¡Forma Farmacéutica Actualizada!", `${actualizada.nombre} se actualizó correctamente.`, isDark);
       }
@@ -332,14 +335,22 @@ export default function FormasFarmaceuticasManagement({ isDark = true }: { isDar
           nombre: formaToToggle.nombre,
           estado_logico: true,
         });
-        setFormas((prev) =>
-          sortFormas(prev.map((f) => (f.id_forma_farmaceutica === reactivada.id_forma_farmaceutica ? reactivada : f)))
+        queryClient.setQueryData<FormaFarmaceutica[]>(queryKeys.formasFarmaceuticas.all, (prev) =>
+          sortFormas(
+            (prev ?? []).map((f) =>
+              f.id_forma_farmaceutica === reactivada.id_forma_farmaceutica ? reactivada : f
+            )
+          )
         );
         showToast(true, "¡Forma Farmacéutica Reactivada!", `${reactivada.nombre} se habilitó nuevamente.`, isDark);
       } else {
         const desactivada = await formasFarmaceuticasService.deleteFormaFarmaceutica(formaToToggle.id_forma_farmaceutica);
-        setFormas((prev) =>
-          sortFormas(prev.map((f) => (f.id_forma_farmaceutica === desactivada.id_forma_farmaceutica ? desactivada : f)))
+        queryClient.setQueryData<FormaFarmaceutica[]>(queryKeys.formasFarmaceuticas.all, (prev) =>
+          sortFormas(
+            (prev ?? []).map((f) =>
+              f.id_forma_farmaceutica === desactivada.id_forma_farmaceutica ? desactivada : f
+            )
+          )
         );
         showToast(
           true,

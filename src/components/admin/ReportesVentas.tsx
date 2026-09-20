@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode, type CSSProperties } from "react";
+import { useMemo, useState, type ReactNode, type CSSProperties } from "react";
 import { motion } from "framer-motion";
 import {
   ResponsiveContainer,
@@ -33,8 +33,9 @@ import {
   AlertTriangle,
   Inbox,
 } from "lucide-react";
-import reportesService from "../../services/reportesService";
-import type { ReporteVentas } from "../../services/reportesService";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "../../lib/queryKeys";
+import { useReporteVentasQuery } from "../../hooks/useAdminQueries";
 import { exportSalesReportPdf } from "../../utils/pdfUtils";
 import type { SalesReportChartImages } from "../../utils/pdfUtils";
 
@@ -432,49 +433,35 @@ export default function ReportesVentas({ isDark = true }: { isDark?: boolean }) 
   const [preset, setPreset] = useState<Preset>("30d");
   const [desdeInput, setDesdeInput] = useState("");
   const [hastaInput, setHastaInput] = useState("");
-  const [refreshKey, setRefreshKey] = useState(0);
-
-  const [reporte, setReporte] = useState<ReporteVentas | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
-    const r = getRango(preset, desdeInput, hastaInput);
+  // ═══ Datos desde caché (TanStack Query) ═══
+  const queryClient = useQueryClient();
+  const rango = getRango(preset, desdeInput, hastaInput);
+  const rangoIncompleto = preset === "custom" && (!rango.desde || !rango.hasta);
 
-    if (preset === "custom" && (!r.desde || !r.hasta)) {
-      setError("Selecciona las fechas de inicio y fin del período.");
-      setReporte(null);
-      setLoading(false);
-      return;
-    }
+  const {
+    data: reporte,
+    isLoading,
+    error: loadError,
+  } = useReporteVentasQuery(
+    rangoIncompleto ? undefined : rango.desde,
+    rangoIncompleto ? undefined : rango.hasta,
+    { enabled: !rangoIncompleto }
+  );
 
-    setLoading(true);
-    setError(null);
+  const loading = isLoading;
+  const error = loadError
+    ? ((loadError as { response?: { data?: { message?: string } } }).response?.data?.message ??
+      "No se pudo cargar el reporte.")
+    : rangoIncompleto
+      ? "Selecciona las fechas de inicio y fin del período."
+      : null;
 
-    reportesService
-      .getReporteVentas(r.desde, r.hasta)
-      .then((data) => {
-        if (!cancelled) setReporte(data);
-      })
-      .catch((err: unknown) => {
-        if (cancelled) return;
-        const msg =
-          err && typeof err === "object" && "response" in err
-            ? String((err as { response?: { data?: { message?: string } } }).response?.data?.message || "No se pudo cargar el reporte.")
-            : "No se pudo cargar el reporte.";
-        setError(msg);
-        setReporte(null);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [preset, desdeInput, hastaInput, refreshKey]);
+  // Revalidar el reporte actual (botones de refrescar)
+  const refreshReporte = () => {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.reportes.ventas });
+  };
 
   const periodLabel = useMemo(() => {
     if (!reporte) return "Cargando período…";
@@ -679,7 +666,7 @@ export default function ReportesVentas({ isDark = true }: { isDark?: boolean }) 
           )}
 
           <button
-            onClick={() => setRefreshKey((k) => k + 1)}
+            onClick={refreshReporte}
             disabled={loading}
             title="Actualizar"
             style={{
@@ -782,7 +769,7 @@ export default function ReportesVentas({ isDark = true }: { isDark?: boolean }) 
           </h3>
           <p style={{ fontSize: 13, color: t.textSecondary, marginBottom: 20 }}>{error}</p>
           <button
-            onClick={() => setRefreshKey((k) => k + 1)}
+            onClick={refreshReporte}
             style={{
               padding: "10px 20px",
               borderRadius: 14,

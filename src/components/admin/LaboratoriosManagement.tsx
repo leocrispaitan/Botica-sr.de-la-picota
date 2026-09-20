@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useMemo } from "react";
 import {
   Search,
   Filter,
@@ -25,6 +25,9 @@ import {
   type Laboratorio,
   type NewLaboratorioInput,
 } from "../../services/laboratoriosService";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "../../lib/queryKeys";
+import { useLaboratoriosQuery } from "../../hooks/useAdminQueries";
 
 /* ─── Toast de éxito / error ─────────────────────────────────────── */
 const showToast = (
@@ -175,10 +178,19 @@ export default function LaboratoriosManagement({ isDark = true }: { isDark?: boo
   const [currentPage, setCurrentPage] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
 
-  // ═══ Datos reales desde el backend ═══
-  const [laboratorios, setLaboratorios] = useState<Laboratorio[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // ═══ Datos desde caché (TanStack Query) ═══
+  const queryClient = useQueryClient();
+  const {
+    data: laboratoriosData,
+    isLoading,
+    error: loadError,
+  } = useLaboratoriosQuery();
+  const laboratorios = laboratoriosData ?? [];
+  const loading = isLoading;
+  const error = loadError
+    ? (loadError as any)?.response?.data?.message ||
+      "Error al cargar los laboratorios. Intenta nuevamente."
+    : null;
 
   // ═══ Modal: Crear / Editar / Ver ═══
   const [showModal, setShowModal] = useState(false);
@@ -196,25 +208,10 @@ export default function LaboratoriosManagement({ isDark = true }: { isDark?: boo
   const itemsPerPage = 6;
   const t = getTheme(isDark);
 
-  const loadLaboratorios = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await laboratoriosService.getAllLaboratorios();
-      setLaboratorios(data);
-    } catch (err: any) {
-      console.error("❌ Error al cargar laboratorios:", err);
-      setError(
-        err?.response?.data?.message || "Error al cargar los laboratorios. Intenta nuevamente."
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadLaboratorios();
-  }, [loadLaboratorios]);
+  /** Revalidar la lista desde el servidor (botón "Reintentar"). */
+  const loadLaboratorios = () => {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.laboratorios.all });
+  };
 
   // Mantener la lista ordenada por nombre (igual que el backend)
   const sortLaboratorios = (lista: Laboratorio[]) =>
@@ -326,15 +323,21 @@ export default function LaboratoriosManagement({ isDark = true }: { isDark?: boo
     try {
       if (modalMode === "create") {
         const nuevo = await laboratoriosService.createLaboratorio(payload);
-        setLaboratorios((prev) => sortLaboratorios([...prev, nuevo]));
+        queryClient.setQueryData<Laboratorio[]>(queryKeys.laboratorios.all, (prev) =>
+          sortLaboratorios([...(prev ?? []), nuevo])
+        );
         showToast(true, "¡Laboratorio Creado!", `${nuevo.nombre} se registró exitosamente.`, isDark);
       } else if (modalMode === "edit" && selectedLab) {
         const actualizado = await laboratoriosService.updateLaboratorio(
           selectedLab.id_laboratorio,
           payload
         );
-        setLaboratorios((prev) =>
-          sortLaboratorios(prev.map((l) => (l.id_laboratorio === actualizado.id_laboratorio ? actualizado : l)))
+        queryClient.setQueryData<Laboratorio[]>(queryKeys.laboratorios.all, (prev) =>
+          sortLaboratorios(
+            (prev ?? []).map((l) =>
+              l.id_laboratorio === actualizado.id_laboratorio ? actualizado : l
+            )
+          )
         );
         showToast(true, "¡Laboratorio Actualizado!", `${actualizado.nombre} se actualizó correctamente.`, isDark);
       }
@@ -376,14 +379,22 @@ export default function LaboratoriosManagement({ isDark = true }: { isDark?: boo
           tipo_entidad: labToToggle.tipo_entidad,
           estado_logico: true,
         });
-        setLaboratorios((prev) =>
-          sortLaboratorios(prev.map((l) => (l.id_laboratorio === reactivado.id_laboratorio ? reactivado : l)))
+        queryClient.setQueryData<Laboratorio[]>(queryKeys.laboratorios.all, (prev) =>
+          sortLaboratorios(
+            (prev ?? []).map((l) =>
+              l.id_laboratorio === reactivado.id_laboratorio ? reactivado : l
+            )
+          )
         );
         showToast(true, "¡Laboratorio Reactivado!", `${reactivado.nombre} se habilitó nuevamente.`, isDark);
       } else {
         const desactivado = await laboratoriosService.deleteLaboratorio(labToToggle.id_laboratorio);
-        setLaboratorios((prev) =>
-          sortLaboratorios(prev.map((l) => (l.id_laboratorio === desactivado.id_laboratorio ? desactivado : l)))
+        queryClient.setQueryData<Laboratorio[]>(queryKeys.laboratorios.all, (prev) =>
+          sortLaboratorios(
+            (prev ?? []).map((l) =>
+              l.id_laboratorio === desactivado.id_laboratorio ? desactivado : l
+            )
+          )
         );
         showToast(
           true,

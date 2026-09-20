@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo } from "react";
 import {
   Search,
   Filter,
@@ -24,6 +24,9 @@ import {
 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import { categoriesService, type Categoria, type CategoriaDetalle } from "../../services/categoriesService";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "../../lib/queryKeys";
+import { useCategoriesQuery } from "../../hooks/useAdminQueries";
 
 /* ─── Theme ────────────────────────────────────────────────────────── */
 function getTheme(isDark: boolean) {
@@ -248,10 +251,19 @@ export default function CategoriesManagement({ isDark = true }: { isDark?: boole
   const [showFilters, setShowFilters] = useState(false);
   const itemsPerPage = 6;
 
-  // ═══ Datos reales desde el backend ═══
-  const [categorias, setCategorias] = useState<Categoria[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // ═══ Datos desde caché (TanStack Query) ═══
+  const queryClient = useQueryClient();
+  const {
+    data: categoriasData,
+    isLoading,
+    error: loadError,
+  } = useCategoriesQuery();
+  const categorias = categoriasData ?? [];
+  const loading = isLoading;
+  const error = loadError
+    ? (loadError as any)?.response?.data?.message ||
+      "Error al cargar las categorías. Intenta nuevamente."
+    : null;
 
   // ═══ Modal: Nueva Categoría ═══
   const [showNewModal, setShowNewModal] = useState(false);
@@ -284,25 +296,10 @@ export default function CategoriesManagement({ isDark = true }: { isDark?: boole
 
   const t = getTheme(isDark);
 
-  const loadCategories = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await categoriesService.getAllCategories();
-      setCategorias(data);
-    } catch (err: any) {
-      console.error("❌ Error al cargar categorías:", err);
-      setError(
-        err?.response?.data?.message || "Error al cargar las categorías. Intenta nuevamente."
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadCategories();
-  }, [loadCategories]);
+  /** Revalidar la lista desde el servidor (botón "Reintentar"). */
+  const loadCategories = () => {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.categories.all });
+  };
 
   // ═══ Formulario: Nueva Categoría ═══
   const handleOpenNewModal = () => {
@@ -353,8 +350,8 @@ export default function CategoriesManagement({ isDark = true }: { isDark?: boole
       setFormData(emptyNewCategoriaForm);
       setFormErrors({});
 
-      setCategorias((prev) =>
-        [...prev, nuevaCategoria].sort((a, b) => a.nombre_categoria.localeCompare(b.nombre_categoria))
+      queryClient.setQueryData<Categoria[]>(queryKeys.categories.all, (prev) =>
+        [...(prev ?? []), nuevaCategoria].sort((a, b) => a.nombre_categoria.localeCompare(b.nombre_categoria))
       );
 
       showCategoriaSuccessToast(
@@ -431,8 +428,8 @@ export default function CategoriesManagement({ isDark = true }: { isDark?: boole
       setEditFormData(emptyNewCategoriaForm);
       setEditFormErrors({});
 
-      setCategorias((prev) =>
-        prev
+      queryClient.setQueryData<Categoria[]>(queryKeys.categories.all, (prev) =>
+        (prev ?? [])
           .map((cat) => (cat.id_categoria === actualizada.id_categoria ? actualizada : cat))
           .sort((a, b) => a.nombre_categoria.localeCompare(b.nombre_categoria))
       );
@@ -467,8 +464,8 @@ export default function CategoriesManagement({ isDark = true }: { isDark?: boole
       const eliminada = await categoriesService.deleteCategory(categoryToDelete.id_categoria);
       setShowDeleteModal(false);
       setCategoryToDelete(null);
-      setCategorias((prev) =>
-        prev.map((cat) =>
+      queryClient.setQueryData<Categoria[]>(queryKeys.categories.all, (prev) =>
+        (prev ?? []).map((cat) =>
           cat.id_categoria === eliminada.id_categoria
             ? { ...eliminada, total_productos: cat.total_productos }
             : cat
@@ -508,8 +505,8 @@ export default function CategoriesManagement({ isDark = true }: { isDark?: boole
       });
       setShowReactivateModal(false);
       setCategoryToReactivate(null);
-      setCategorias((prev) =>
-        prev.map((cat) => (cat.id_categoria === reactivada.id_categoria ? reactivada : cat))
+      queryClient.setQueryData<Categoria[]>(queryKeys.categories.all, (prev) =>
+        (prev ?? []).map((cat) => (cat.id_categoria === reactivada.id_categoria ? reactivada : cat))
       );
       showCategoriaSuccessToast(
         reactivada,

@@ -25,6 +25,9 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { usersService, type Usuario } from "../../services/usersService";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "../../lib/queryKeys";
+import { useUsersQuery } from "../../hooks/useAdminQueries";
 import { api } from "../../services/api";
 import toast, { Toaster } from "react-hot-toast";
 
@@ -138,10 +141,19 @@ function getTheme(isDark: boolean) {
 /*  USERS MANAGEMENT COMPONENT                                         */
 /* ═══════════════════════════════════════════════════════════════════ */
 export default function UsersManagement({ isDark = true }: { isDark?: boolean }) {
-  // Estados para datos
-  const [users, setUsers] = useState<Usuario[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // ═══ Datos desde caché (TanStack Query) ═══
+  const queryClient = useQueryClient();
+  const {
+    data: usersData,
+    isLoading,
+    error: loadError,
+  } = useUsersQuery();
+  const users = usersData ?? [];
+  const loading = isLoading;
+  const error = loadError
+    ? (loadError as any)?.response?.data?.message ||
+      "Error al cargar los usuarios. Por favor, intenta nuevamente."
+    : null;
 
   // Estados para UI
   const [searchTerm, setSearchTerm] = useState("");
@@ -253,24 +265,9 @@ export default function UsersManagement({ isDark = true }: { isDark?: boolean })
     });
   };
 
-  // Cargar usuarios al montar el componente
-  useEffect(() => {
-    loadUsers();
-  }, []);
-
-  // Función para cargar usuarios desde la API
-  const loadUsers = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await usersService.getAllUsers();
-      setUsers(data);
-    } catch (err) {
-      console.error("Error al cargar usuarios:", err);
-      setError("Error al cargar los usuarios. Por favor, intenta nuevamente.");
-    } finally {
-      setLoading(false);
-    }
+  // Función para revalidar los usuarios desde el servidor (TanStack Query)
+  const loadUsers = () => {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
   };
 
   // Función para recargar usuarios
@@ -311,9 +308,9 @@ export default function UsersManagement({ isDark = true }: { isDark?: boolean })
       const nextEstado = !userToToggle.estado_logico;
       await usersService.updateUserStatus(userToToggle.id_usuario, nextEstado);
 
-      // Actualizar la lista localmente sin recargar toda la tabla
-      setUsers((prev) =>
-        prev.map((u) =>
+      // Actualizar la caché de forma quirúrgica (sin recargar toda la tabla)
+      queryClient.setQueryData<Usuario[]>(queryKeys.users.all, (prev) =>
+        (prev ?? []).map((u) =>
           u.id_usuario === userToToggle.id_usuario ? { ...u, estado_logico: nextEstado } : u
         )
       );
@@ -741,9 +738,9 @@ export default function UsersManagement({ isDark = true }: { isDark?: boolean })
 
       console.log("✅ Usuario actualizado exitosamente:", usuarioActualizado);
 
-      // Actualizar la lista de usuarios localmente
-      setUsers((prev) => 
-        prev.map((user) => 
+      // Actualizar la caché de forma quirúrgica (sin recargar la tabla)
+      queryClient.setQueryData<Usuario[]>(queryKeys.users.all, (prev) =>
+        (prev ?? []).map((user) =>
           user.id_usuario === selectedUser.id_usuario ? usuarioActualizado : user
         )
       );
@@ -1196,8 +1193,8 @@ export default function UsersManagement({ isDark = true }: { isDark?: boolean })
       // Cerrar modal
       setShowNewUserModal(false);
 
-      // Recargar la lista de usuarios
-      await loadUsers();
+      // Revalidar la lista de usuarios (TanStack Query)
+      void queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
 
       // Mostrar notificación de éxito personalizada
       toast.custom(

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useMemo } from "react";
 import {
   Search,
   Filter,
@@ -24,6 +24,9 @@ import {
   type ViaAdministracion,
   type NewViaAdministracionInput,
 } from "../../services/viasAdministracionService";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "../../lib/queryKeys";
+import { useViasAdministracionQuery } from "../../hooks/useAdminQueries";
 
 /* ─── Toast de éxito / error ─────────────────────────────────────── */
 const showToast = (
@@ -160,10 +163,19 @@ export default function ViasAdministracionManagement({ isDark = true }: { isDark
   const [currentPage, setCurrentPage] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
 
-  // ═══ Datos reales desde el backend ═══
-  const [vias, setVias] = useState<ViaAdministracion[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // ═══ Datos desde caché (TanStack Query) ═══
+  const queryClient = useQueryClient();
+  const {
+    data: viasData,
+    isLoading,
+    error: loadError,
+  } = useViasAdministracionQuery();
+  const vias = viasData ?? [];
+  const loading = isLoading;
+  const error = loadError
+    ? (loadError as any)?.response?.data?.message ||
+      "Error al cargar las vías de administración. Intenta nuevamente."
+    : null;
 
   // ═══ Modal: Crear / Editar / Ver ═══
   const [showModal, setShowModal] = useState(false);
@@ -181,25 +193,10 @@ export default function ViasAdministracionManagement({ isDark = true }: { isDark
   const itemsPerPage = 8;
   const t = getTheme(isDark);
 
-  const loadVias = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await viasAdministracionService.getAllViasAdministracion();
-      setVias(data);
-    } catch (err: any) {
-      console.error("❌ Error al cargar vías de administración:", err);
-      setError(
-        err?.response?.data?.message || "Error al cargar las vías de administración. Intenta nuevamente."
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadVias();
-  }, [loadVias]);
+  /** Revalidar la lista desde el servidor (botón "Reintentar"). */
+  const loadVias = () => {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.viasAdministracion.all });
+  };
 
   // Mantener la lista ordenada por nombre (igual que el backend)
   const sortVias = (lista: ViaAdministracion[]) =>
@@ -285,15 +282,21 @@ export default function ViasAdministracionManagement({ isDark = true }: { isDark
     try {
       if (modalMode === "create") {
         const nueva = await viasAdministracionService.createViaAdministracion(payload);
-        setVias((prev) => sortVias([...prev, nueva]));
+        queryClient.setQueryData<ViaAdministracion[]>(queryKeys.viasAdministracion.all, (prev) =>
+          sortVias([...(prev ?? []), nueva])
+        );
         showToast(true, "¡Vía Creada!", `${nueva.nombre} se registró exitosamente.`, isDark);
       } else if (modalMode === "edit" && selectedVia) {
         const actualizada = await viasAdministracionService.updateViaAdministracion(
           selectedVia.id_via_administracion,
           payload
         );
-        setVias((prev) =>
-          sortVias(prev.map((v) => (v.id_via_administracion === actualizada.id_via_administracion ? actualizada : v)))
+        queryClient.setQueryData<ViaAdministracion[]>(queryKeys.viasAdministracion.all, (prev) =>
+          sortVias(
+            (prev ?? []).map((v) =>
+              v.id_via_administracion === actualizada.id_via_administracion ? actualizada : v
+            )
+          )
         );
         showToast(true, "¡Vía Actualizada!", `${actualizada.nombre} se actualizó correctamente.`, isDark);
       }
@@ -333,14 +336,22 @@ export default function ViasAdministracionManagement({ isDark = true }: { isDark
           nombre: viaToToggle.nombre,
           estado_logico: true,
         });
-        setVias((prev) =>
-          sortVias(prev.map((v) => (v.id_via_administracion === reactivada.id_via_administracion ? reactivada : v)))
+        queryClient.setQueryData<ViaAdministracion[]>(queryKeys.viasAdministracion.all, (prev) =>
+          sortVias(
+            (prev ?? []).map((v) =>
+              v.id_via_administracion === reactivada.id_via_administracion ? reactivada : v
+            )
+          )
         );
         showToast(true, "¡Vía Reactivada!", `${reactivada.nombre} se habilitó nuevamente.`, isDark);
       } else {
         const desactivada = await viasAdministracionService.deleteViaAdministracion(viaToToggle.id_via_administracion);
-        setVias((prev) =>
-          sortVias(prev.map((v) => (v.id_via_administracion === desactivada.id_via_administracion ? desactivada : v)))
+        queryClient.setQueryData<ViaAdministracion[]>(queryKeys.viasAdministracion.all, (prev) =>
+          sortVias(
+            (prev ?? []).map((v) =>
+              v.id_via_administracion === desactivada.id_via_administracion ? desactivada : v
+            )
+          )
         );
         showToast(
           true,

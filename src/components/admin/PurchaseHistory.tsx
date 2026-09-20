@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import {
   Search,
   Filter,
@@ -19,6 +19,9 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { purchasesService, type CompraHistorial as Purchase } from "../../services/purchasesService";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "../../lib/queryKeys";
+import { usePurchaseHistoryQuery, usePurchaseDataQuery } from "../../hooks/useAdminQueries";
 import {
   exportPurchaseComprobante,
   exportPurchaseHistoryReport,
@@ -140,16 +143,6 @@ export default function PurchaseHistory({ isDark = true }: { isDark?: boolean })
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
 
-  // API data state
-  const [purchases, setPurchases] = useState<Purchase[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalCompras, setTotalCompras] = useState(0);
-  const [totalMonto, setTotalMonto] = useState(0);
-  const [totalProductos, setTotalProductos] = useState(0);
-  const [totalProveedores, setTotalProveedores] = useState(0);
-
   const t = getTheme(isDark);
 
   // Debounce de la búsqueda (200ms)
@@ -164,55 +157,52 @@ export default function PurchaseHistory({ isDark = true }: { isDark?: boolean })
     setCurrentPage(1);
   }, [debouncedSearch, providerFilter, dateFrom, dateTo]);
 
-  // ─── Fetch compras desde la API (paginación + filtros server-side) ───
-  const fetchPurchases = useCallback(async () => {
-    setLoading(true);
-    setErrorMsg(null);
-    try {
-      const data = await purchasesService.getPurchaseHistory({
-        page: currentPage,
-        limit: itemsPerPage,
-        search: debouncedSearch || undefined,
-        proveedor: providerFilter === "all" ? undefined : providerFilter,
-        desde: dateFrom || undefined,
-        hasta: dateTo || undefined,
-      });
-      setPurchases(data.compras);
-      setTotalPages(data.pagination.totalPages);
-      setTotalCompras(data.stats.total_compras);
-      setTotalMonto(data.stats.total_monto);
-      setTotalProductos(data.stats.total_productos);
-      setTotalProveedores(data.stats.proveedores);
-    } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : "Error al cargar las compras";
-      setErrorMsg(message);
-    } finally {
-      setLoading(false);
-    }
-  }, [currentPage, debouncedSearch, providerFilter, dateFrom, dateTo]);
+  // ═══ Datos desde caché (TanStack Query) ═══
+  // Paginación + filtros server-side con keepPreviousData: al cambiar de
+  // página o filtros NUNCA se muestra "Cargando...", la tabla anterior
+  // permanece visible hasta que llega la respuesta nueva.
+  const queryClient = useQueryClient();
+  const {
+    data: historyData,
+    isLoading,
+    error: queryError,
+  } = usePurchaseHistoryQuery({
+    page: currentPage,
+    limit: itemsPerPage,
+    search: debouncedSearch || undefined,
+    proveedor: providerFilter === "all" ? undefined : providerFilter,
+    desde: dateFrom || undefined,
+    hasta: dateTo || undefined,
+  });
+  const purchases: Purchase[] = historyData?.compras ?? [];
+  const totalPages = historyData?.pagination?.totalPages ?? 1;
+  const totalCompras = historyData?.stats?.total_compras ?? 0;
+  const totalMonto = historyData?.stats?.total_monto ?? 0;
+  const totalProductos = historyData?.stats?.total_productos ?? 0;
+  const totalProveedores = historyData?.stats?.proveedores ?? 0;
+  const loading = isLoading;
+  const errorMsg = queryError
+    ? queryError instanceof Error
+      ? queryError.message
+      : "Error al cargar las compras"
+    : null;
 
-  // Recargar al cambiar página o filtros
-  useEffect(() => {
-    fetchPurchases();
-  }, [fetchPurchases]);
+  // Revalidar la página actual (botones "Reintentar")
+  const fetchPurchases = () => {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.purchaseHistory });
+  };
 
-  // Get unique providers (para el dropdown de filtro) desde todas las compras
-  // Se mantiene un fetch ligero de proveedores activos
+  // Proveedores activos (caché ligera) para el dropdown del filtro
+  const { data: purchaseData } = usePurchaseDataQuery();
   const [providers, setProviders] = useState<
     { id_proveedor: number; nombre_proveedor: string; ruc: string }[]
   >([]);
 
   useEffect(() => {
-    (async () => {
-      try {
-        const data = await purchasesService.getPurchaseData();
-        setProviders(data.proveedores);
-      } catch (_err) {
-        // Silencioso: los proveedores se derivan también de la página actual
-      }
-    })();
-  }, []);
+    if (purchaseData?.proveedores) {
+      setProviders(purchaseData.proveedores);
+    }
+  }, [purchaseData]);
 
   // Proveedores de emergencia desde la página actual si aún no carga la lista
   const pageProviders = Array.from(

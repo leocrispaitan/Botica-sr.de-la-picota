@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useMemo } from "react";
 import {
   Search,
   Filter,
@@ -28,6 +28,9 @@ import {
   type MetodoPago,
   type NewMetodoPagoInput,
 } from "../../services/metodosPagoService";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "../../lib/queryKeys";
+import { useMetodosPagoQuery } from "../../hooks/useAdminQueries";
 
 /* ─── Helper Function: Get Icon by Method Name ──────────────────────── */
 const getMethodIcon = (nombre: string) => {
@@ -175,10 +178,19 @@ export default function MetodosPagoManagement({ isDark = true }: { isDark?: bool
   const [currentPage, setCurrentPage] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
 
-  // ═══ Datos reales desde el backend ═══
-  const [metodos, setMetodos] = useState<MetodoPago[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // ═══ Datos desde caché (TanStack Query) ═══
+  const queryClient = useQueryClient();
+  const {
+    data: metodosData,
+    isLoading,
+    error: loadError,
+  } = useMetodosPagoQuery();
+  const metodos = metodosData ?? [];
+  const loading = isLoading;
+  const error = loadError
+    ? (loadError as any)?.response?.data?.message ||
+      "Error al cargar los métodos de pago. Intenta nuevamente."
+    : null;
 
   // ═══ Modal: Crear / Editar / Ver ═══
   const [showModal, setShowModal] = useState(false);
@@ -196,25 +208,10 @@ export default function MetodosPagoManagement({ isDark = true }: { isDark?: bool
   const itemsPerPage = 6;
   const t = getTheme(isDark);
 
-  const loadMetodos = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await metodosPagoService.getAllMetodosPago();
-      setMetodos(data);
-    } catch (err: any) {
-      console.error("❌ Error al cargar métodos de pago:", err);
-      setError(
-        err?.response?.data?.message || "Error al cargar los métodos de pago. Intenta nuevamente."
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadMetodos();
-  }, [loadMetodos]);
+  /** Revalidar la lista desde el servidor (botón "Reintentar"). */
+  const loadMetodos = () => {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.metodosPago.all });
+  };
 
   // Mantener la lista ordenada por nombre (igual que el backend)
   const sortMetodos = (lista: MetodoPago[]) =>
@@ -310,15 +307,21 @@ export default function MetodosPagoManagement({ isDark = true }: { isDark?: bool
     try {
       if (modalMode === "create") {
         const nuevo = await metodosPagoService.createMetodoPago(payload);
-        setMetodos((prev) => sortMetodos([...prev, nuevo]));
+        queryClient.setQueryData<MetodoPago[]>(queryKeys.metodosPago.all, (prev) =>
+          sortMetodos([...(prev ?? []), nuevo])
+        );
         showToast(true, "¡Método Creado!", `${nuevo.nombre_metodo} se registró exitosamente.`, isDark);
       } else if (modalMode === "edit" && selectedMetodo) {
         const actualizado = await metodosPagoService.updateMetodoPago(
           selectedMetodo.id_metodo_pago,
           payload
         );
-        setMetodos((prev) =>
-          sortMetodos(prev.map((m) => (m.id_metodo_pago === actualizado.id_metodo_pago ? actualizado : m)))
+        queryClient.setQueryData<MetodoPago[]>(queryKeys.metodosPago.all, (prev) =>
+          sortMetodos(
+            (prev ?? []).map((m) =>
+              m.id_metodo_pago === actualizado.id_metodo_pago ? actualizado : m
+            )
+          )
         );
         showToast(true, "¡Método Actualizado!", `${actualizado.nombre_metodo} se actualizó correctamente.`, isDark);
       }
@@ -359,14 +362,22 @@ export default function MetodosPagoManagement({ isDark = true }: { isDark?: bool
           descripcion: metodoToToggle.descripcion,
           estado_logico: true,
         });
-        setMetodos((prev) =>
-          sortMetodos(prev.map((m) => (m.id_metodo_pago === reactivado.id_metodo_pago ? reactivado : m)))
+        queryClient.setQueryData<MetodoPago[]>(queryKeys.metodosPago.all, (prev) =>
+          sortMetodos(
+            (prev ?? []).map((m) =>
+              m.id_metodo_pago === reactivado.id_metodo_pago ? reactivado : m
+            )
+          )
         );
         showToast(true, "¡Método Reactivado!", `${reactivado.nombre_metodo} se habilitó nuevamente.`, isDark);
       } else {
         const desactivado = await metodosPagoService.deleteMetodoPago(metodoToToggle.id_metodo_pago);
-        setMetodos((prev) =>
-          sortMetodos(prev.map((m) => (m.id_metodo_pago === desactivado.id_metodo_pago ? desactivado : m)))
+        queryClient.setQueryData<MetodoPago[]>(queryKeys.metodosPago.all, (prev) =>
+          sortMetodos(
+            (prev ?? []).map((m) =>
+              m.id_metodo_pago === desactivado.id_metodo_pago ? desactivado : m
+            )
+          )
         );
         showToast(
           true,
