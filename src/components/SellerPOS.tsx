@@ -682,10 +682,10 @@ export default function SellerPOS() {
           height: 100vh;
           width: 100%;
           display: grid;
-          grid-template-columns: 242px minmax(0, 1fr) 360px;
+          grid-template-columns: 268px minmax(0, 1fr) 360px;
           grid-template-rows: minmax(0, 1fr);
           overflow: hidden;
-          background: #ffffff;
+          background: #f8fafb;
           border: none;
           border-radius: 0;
           box-shadow: none;
@@ -693,7 +693,7 @@ export default function SellerPOS() {
         }
 
         .seller-pos-shell.is-sidebar-collapsed {
-          grid-template-columns: 92px minmax(0, 1fr) 360px;
+          grid-template-columns: 106px minmax(0, 1fr) 360px;
         }
 
         .seller-sidebar {
@@ -702,30 +702,45 @@ export default function SellerPOS() {
           justify-content: flex-start;
           gap: 28px;
           min-height: 0;
-          padding: 28px 22px;
-          border-right: 1px solid #e2ebf1;
-          background: #ffffff;
+          margin: 20px 0 20px 20px;
+          padding: 32px 20px;
+          border-radius: 24px;
+          background: #15141f;
           overflow-y: auto;
+          box-shadow: 
+            0 0 0 1px rgba(0, 0, 0, 0.2),
+            0 8px 16px rgba(0, 0, 0, 0.15),
+            0 16px 48px rgba(0, 0, 0, 0.25);
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          z-index: 100;
+          position: relative;
         }
 
         .seller-brand {
           display: flex;
           align-items: center;
-          gap: 13px;
-          color: #0f172a;
+          gap: 14px;
+          color: #ffffff;
           font-size: 19px;
           font-weight: 800;
+          padding-bottom: 8px;
         }
 
         .seller-brand-mark {
-          width: 42px;
-          height: 42px;
+          width: 46px;
+          height: 46px;
           display: grid;
           place-items: center;
-          border-radius: 16px;
+          border-radius: 18px;
           color: #ffffff;
           background: linear-gradient(135deg, #0fbf70, #14b8a6);
-          box-shadow: 0 12px 26px rgba(15, 191, 112, 0.26);
+          box-shadow: 0 8px 20px rgba(15, 191, 112, 0.3);
+          transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .seller-brand-mark:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 12px 28px rgba(15, 191, 112, 0.4);
         }
 
         .seller-close-nav,
@@ -737,40 +752,69 @@ export default function SellerPOS() {
         .seller-nav {
           display: flex;
           flex-direction: column;
-          gap: 8px;
-          margin-top: 34px;
+          gap: 6px;
+          margin-top: 16px;
         }
 
         .seller-nav-button,
         .seller-logout-button {
           width: 100%;
-          min-height: 50px;
+          min-height: 52px;
           display: flex;
           align-items: center;
-          gap: 14px;
-          padding: 0 14px;
+          gap: 15px;
+          padding: 0 16px;
           border: 0;
-          border-radius: 16px;
+          outline: none;
+          border-radius: 14px;
           background: transparent;
-          color: #667085;
+          color: #969ba0;
           font: inherit;
           font-size: 15px;
           font-weight: 700;
           cursor: pointer;
-          transition: all 0.2s ease;
+          transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
           position: relative;
+        }
+
+        .seller-nav-button:focus,
+        .seller-logout-button:focus {
+          outline: none;
+        }
+
+        .seller-nav-button:focus-visible,
+        .seller-logout-button:focus-visible {
+          outline: 2px solid rgba(15, 191, 112, 0.4);
+          outline-offset: 2px;
         }
 
         .seller-nav-button:hover,
         .seller-logout-button:hover {
-          color: #0f9f63;
-          background: rgba(15, 191, 112, 0.08);
+          color: #0fbf70;
+          background: rgba(15, 191, 112, 0.12);
+          transform: translateX(4px);
         }
 
         .seller-nav-button.is-active {
-          color: #0f9f63;
-          background: linear-gradient(90deg, rgba(15, 191, 112, 0.16), rgba(15, 191, 112, 0.03));
-          box-shadow: inset 3px 0 0 #0fbf70;
+          color: #0fbf70;
+          background: rgba(15, 191, 112, 0.14);
+          box-shadow: 
+            inset 0 0 0 1px rgba(15, 191, 112, 0.25),
+            0 2px 8px rgba(15, 191, 112, 0.15);
+          transform: translateX(4px);
+        }
+
+        .seller-nav-button.is-active::before {
+          content: "";
+          position: absolute;
+          left: 0;
+          top: 50%;
+          transform: translateY(-50%);
+          width: 4px;
+          height: 28px;
+          background: linear-gradient(180deg, #0fbf70, #14b8a6);
+          border-radius: 0 4px 4px 0;
+          box-shadow: 0 2px 8px rgba(15, 191, 112, 0.5);
         }
 
         .seller-nav-badge {
@@ -789,35 +833,71 @@ export default function SellerPOS() {
 
         .seller-sidebar-footer {
           display: grid;
-          gap: 14px;
+          gap: 12px;
           margin-top: auto;
+          padding-top: 20px;
+          border-top: 1px solid rgba(46, 46, 66, 0.5);
+        }
+
+        /* Botones específicos del footer con altura y alineación fija */
+        .seller-sidebar-footer .seller-nav-button,
+        .seller-sidebar-footer .seller-logout-button {
+          min-height: 52px;
+          height: 52px;
         }
 
         .seller-shift-card {
-          padding: 16px;
-          border: 1px solid #dce8ef;
-          border-radius: 18px;
-          background: #f8fbfa;
+          padding: 18px;
+          border: 1px solid rgba(15, 191, 112, 0.2);
+          border-radius: 16px;
+          background: rgba(15, 191, 112, 0.08);
+          transition: all 0.25s ease;
+        }
+
+        .seller-shift-card:hover {
+          border-color: rgba(15, 191, 112, 0.35);
+          background: rgba(15, 191, 112, 0.12);
+          box-shadow: 0 4px 12px rgba(15, 191, 112, 0.2);
         }
 
         .seller-shift-card span {
           display: block;
-          color: #667085;
+          color: #969ba0;
           font-size: 12px;
           font-weight: 700;
           text-transform: uppercase;
+          letter-spacing: 0.05em;
         }
 
         .seller-shift-card strong {
           display: block;
-          margin-top: 4px;
-          color: #0f172a;
-          font-size: 22px;
+          margin-top: 6px;
+          color: #0fbf70;
+          font-size: 24px;
           line-height: 1;
+          font-weight: 900;
         }
 
         .seller-logout-button {
           color: #ef4444;
+          transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .seller-logout-button:hover {
+          color: #ffffff;
+          background: linear-gradient(135deg, #ef4444, #dc2626);
+          box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+          transform: translateX(4px);
+        }
+
+        /* Ajuste para botones de ajustes y ayuda en sidebar oscuro */
+        .seller-sidebar-footer .seller-nav-button {
+          color: #969ba0;
+        }
+
+        .seller-sidebar-footer .seller-nav-button:hover {
+          color: #0fbf70;
+          background: rgba(15, 191, 112, 0.12);
         }
 
         .seller-workspace {
@@ -826,6 +906,7 @@ export default function SellerPOS() {
           display: flex;
           flex-direction: column;
           overflow: hidden;
+          background: #f8fafb;
         }
 
         .seller-topbar {
@@ -835,8 +916,8 @@ export default function SellerPOS() {
           align-items: center;
           gap: 20px;
           padding: 24px 28px;
-          border-bottom: 1px solid #e2ebf1;
-          background: #ffffff;
+          border-bottom: none;
+          background: #f8fafb;
         }
 
         .seller-topbar-left {
@@ -859,10 +940,11 @@ export default function SellerPOS() {
           place-items: center;
           border: 0;
           border-radius: 14px;
-          background: #f2f6f8;
+          background: #ffffff;
           color: #0f172a;
           cursor: pointer;
           transition: color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+          box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
         }
 
         .seller-sidebar-toggle:hover {
@@ -882,7 +964,7 @@ export default function SellerPOS() {
           left: calc(100% + 11px);
           top: 50%;
           transform: translateY(-50%) translateX(-6px);
-          z-index: 90;
+          z-index: 9999;
           padding: 8px 12px;
           border-radius: 9px;
           background: #0f172a;
@@ -906,7 +988,7 @@ export default function SellerPOS() {
           left: calc(100% + 7px);
           top: 50%;
           transform: translateY(-50%);
-          z-index: 90;
+          z-index: 9999;
           border: 5px solid transparent;
           border-right-color: #0f172a;
           opacity: 0;
@@ -918,13 +1000,15 @@ export default function SellerPOS() {
         @media (min-width: 921px) {
           .seller-pos-shell.is-sidebar-collapsed .seller-sidebar {
             align-items: center;
-            padding: 28px 14px;
+            padding: 32px 18px;
             overflow: visible;
+            margin: 20px 0 20px 20px;
           }
 
           .seller-pos-shell.is-sidebar-collapsed .seller-brand {
             justify-content: center;
             gap: 0;
+            padding-bottom: 8px;
           }
 
           .seller-pos-shell.is-sidebar-collapsed .seller-brand strong,
@@ -938,12 +1022,17 @@ export default function SellerPOS() {
           .seller-pos-shell.is-sidebar-collapsed .seller-logout-button {
             justify-content: center;
             padding: 0;
+            width: 52px;
+          }
+
+          .seller-pos-shell.is-sidebar-collapsed .seller-nav-button.is-active::before {
+            display: none;
           }
 
           .seller-pos-shell.is-sidebar-collapsed .seller-nav-badge {
             position: absolute;
-            top: 2px;
-            right: 0;
+            top: 4px;
+            right: 4px;
           }
 
           .seller-pos-shell.is-sidebar-collapsed .seller-nav-button[data-tooltip]:hover::after,
@@ -982,10 +1071,11 @@ export default function SellerPOS() {
           align-items: center;
           gap: 12px;
           padding: 0 16px;
-          border: 1px solid #d6e1e9;
+          border: 1px solid #e2e8f0;
           border-radius: 14px;
-          background: #f8fafc;
+          background: #ffffff;
           color: #667085;
+          box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
         }
 
         .seller-search input {
@@ -1051,10 +1141,17 @@ export default function SellerPOS() {
           place-items: center;
           border: 0;
           border-radius: 50%;
-          background: #f2f6f8;
+          background: #ffffff;
           color: #0f172a;
           cursor: pointer;
           position: relative;
+          box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+          transition: all 0.2s ease;
+        }
+
+        .seller-bell:hover {
+          background: rgba(15, 191, 112, 0.1);
+          color: #0f9f63;
         }
 
         .seller-bell::after {
@@ -1072,7 +1169,8 @@ export default function SellerPOS() {
         .seller-content {
           flex: 1;
           overflow-y: auto;
-          padding: 28px;
+          padding: 0 28px 28px 28px;
+          background: #f8fafb;
         }
 
         .seller-section-heading {
@@ -1799,7 +1897,7 @@ export default function SellerPOS() {
           }
 
           .seller-pos-shell {
-            grid-template-columns: 92px minmax(0, 1fr);
+            grid-template-columns: 106px minmax(0, 1fr);
             grid-template-rows: none;
             height: auto;
             min-height: 100vh;
@@ -1807,12 +1905,13 @@ export default function SellerPOS() {
           }
 
           .seller-pos-shell.is-sidebar-collapsed {
-            grid-template-columns: 92px minmax(0, 1fr);
+            grid-template-columns: 106px minmax(0, 1fr);
           }
 
           .seller-sidebar {
             align-items: center;
-            padding: 24px 14px;
+            padding: 28px 18px;
+            margin: 20px 0 20px 20px;
           }
 
           .seller-brand strong,
@@ -1829,10 +1928,14 @@ export default function SellerPOS() {
             padding: 0;
           }
 
+          .seller-nav-button.is-active::before {
+            left: 4px;
+          }
+
           .seller-nav-badge {
             position: absolute;
-            top: 2px;
-            right: 0;
+            top: 4px;
+            right: 4px;
           }
 
           .seller-bill {
@@ -1852,17 +1955,21 @@ export default function SellerPOS() {
             display: block;
             border: 0;
             border-radius: 0;
+            background: #ffffff;
           }
 
           .seller-sidebar {
             position: fixed;
             inset: 0 auto 0 0;
             z-index: 70;
-            width: min(280px, 86vw);
+            width: min(290px, 86vw);
             align-items: stretch;
+            margin: 0;
+            padding: 28px 22px;
+            border-radius: 0 24px 24px 0;
             transform: translateX(-105%);
-            transition: transform 0.25s ease;
-            box-shadow: 24px 0 44px rgba(15, 23, 42, 0.18);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 24px 0 48px rgba(15, 23, 42, 0.12);
           }
 
           .seller-pos-shell.is-nav-open .seller-sidebar {
@@ -1883,7 +1990,7 @@ export default function SellerPOS() {
           .seller-nav-button,
           .seller-logout-button {
             justify-content: flex-start;
-            padding: 0 14px;
+            padding: 0 16px;
           }
 
           .seller-close-nav {
@@ -1893,8 +2000,14 @@ export default function SellerPOS() {
             height: 38px;
             border: 0;
             border-radius: 12px;
-            background: #eef6f5;
-            color: #0f9f63;
+            background: rgba(15, 191, 112, 0.15);
+            color: #0fbf70;
+            transition: all 0.2s ease;
+          }
+
+          .seller-close-nav:hover {
+            background: rgba(15, 191, 112, 0.25);
+            transform: rotate(90deg);
           }
 
           .seller-mobilebar {
@@ -1919,8 +2032,8 @@ export default function SellerPOS() {
             place-items: center;
             border: 0;
             border-radius: 14px;
-            background: #eef6f5;
-            color: #0f9f63;
+            background: rgba(15, 191, 112, 0.12);
+            color: #0fbf70;
           }
 
           .seller-mobilebar strong {
@@ -1935,7 +2048,8 @@ export default function SellerPOS() {
             inset: 0;
             z-index: 60;
             border: 0;
-            background: rgba(15, 23, 42, 0.48);
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(4px);
           }
 
           .seller-topbar {
