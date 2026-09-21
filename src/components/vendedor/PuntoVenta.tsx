@@ -815,42 +815,53 @@ export default function PuntoVenta() {
 
         .seller-product-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-          gap: 18px;
+          grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+          gap: 14px;
+          align-items: start;
         }
 
         .seller-product-card {
           min-width: 0;
-          padding: 16px;
-          border: 1px solid #dfe8ef;
-          border-radius: 20px;
+          padding: 14px;
+          border: 1.5px solid #e8f0f6;
+          border-radius: 18px;
           background: #ffffff;
-          box-shadow: 0 18px 34px rgba(15, 23, 42, 0.06);
+          box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
           cursor: pointer;
-          transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+          transition:
+            border-color 0.22s ease,
+            box-shadow 0.22s ease,
+            transform 0.18s ease;
         }
 
-        .seller-product-card:hover,
-        .seller-product-card.is-selected {
-          transform: translateY(-2px);
+        .seller-product-card:hover {
+          border-color: color-mix(in srgb, var(--product-accent) 55%, #e8f0f6);
+          box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+          transform: translateY(-1px);
+        }
+
+        .seller-product-card.is-expanded {
           border-color: var(--product-accent);
-          box-shadow: 0 22px 42px rgba(15, 23, 42, 0.1);
+          box-shadow:
+            0 0 0 3px color-mix(in srgb, var(--product-accent) 18%, transparent),
+            0 8px 24px rgba(15, 23, 42, 0.1);
+          transform: translateY(-2px);
+          cursor: default;
         }
 
         .seller-product-top {
           display: grid;
-          grid-template-columns: 112px minmax(0, 1fr);
-          gap: 16px;
+          grid-template-columns: 80px minmax(0, 1fr) 28px;
+          gap: 12px;
           align-items: start;
-          margin-bottom: 16px;
         }
 
         .seller-product-image {
-          height: 112px;
+          height: 80px;
           display: grid;
           place-items: center;
           overflow: hidden;
-          border-radius: 14px;
+          border-radius: 12px;
           background:
             linear-gradient(135deg, rgba(255,255,255,0.34), rgba(255,255,255,0)),
             color-mix(in srgb, var(--product-accent) 16%, #eef6f5);
@@ -871,25 +882,124 @@ export default function PuntoVenta() {
           z-index: 1;
         }
 
-        .seller-product-top h3 {
-          margin: 3px 0 6px;
-          color: #111827;
-          font-size: 17px;
-          font-weight: 800;
-          line-height: 1.2;
+        .seller-product-info {
+          min-width: 0;
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
         }
 
-        .seller-product-top p {
-          margin: 0 0 18px;
+        .seller-product-top h3 {
+          margin: 0 0 2px;
+          color: #111827;
+          font-size: 14px;
+          font-weight: 800;
+          line-height: 1.25;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .seller-product-generic {
+          margin: 0;
+          color: #94a3b8;
+          font-size: 11.5px;
+          font-weight: 700;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .seller-product-meta {
+          margin: 3px 0 5px;
           color: #667085;
-          font-size: 13px;
+          font-size: 11.5px;
           font-weight: 700;
         }
 
         .seller-product-top strong {
           color: #0fbf70;
-          font-size: 24px;
+          font-size: 20px;
           font-weight: 900;
+          line-height: 1;
+        }
+
+        .seller-expand-icon {
+          align-self: center;
+          width: 28px;
+          height: 28px;
+          display: grid;
+          place-items: center;
+          border: 0;
+          border-radius: 50%;
+          background: #f1f5f9;
+          color: #94a3b8;
+          cursor: pointer;
+          transition: background 0.2s ease, color 0.2s ease, transform 0.3s ease;
+          flex-shrink: 0;
+        }
+
+        .seller-expand-icon:hover {
+          background: rgba(15, 191, 112, 0.12);
+          color: #0fbf70;
+        }
+
+        .seller-expand-icon.is-open {
+          transform: rotate(180deg);
+          background: rgba(15, 191, 112, 0.12);
+          color: #0fbf70;
+        }
+
+        .seller-select-button {
+          width: 100%;
+          height: 36px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 7px;
+          margin-top: 10px;
+          border: 1.5px solid #e2e8f0;
+          border-radius: 999px;
+          background: transparent;
+          color: #374151;
+          font: inherit;
+          font-size: 13px;
+          font-weight: 800;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+
+        .seller-select-button:hover {
+          border-color: var(--product-accent);
+          color: #0f9f63;
+          background: color-mix(in srgb, var(--product-accent) 7%, transparent);
+        }
+
+        .seller-card-expandable {
+          display: grid;
+          grid-template-rows: 0fr;
+          opacity: 0;
+          transition:
+            grid-template-rows 0.32s cubic-bezier(0.4, 0, 0.2, 1),
+            opacity 0.28s ease;
+          pointer-events: none;
+        }
+
+        .seller-card-expandable.is-open {
+          grid-template-rows: 1fr;
+          opacity: 1;
+          pointer-events: auto;
+        }
+
+        .seller-card-expandable-inner {
+          overflow: hidden;
+        }
+
+        .seller-card-divider {
+          height: 1px;
+          margin: 12px 0 14px;
+          background: #f1f5f9;
+          border-radius: 999px;
         }
 
         .seller-card-row {
@@ -903,7 +1013,7 @@ export default function PuntoVenta() {
         }
 
         .seller-card-row-spaced {
-          margin-top: 18px;
+          margin-top: 14px;
         }
 
         .seller-option-row {
@@ -926,7 +1036,7 @@ export default function PuntoVenta() {
         }
 
         .seller-option-row button {
-          height: 40px;
+          height: 38px;
           min-width: 0;
           font-size: 12px;
         }
@@ -946,21 +1056,21 @@ export default function PuntoVenta() {
 
         .seller-product-bottom {
           display: grid;
-          grid-template-columns: 1fr 148px;
+          grid-template-columns: 1fr 140px;
           gap: 12px;
           align-items: center;
         }
 
         .seller-lab-pill {
           min-width: 0;
-          height: 42px;
+          height: 38px;
           display: inline-flex;
           align-items: center;
-          padding: 0 14px;
+          padding: 0 12px;
           border-radius: 999px;
           background: #f7fafc;
           color: #4b5563;
-          font-size: 13px;
+          font-size: 12.5px;
           font-weight: 800;
           white-space: nowrap;
           overflow: hidden;
@@ -968,17 +1078,17 @@ export default function PuntoVenta() {
         }
 
         .seller-amount {
-          height: 42px;
+          height: 38px;
           display: grid;
-          grid-template-columns: 40px 1fr 40px;
+          grid-template-columns: 38px 1fr 38px;
           align-items: center;
-          gap: 8px;
+          gap: 6px;
         }
 
         .seller-amount button,
         .seller-order-actions button {
-          width: 40px;
-          height: 40px;
+          width: 38px;
+          height: 38px;
           display: grid;
           place-items: center;
         }
@@ -986,24 +1096,24 @@ export default function PuntoVenta() {
         .seller-amount button:last-child {
           color: #fff;
           background: linear-gradient(135deg, #0fbf70, #0aa565);
-          box-shadow: 0 12px 18px rgba(15, 191, 112, 0.26);
+          box-shadow: 0 8px 16px rgba(15, 191, 112, 0.26);
         }
 
         .seller-amount strong {
           color: #111827;
           text-align: center;
-          font-size: 16px;
+          font-size: 15px;
           font-weight: 900;
         }
 
         .seller-add-button {
           width: 100%;
-          height: 48px;
+          height: 44px;
           display: flex;
           align-items: center;
           justify-content: center;
           gap: 9px;
-          margin-top: 18px;
+          margin-top: 14px;
           border: 0;
           border-radius: 999px;
           background: linear-gradient(135deg, #0fbf70, #0aa565);
@@ -1012,13 +1122,13 @@ export default function PuntoVenta() {
           font-size: 14px;
           font-weight: 900;
           cursor: pointer;
-          box-shadow: 0 16px 26px rgba(15, 191, 112, 0.22);
+          box-shadow: 0 10px 22px rgba(15, 191, 112, 0.22);
           transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
 
         .seller-add-button:hover {
           transform: translateY(-1px);
-          box-shadow: 0 18px 32px rgba(15, 191, 112, 0.3);
+          box-shadow: 0 14px 28px rgba(15, 191, 112, 0.3);
         }
 
         .seller-panel-view {
