@@ -100,6 +100,7 @@ export default function MenuProductos({
             >
               {/* ── ESTADO SIEMPRE VISIBLE (contraído y expandido) ── */}
               <div className="seller-product-top">
+                {/* Imagen grande en la parte superior de la tarjeta */}
                 <div className="seller-product-image">
                   <img
                     src={product.image}
@@ -108,30 +109,32 @@ export default function MenuProductos({
                       event.currentTarget.style.display = "none";
                     }}
                   />
-                  <Pill className="seller-product-fallback" size={34} />
+                  <Pill className="seller-product-fallback" size={44} />
                 </div>
-                <div className="seller-product-info">
-                  <h3>{product.name}</h3>
-                  {product.genericName && (
-                    <p className="seller-product-generic">{product.genericName}</p>
-                  )}
-                  <p className="seller-product-meta">
-                    {product.stock} disponibles · {product.sold} vendidos
-                  </p>
-                  <strong>{formatCurrency(option.price)}</strong>
-                </div>
+                <div className="seller-product-main">
+                  <div className="seller-product-info">
+                    <h3>{product.name}</h3>
+                    {product.genericName && (
+                      <p className="seller-product-generic">{product.genericName}</p>
+                    )}
+                    <p className="seller-product-meta">
+                      {product.stock} disponibles · {product.sold} vendidos
+                    </p>
+                    <strong>{formatCurrency(option.price)}</strong>
+                  </div>
 
-                {/* Indicador de expansión */}
-                <button
-                  className={`seller-expand-icon ${isExpanded ? "is-open" : ""}`}
-                  aria-label={isExpanded ? "Contraer tarjeta" : "Expandir tarjeta"}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleCardClick(product.id);
-                  }}
-                >
-                  <ChevronDown size={16} />
-                </button>
+                  {/* Indicador de expansión */}
+                  <button
+                    className={`seller-expand-icon ${isExpanded ? "is-open" : ""}`}
+                    aria-label={isExpanded ? "Contraer tarjeta" : "Expandir tarjeta"}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleCardClick(product.id);
+                    }}
+                  >
+                    <ChevronDown size={16} />
+                  </button>
+                </div>
               </div>
 
               {/* Botón "Seleccionar producto" (solo visible cuando está CONTRAÍDO) */}

@@ -850,18 +850,25 @@ export default function PuntoVenta() {
         }
 
         .seller-product-top {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+
+        .seller-product-main {
           display: grid;
-          grid-template-columns: 80px minmax(0, 1fr) 28px;
+          grid-template-columns: minmax(0, 1fr) 28px;
           gap: 12px;
           align-items: start;
         }
 
         .seller-product-image {
-          height: 80px;
+          width: 100%;
+          height: 150px;
           display: grid;
           place-items: center;
           overflow: hidden;
-          border-radius: 12px;
+          border-radius: 14px;
           background:
             linear-gradient(135deg, rgba(255,255,255,0.34), rgba(255,255,255,0)),
             color-mix(in srgb, var(--product-accent) 16%, #eef6f5);
@@ -1770,7 +1777,6 @@ export default function PuntoVenta() {
         }
 
         @media (max-width: 520px) {
-          .seller-product-top,
           .seller-selected-detail,
           .seller-product-bottom {
             grid-template-columns: 1fr;
