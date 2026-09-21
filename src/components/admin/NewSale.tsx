@@ -301,7 +301,6 @@ export default function NewSale({ isDark = true }: { isDark?: boolean }) {
   const [metodoPago, setMetodoPago] = useState<PaymentMethod>("EFECTIVO");
   const [montoPagado, setMontoPagado] = useState("");
   const [clienteSeleccionado, setClienteSeleccionado] = useState<number | "">("");
-  const [busquedaCliente, setBusquedaCliente] = useState("");
   const [ventaExitosa, setVentaExitosa] = useState(false);
   const [opcionSeleccionada, setOpcionSeleccionada] = useState<Record<number, string>>(() =>
     productos.reduce((acc, p) => ({ ...acc, [p.id]: p.opciones[0].label }), {})
@@ -374,7 +373,6 @@ export default function NewSale({ isDark = true }: { isDark?: boolean }) {
     setCarrito([]);
     setMontoPagado("");
     setClienteSeleccionado("");
-    setBusquedaCliente("");
     setTipoComprobante("BOLETA");
     setMetodoPago("EFECTIVO");
   };
