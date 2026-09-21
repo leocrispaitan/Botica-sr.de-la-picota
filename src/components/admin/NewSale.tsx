@@ -1,4 +1,8 @@
 import React, { useMemo, useState } from "react";
+import LottieLib from "lottie-react";
+import cartEmptyAnimation from "../../assets/cart-empty.json";
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const Lottie = (LottieLib as any).default ?? LottieLib;
 import {
   Search,
   Plus,
@@ -738,9 +742,8 @@ export default function NewSale({ isDark = true }: { isDark?: boolean }) {
       alignItems: "center",
       justifyContent: "center",
       flex: 1,
-      gap: "10px",
-      padding: "40px 20px",
-      opacity: 0.45,
+      gap: "8px",
+      padding: "20px 20px",
     },
 
     /* Summary section */
@@ -1369,7 +1372,11 @@ export default function NewSale({ isDark = true }: { isDark?: boolean }) {
           <div style={S.billItems}>
             {carrito.length === 0 ? (
               <div style={S.emptyCart}>
-                <ShoppingCart size={52} color={t.textMuted} />
+                <Lottie
+                  animationData={cartEmptyAnimation}
+                  loop={true}
+                  style={{ width: 110, height: 110 }}
+                />
                 <div style={{ textAlign: "center" }}>
                   <p style={{ fontWeight: 700, color: t.textSub, margin: "0 0 4px", fontSize: "15px" }}>
                     Carrito vacío
