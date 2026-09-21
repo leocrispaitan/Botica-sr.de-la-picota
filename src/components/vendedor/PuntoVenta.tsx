@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
   Banknote,
@@ -27,10 +27,10 @@ import OrdenActual from "./OrdenActual";
 import HistorialVentas from "./HistorialVentas";
 import Clientes from "./Clientes";
 import PerfilVendedor from "./PerfilVendedor";
+import usePosCatalog from "./usePosCatalog";
 import {
   formatCurrency,
   getInitialSelections,
-  products,
   type CartItem,
   type CategoryId,
   type PaymentMethod,
@@ -41,17 +41,31 @@ import {
 
 export default function PuntoVenta() {
   const { user, logout } = useAuth();
+  // Datos reales del backend (GET /api/v1/categories y GET /api/v1/products)
+  const { categories, products, loading, error, reload } = usePosCatalog();
   const [activeView, setActiveView] = useState<SellerView>("menu");
   const [activeCategory, setActiveCategory] = useState<CategoryId>("all");
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedProductId, setSelectedProductId] = useState(products[0].id);
-  const [selectionByProduct, setSelectionByProduct] = useState(getInitialSelections);
+  const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
+  const [selectionByProduct, setSelectionByProduct] = useState<Record<number, ProductSelection>>({});
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [customerName, setCustomerName] = useState("");
   const [documentType, setDocumentType] = useState<"Boleta" | "Factura" | "Ticket">("Boleta");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  // Sembrar selecciones y el producto inicial cuando llegan los datos reales
+  useEffect(() => {
+    if (selectedProductId === null && products.length > 0) {
+      setSelectedProductId(products[0].id);
+    }
+    setSelectionByProduct((current) => {
+      const missing = products.filter((product) => !current[product.id]);
+      if (missing.length === 0) return current;
+      return { ...current, ...getInitialSelections(missing) };
+    });
+  }, [products, selectedProductId]);
 
   const userName = user?.nombre_completo || "Vendedor";
   const userEmail = user?.email || "vendedor@botica.com";
@@ -72,13 +86,15 @@ export default function PuntoVenta() {
 
       return matchesCategory && matchesSearch;
     });
-  }, [activeCategory, searchTerm]);
+  }, [products, activeCategory, searchTerm]);
 
   const selectedProduct = products.find((product) => product.id === selectedProductId) || products[0];
-  const selectedProductSelection = selectionByProduct[selectedProduct.id];
-  const selectedPrice =
-    selectedProduct.saleOptions.find((option) => option.label === selectedProductSelection.saleType)?.price ||
-    selectedProduct.saleOptions[0].price;
+  const selectedProductSelection =
+    (selectedProduct && selectionByProduct[selectedProduct.id]) || { saleType: "", quantity: 0 };
+  const selectedPrice = selectedProduct
+    ? selectedProduct.saleOptions.find((option) => option.label === selectedProductSelection.saleType)?.price ||
+      selectedProduct.saleOptions[0].price
+    : 0;
 
   const subtotal = cartItems.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
   const discount = subtotal >= 100 ? subtotal * 0.05 : 0;
@@ -98,17 +114,23 @@ export default function PuntoVenta() {
 
   const changeQuantity = (productId: number, direction: "up" | "down") => {
     const product = products.find((item) => item.id === productId);
-    const currentSelection = selectionByProduct[productId];
+    const currentSelection = selectionByProduct[productId] ?? {
+      saleType: product?.saleOptions[0].label ?? "Unidad",
+      quantity: 1,
+    };
     const nextQuantity =
       direction === "up"
-        ? Math.min((product?.stock || 1), currentSelection.quantity + 1)
+        ? Math.min(product?.stock || 1, currentSelection.quantity + 1)
         : Math.max(1, currentSelection.quantity - 1);
 
     updateProductSelection(productId, { quantity: nextQuantity });
   };
 
   const addProductToCart = (product: Product) => {
-    const selection = selectionByProduct[product.id];
+    const selection = selectionByProduct[product.id] ?? {
+      saleType: product.saleOptions[0].label,
+      quantity: 1,
+    };
     const option = product.saleOptions.find((item) => item.label === selection.saleType) || product.saleOptions[0];
     const cartKey = `${product.id}-${option.label}`;
 
@@ -210,8 +232,35 @@ export default function PuntoVenta() {
       return <OrdenActual cartItems={cartItems} onUpdateQuantity={updateCartQuantity} />;
     }
 
+    if (loading) {
+      return (
+        <div className="seller-panel-state">
+          <div>
+            <strong>Cargando catálogo...</strong>
+            <span>Obteniendo categorías y productos del servidor</span>
+          </div>
+        </div>
+      );
+    }
+
+    if (error) {
+      return (
+        <div className="seller-panel-state">
+          <div>
+            <strong>No se pudo cargar el catálogo</strong>
+            <span>{error}</span>
+            <button type="button" onClick={reload}>
+              Reintentar
+            </button>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <MenuProductos
+        categories={categories}
+        products={products}
         activeCategory={activeCategory}
         filteredProducts={filteredProducts}
         selectionByProduct={selectionByProduct}
@@ -648,6 +697,53 @@ export default function PuntoVenta() {
           font: inherit;
           font-size: 15px;
           font-weight: 600;
+        }
+
+        .seller-panel-state {
+          height: 100%;
+          display: grid;
+          place-items: center;
+          padding: 48px;
+          text-align: center;
+        }
+
+        .seller-panel-state strong {
+          display: block;
+          color: #111827;
+          font-size: 18px;
+          font-weight: 900;
+          margin-bottom: 6px;
+        }
+
+        .seller-panel-state span {
+          color: #667085;
+          font-size: 14px;
+          font-weight: 600;
+        }
+
+        .seller-panel-state button {
+          margin-top: 18px;
+          padding: 10px 22px;
+          border: 0;
+          border-radius: 999px;
+          background: #0fbf70;
+          color: #ffffff;
+          font: inherit;
+          font-size: 14px;
+          font-weight: 800;
+          cursor: pointer;
+          transition: background 0.2s ease;
+        }
+
+        .seller-panel-state button:hover {
+          background: #0da75f;
+        }
+
+        .seller-selected-fallback {
+          width: 70px;
+          height: 70px;
+          border-radius: 14px;
+          background: #eef6f5;
         }
 
         .seller-date {
@@ -1932,32 +2028,56 @@ export default function PuntoVenta() {
           <div className="seller-divider" />
 
           <div className="seller-selected-detail">
-            <img src={selectedProduct.image} alt={selectedProduct.name} />
-            <div>
-              <h3>{selectedProduct.name}</h3>
-              <p>{selectedProduct.genericName}</p>
-              <strong>{formatCurrency(selectedPrice)}</strong>
-            </div>
+            {selectedProduct ? (
+              <>
+                {selectedProduct.image ? (
+                  <img
+                    src={selectedProduct.image}
+                    alt={selectedProduct.name}
+                    onError={(event) => {
+                      event.currentTarget.style.display = "none";
+                    }}
+                  />
+                ) : (
+                  <span className="seller-selected-fallback" aria-hidden="true" />
+                )}
+                <div>
+                  <h3>{selectedProduct.name}</h3>
+                  <p>{selectedProduct.genericName}</p>
+                  <strong>{formatCurrency(selectedPrice)}</strong>
+                </div>
+              </>
+            ) : (
+              <>
+                <span className="seller-selected-fallback" aria-hidden="true" />
+                <div>
+                  <h3>Cargando catálogo...</h3>
+                  <p>Conectando con el servidor</p>
+                </div>
+              </>
+            )}
           </div>
 
-          <div className="seller-spec-list">
-            <div>
-              <span>Forma de venta</span>
-              <strong>{selectedProductSelection.saleType}</strong>
+          {selectedProduct && (
+            <div className="seller-spec-list">
+              <div>
+                <span>Forma de venta</span>
+                <strong>{selectedProductSelection.saleType}</strong>
+              </div>
+              <div>
+                <span>Cantidad</span>
+                <strong>{selectedProductSelection.quantity}</strong>
+              </div>
+              <div>
+                <span>Stock</span>
+                <strong>{selectedProduct.stock} unidades</strong>
+              </div>
+              <div>
+                <span>Receta médica</span>
+                <strong>{selectedProduct.requiresPrescription ? "Requerida" : "No requerida"}</strong>
+              </div>
             </div>
-            <div>
-              <span>Cantidad</span>
-              <strong>{selectedProductSelection.quantity}</strong>
-            </div>
-            <div>
-              <span>Stock</span>
-              <strong>{selectedProduct.stock} unidades</strong>
-            </div>
-            <div>
-              <span>Receta médica</span>
-              <strong>{selectedProduct.requiresPrescription ? "Requerida" : "No requerida"}</strong>
-            </div>
-          </div>
+          )}
 
           <div className="seller-divider" />
 

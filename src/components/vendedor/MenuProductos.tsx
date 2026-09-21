@@ -1,20 +1,16 @@
 import { useState } from "react";
 import type { CSSProperties } from "react";
 import { ChevronDown, Minus, Pill, Plus, ShoppingCart } from "lucide-react";
-import {
-  categories,
-  formatCurrency,
-  products,
-  type CategoryId,
-  type Product,
-  type ProductSelection,
-} from "./posData";
+import { formatCurrency, type CategoryId, type Product, type ProductSelection } from "./posData";
+import type { PosCategory } from "./usePosCatalog";
 
 interface MenuProductosProps {
+  categories: PosCategory[];
+  products: Product[];
   activeCategory: CategoryId;
   filteredProducts: Product[];
   selectionByProduct: Record<number, ProductSelection>;
-  selectedProductId: number;
+  selectedProductId: number | null;
   onSelectCategory: (category: CategoryId) => void;
   onSelectProduct: (productId: number) => void;
   onUpdateSelection: (productId: number, patch: Partial<ProductSelection>) => void;
@@ -23,6 +19,8 @@ interface MenuProductosProps {
 }
 
 export default function MenuProductos({
+  categories,
+  products,
   activeCategory,
   filteredProducts,
   selectionByProduct,
@@ -86,7 +84,10 @@ export default function MenuProductos({
 
       <div className="seller-product-grid">
         {filteredProducts.map((product) => {
-          const selection = selectionByProduct[product.id];
+          const selection = selectionByProduct[product.id] ?? {
+            saleType: product.saleOptions[0].label,
+            quantity: 1,
+          };
           const option =
             product.saleOptions.find((item) => item.label === selection.saleType) || product.saleOptions[0];
           const isExpanded = expandedProductId === product.id;
@@ -102,13 +103,15 @@ export default function MenuProductos({
               <div className="seller-product-top">
                 {/* Imagen grande en la parte superior de la tarjeta */}
                 <div className="seller-product-image">
-                  <img
-                    src={product.image}
-                    alt={product.name}
-                    onError={(event) => {
-                      event.currentTarget.style.display = "none";
-                    }}
-                  />
+                  {product.image ? (
+                    <img
+                      src={product.image}
+                      alt={product.name}
+                      onError={(event) => {
+                        event.currentTarget.style.display = "none";
+                      }}
+                    />
+                  ) : null}
                   <Pill className="seller-product-fallback" size={44} />
                 </div>
                 <div className="seller-product-main">
