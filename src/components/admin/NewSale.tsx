@@ -1,195 +1,189 @@
-import { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   Search,
   Plus,
   Trash2,
   ShoppingCart,
-  User,
   CreditCard,
   DollarSign,
-  Save,
   X,
   AlertCircle,
-  Package,
   Minus,
-  Calculator,
   Receipt,
+  Pill,
+  Package,
+  ShieldCheck,
+  BadgePercent,
+  Stethoscope,
+  LayoutGrid,
+  Banknote,
+  Smartphone,
+  ArrowRightLeft,
+  User,
+  CheckCircle2,
 } from "lucide-react";
 
 /* ─── Types ─────────────────────────────────────────────────────────── */
+type CategoryId = "all" | "pain" | "antibiotics" | "digestive" | "allergy" | "respiratory" | "diabetes";
+type PaymentMethod = "EFECTIVO" | "TARJETA" | "YAPE_PLIN" | "TRANSFERENCIA";
+type TipoComprobante = "BOLETA" | "FACTURA" | "TICKET";
+
 interface Product {
-  id_producto: number;
-  nombre_comercial: string;
-  nombre_generico: string;
-  precio_venta: number;
-  stock_disponible: number;
-  unidad_medida: string;
+  id: number;
+  nombre: string;
+  generico: string;
+  categoria: CategoryId;
+  categoriaLabel: string;
+  stock: number;
+  vendidos: number;
+  requiereReceta: boolean;
+  laboratorio: string;
+  imagen: string;
+  accent: string;
+  precio: number;
+  unidad: string;
 }
 
-interface SaleItem {
-  id_temporal: string;
+interface CartItem {
+  key: string;
   producto: Product;
   cantidad: number;
-  precio_unitario: number;
-  subtotal: number;
+  precioUnitario: number;
 }
 
 interface Cliente {
-  id_cliente: number;
-  tipo_documento: string;
-  numero_documento: string;
-  nombre_razon_social: string;
-}
-
-interface MetodoPago {
-  id_metodo_pago: number;
-  nombre_metodo: string;
-  descripcion: string;
+  id: number;
+  tipo: string;
+  documento: string;
+  nombre: string;
 }
 
 /* ─── Mock Data ───────────────────────────────────────────────────────── */
-const mockProducts: Product[] = [
+const categorias: Array<{ id: CategoryId; label: string; icon: React.ElementType; count: number }> = [
+  { id: "all", label: "Todo", icon: LayoutGrid, count: 8 },
+  { id: "pain", label: "Analgésicos", icon: Pill, count: 2 },
+  { id: "antibiotics", label: "Antibióticos", icon: ShieldCheck, count: 1 },
+  { id: "digestive", label: "Digestivo", icon: Package, count: 1 },
+  { id: "allergy", label: "Alergias", icon: BadgePercent, count: 2 },
+  { id: "respiratory", label: "Respiratorio", icon: Stethoscope, count: 1 },
+  { id: "diabetes", label: "Diabetes", icon: Receipt, count: 1 },
+];
+
+const productos: Product[] = [
   {
-    id_producto: 1,
-    nombre_comercial: "Paracetamol 500mg",
-    nombre_generico: "Paracetamol",
-    precio_venta: 0.50,
-    stock_disponible: 500,
-    unidad_medida: "Tableta",
+    id: 1, nombre: "Paracetamol 500mg", generico: "Paracetamol",
+    categoria: "pain", categoriaLabel: "Analgésico", stock: 500, vendidos: 64,
+    requiereReceta: false, laboratorio: "Genfar",
+    imagen: "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&w=400&q=80",
+    accent: "#0fbf70", precio: 0.50, unidad: "Tableta",
   },
   {
-    id_producto: 2,
-    nombre_comercial: "Ibuprofeno 400mg",
-    nombre_generico: "Ibuprofeno",
-    precio_venta: 0.80,
-    stock_disponible: 300,
-    unidad_medida: "Tableta",
+    id: 2, nombre: "Ibuprofeno 400mg", generico: "Ibuprofeno",
+    categoria: "pain", categoriaLabel: "Antiinflamatorio", stock: 300, vendidos: 51,
+    requiereReceta: false, laboratorio: "Medifarma",
+    imagen: "https://images.unsplash.com/photo-1550572017-edd951aa8f72?auto=format&fit=crop&w=400&q=80",
+    accent: "#22a7f0", precio: 0.80, unidad: "Tableta",
   },
   {
-    id_producto: 3,
-    nombre_comercial: "Amoxicilina 500mg",
-    nombre_generico: "Amoxicilina",
-    precio_venta: 1.20,
-    stock_disponible: 200,
-    unidad_medida: "Cápsula",
+    id: 3, nombre: "Amoxicilina 500mg", generico: "Amoxicilina",
+    categoria: "antibiotics", categoriaLabel: "Antibiótico", stock: 118, vendidos: 22,
+    requiereReceta: true, laboratorio: "Portugal",
+    imagen: "https://images.unsplash.com/photo-1607619056574-7b8d3ee536b2?auto=format&fit=crop&w=400&q=80",
+    accent: "#f59e0b", precio: 1.20, unidad: "Cápsula",
   },
   {
-    id_producto: 4,
-    nombre_comercial: "Omeprazol 20mg",
-    nombre_generico: "Omeprazol",
-    precio_venta: 1.50,
-    stock_disponible: 400,
-    unidad_medida: "Cápsula",
+    id: 4, nombre: "Omeprazol 20mg", generico: "Omeprazol",
+    categoria: "digestive", categoriaLabel: "Digestivo", stock: 240, vendidos: 39,
+    requiereReceta: false, laboratorio: "Farmindustria",
+    imagen: "https://images.unsplash.com/photo-1585435557343-3b092031a831?auto=format&fit=crop&w=400&q=80",
+    accent: "#8b5cf6", precio: 1.50, unidad: "Cápsula",
   },
   {
-    id_producto: 5,
-    nombre_comercial: "Loratadina 10mg",
-    nombre_generico: "Loratadina",
-    precio_venta: 0.60,
-    stock_disponible: 350,
-    unidad_medida: "Tableta",
+    id: 5, nombre: "Loratadina 10mg", generico: "Loratadina",
+    categoria: "allergy", categoriaLabel: "Alergias", stock: 350, vendidos: 45,
+    requiereReceta: false, laboratorio: "Bago",
+    imagen: "https://images.unsplash.com/photo-1631549916768-4119b2e5f926?auto=format&fit=crop&w=400&q=80",
+    accent: "#06b6d4", precio: 0.60, unidad: "Tableta",
   },
   {
-    id_producto: 6,
-    nombre_comercial: "Salbutamol Inhalador 100mcg",
-    nombre_generico: "Salbutamol",
-    precio_venta: 25.00,
-    stock_disponible: 50,
-    unidad_medida: "Unidad",
+    id: 6, nombre: "Salbutamol Inhalador", generico: "Salbutamol 100mcg",
+    categoria: "respiratory", categoriaLabel: "Respiratorio", stock: 48, vendidos: 16,
+    requiereReceta: true, laboratorio: "Glaxo",
+    imagen: "https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&w=400&q=80",
+    accent: "#ef4444", precio: 25.00, unidad: "Unidad",
   },
   {
-    id_producto: 7,
-    nombre_comercial: "Metformina 850mg",
-    nombre_generico: "Metformina",
-    precio_venta: 0.90,
-    stock_disponible: 600,
-    unidad_medida: "Tableta",
+    id: 7, nombre: "Metformina 850mg", generico: "Metformina",
+    categoria: "diabetes", categoriaLabel: "Diabetes", stock: 600, vendidos: 72,
+    requiereReceta: true, laboratorio: "AC Farma",
+    imagen: "https://images.unsplash.com/photo-1471864190281-a93a3070b6de?auto=format&fit=crop&w=400&q=80",
+    accent: "#14b8a6", precio: 0.90, unidad: "Tableta",
   },
   {
-    id_producto: 8,
-    nombre_comercial: "Atorvastatina 20mg",
-    nombre_generico: "Atorvastatina",
-    precio_venta: 1.80,
-    stock_disponible: 250,
-    unidad_medida: "Tableta",
+    id: 8, nombre: "Vitamina C 1g", generico: "Ácido ascórbico",
+    categoria: "allergy", categoriaLabel: "Suplemento", stock: 180, vendidos: 31,
+    requiereReceta: false, laboratorio: "Mason",
+    imagen: "https://images.unsplash.com/photo-1628771065518-0d82f1938462?auto=format&fit=crop&w=400&q=80",
+    accent: "#f97316", precio: 1.10, unidad: "Tableta",
   },
 ];
 
 const mockClientes: Cliente[] = [
-  {
-    id_cliente: 1,
-    tipo_documento: "DNI",
-    numero_documento: "45678912",
-    nombre_razon_social: "Carlos Ramírez Torres",
-  },
-  {
-    id_cliente: 2,
-    tipo_documento: "RUC",
-    numero_documento: "20123456789",
-    nombre_razon_social: "FARMACORP SAC",
-  },
-  {
-    id_cliente: 3,
-    tipo_documento: "DNI",
-    numero_documento: "87654321",
-    nombre_razon_social: "María González Pérez",
-  },
+  { id: 1, tipo: "DNI", documento: "45678912", nombre: "Carlos Ramírez Torres" },
+  { id: 2, tipo: "RUC", documento: "20123456789", nombre: "FARMACORP SAC" },
+  { id: 3, tipo: "DNI", documento: "87654321", nombre: "María González Pérez" },
 ];
 
-const mockMetodosPago: MetodoPago[] = [
-  {
-    id_metodo_pago: 1,
-    nombre_metodo: "EFECTIVO",
-    descripcion: "Pago en efectivo",
-  },
-  {
-    id_metodo_pago: 2,
-    nombre_metodo: "TARJETA",
-    descripcion: "Pago con tarjeta débito/crédito",
-  },
-  {
-    id_metodo_pago: 3,
-    nombre_metodo: "YAPE_PLIN",
-    descripcion: "Pago por billetera digital",
-  },
-  {
-    id_metodo_pago: 4,
-    nombre_metodo: "TRANSFERENCIA",
-    descripcion: "Transferencia bancaria",
-  },
-];
+const formatSoles = (v: number) =>
+  new Intl.NumberFormat("es-PE", { style: "currency", currency: "PEN", minimumFractionDigits: 2 }).format(v);
+
+/** Convert hex color to rgba string */
+const hexRgba = (hex: string, alpha: number) => {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+};
 
 /* ─── Theme ────────────────────────────────────────────────────────── */
 function getTheme(isDark: boolean) {
   if (isDark) {
     return {
-      mainBg: "#171622",
-      cardBg: "#212130",
-      inputBg: "#212130",
-      innerBg: "#1e1d29",
-      border: "rgba(46,46,66,0.5)",
-      borderCard: "rgba(46,46,66,0.4)",
-      textPrimary: "#ffffff",
-      textSecondary: "#828690",
-      textMuted: "#969ba0",
-      accent: "#5bcfc5",
-      accentHover: "#4bc0b6",
-      hoverBg: "#2c2c3e",
+      bg: "#13121f",
+      panel: "#1a1928",
+      card: "#1f1e30",
+      cardHover: "#252438",
+      input: "#252438",
+      border: "rgba(255,255,255,0.06)",
+      borderStrong: "rgba(255,255,255,0.1)",
+      text: "#f0f0ff",
+      textSub: "#9b9bbf",
+      textMuted: "#5a5a7a",
+      accent: "#6c63ff",
+      accentGrad: "linear-gradient(135deg, #6c63ff 0%, #3ecfcf 100%)",
+      accentShadow: "rgba(108,99,255,0.35)",
+      success: "#0fbf70",
+      danger: "#ef4444",
+      orange: "#f97316",
     };
   }
   return {
-    mainBg: "#f0f2f8",
-    cardBg: "#ffffff",
-    inputBg: "#f5f6fa",
-    innerBg: "#f5f6fa",
-    border: "rgba(220,222,235,0.9)",
-    borderCard: "rgba(220,222,235,0.7)",
-    textPrimary: "#3d4465",
-    textSecondary: "#787f9e",
-    textMuted: "#9ea5c0",
-    accent: "#5bcfc5",
-    accentHover: "#4bc0b6",
-    hoverBg: "#ecedf5",
+    bg: "#f0f2fb",
+    panel: "#ffffff",
+    card: "#ffffff",
+    cardHover: "#f5f6ff",
+    input: "#f4f5fc",
+    border: "rgba(0,0,0,0.07)",
+    borderStrong: "rgba(0,0,0,0.12)",
+    text: "#1a1a3a",
+    textSub: "#6b6b8f",
+    textMuted: "#aaaac0",
+    accent: "#6c63ff",
+    accentGrad: "linear-gradient(135deg, #6c63ff 0%, #3ecfcf 100%)",
+    accentShadow: "rgba(108,99,255,0.30)",
+    success: "#0fbf70",
+    danger: "#ef4444",
+    orange: "#f97316",
   };
 }
 
@@ -197,781 +191,1108 @@ function getTheme(isDark: boolean) {
 /*  NEW SALE COMPONENT                                                 */
 /* ═══════════════════════════════════════════════════════════════════ */
 export default function NewSale({ isDark = true }: { isDark?: boolean }) {
-  const [saleItems, setSaleItems] = useState<SaleItem[]>([]);
-  const [searchProduct, setSearchProduct] = useState("");
-  const [selectedProduct, setSelectedProduct] = useState<number | "">("");
-  const [quantity, setQuantity] = useState("1");
-  
-  // Payment section
-  const [tipoComprobante, setTipoComprobante] = useState<"BOLETA" | "FACTURA" | "TICKET">("BOLETA");
-  const [selectedCliente, setSelectedCliente] = useState<number | "">("");
-  const [selectedMetodoPago, setSelectedMetodoPago] = useState<number | "">(1); // Default: EFECTIVO
-  const [montoPagado, setMontoPagado] = useState("");
-  const [searchCliente, setSearchCliente] = useState("");
-
   const t = getTheme(isDark);
 
-  // Calculate totals
-  const subtotal = saleItems.reduce((sum, item) => sum + item.subtotal, 0);
-  const total = subtotal; // En Perú, precios ya incluyen IGV
-  const vuelto = montoPagado ? parseFloat(montoPagado) - total : 0;
+  const [categoriaActiva, setCategoriaActiva] = useState<CategoryId>("all");
+  const [busqueda, setBusqueda] = useState("");
+  const [carrito, setCarrito] = useState<CartItem[]>([]);
+  const [tipoComprobante, setTipoComprobante] = useState<TipoComprobante>("BOLETA");
+  const [metodoPago, setMetodoPago] = useState<PaymentMethod>("EFECTIVO");
+  const [montoPagado, setMontoPagado] = useState("");
+  const [clienteSeleccionado, setClienteSeleccionado] = useState<number | "">("");
+  const [busquedaCliente, setBusquedaCliente] = useState("");
+  const [ventaExitosa, setVentaExitosa] = useState(false);
 
-  // Filter products by search
-  const filteredProducts = mockProducts.filter(p =>
-    p.nombre_comercial.toLowerCase().includes(searchProduct.toLowerCase()) ||
-    p.nombre_generico.toLowerCase().includes(searchProduct.toLowerCase())
-  );
-
-  // Filter clientes by search
-  const filteredClientes = mockClientes.filter(c =>
-    c.nombre_razon_social.toLowerCase().includes(searchCliente.toLowerCase()) ||
-    c.numero_documento.includes(searchCliente)
-  );
-
-  // Add item to sale
-  const handleAddItem = () => {
-    if (!selectedProduct || !quantity) {
-      alert("Por favor selecciona un producto y cantidad");
-      return;
-    }
-
-    const product = mockProducts.find(p => p.id_producto === Number(selectedProduct));
-    if (!product) return;
-
-    const cantidadNum = Number(quantity);
-    if (cantidadNum <= 0) {
-      alert("La cantidad debe ser mayor a 0");
-      return;
-    }
-
-    if (cantidadNum > product.stock_disponible) {
-      alert(`Stock insuficiente. Disponible: ${product.stock_disponible}`);
-      return;
-    }
-
-    // Check if product already exists in cart
-    const existingItem = saleItems.find(item => item.producto.id_producto === product.id_producto);
-    
-    if (existingItem) {
-      const newQuantity = existingItem.cantidad + cantidadNum;
-      if (newQuantity > product.stock_disponible) {
-        alert(`Stock insuficiente. Disponible: ${product.stock_disponible}`);
-        return;
-      }
-      // Update quantity
-      setSaleItems(saleItems.map(item =>
-        item.producto.id_producto === product.id_producto
-          ? { ...item, cantidad: newQuantity, subtotal: newQuantity * item.precio_unitario }
-          : item
-      ));
-    } else {
-      // Add new item
-      const newItem: SaleItem = {
-        id_temporal: `temp-${Date.now()}`,
-        producto: product,
-        cantidad: cantidadNum,
-        precio_unitario: product.precio_venta,
-        subtotal: cantidadNum * product.precio_venta,
-      };
-      setSaleItems([...saleItems, newItem]);
-    }
-
-    // Reset form
-    setSelectedProduct("");
-    setQuantity("1");
-    setSearchProduct("");
-  };
-
-  // Update item quantity
-  const handleUpdateQuantity = (id_temporal: string, newQuantity: number) => {
-    if (newQuantity <= 0) {
-      handleRemoveItem(id_temporal);
-      return;
-    }
-
-    const item = saleItems.find(i => i.id_temporal === id_temporal);
-    if (!item) return;
-
-    if (newQuantity > item.producto.stock_disponible) {
-      alert(`Stock insuficiente. Disponible: ${item.producto.stock_disponible}`);
-      return;
-    }
-
-    setSaleItems(saleItems.map(i =>
-      i.id_temporal === id_temporal
-        ? { ...i, cantidad: newQuantity, subtotal: newQuantity * i.precio_unitario }
-        : i
-    ));
-  };
-
-  // Remove item
-  const handleRemoveItem = (id_temporal: string) => {
-    setSaleItems(saleItems.filter(item => item.id_temporal !== id_temporal));
-  };
-
-  // Process sale
-  const handleProcessSale = () => {
-    // Validations
-    if (saleItems.length === 0) {
-      alert("Debes agregar al menos un producto a la venta");
-      return;
-    }
-
-    if (!selectedMetodoPago) {
-      alert("Selecciona un método de pago");
-      return;
-    }
-
-    if (tipoComprobante === "FACTURA") {
-      if (!selectedCliente) {
-        alert("Para emitir FACTURA debes seleccionar un cliente con RUC");
-        return;
-      }
-      const cliente = mockClientes.find(c => c.id_cliente === selectedCliente);
-      if (cliente && cliente.tipo_documento !== "RUC") {
-        alert("Para emitir FACTURA el cliente debe tener RUC");
-        return;
-      }
-    }
-
-    const metodoPago = mockMetodosPago.find(m => m.id_metodo_pago === selectedMetodoPago);
-    if (metodoPago?.nombre_metodo === "EFECTIVO") {
-      if (!montoPagado || parseFloat(montoPagado) < total) {
-        alert("El monto pagado debe ser igual o mayor al total");
-        return;
-      }
-    }
-
-    // Aquí iría la lógica para guardar la venta en el backend
-    console.log("Procesando venta:", {
-      tipo_comprobante: tipoComprobante,
-      id_cliente: selectedCliente || null,
-      id_metodo_pago: selectedMetodoPago,
-      items: saleItems,
-      total_pagar: total,
-      monto_pagado: parseFloat(montoPagado) || total,
-      vuelto: vuelto,
+  /* ─── Filtered products ─── */
+  const productosFiltrados = useMemo(() => {
+    const q = busqueda.trim().toLowerCase();
+    return productos.filter((p) => {
+      const matchCat = categoriaActiva === "all" || p.categoria === categoriaActiva;
+      const matchSearch =
+        !q ||
+        p.nombre.toLowerCase().includes(q) ||
+        p.generico.toLowerCase().includes(q) ||
+        p.laboratorio.toLowerCase().includes(q);
+      return matchCat && matchSearch;
     });
+  }, [categoriaActiva, busqueda]);
 
-    alert("Venta procesada exitosamente");
-    handleCancelSale();
+  /* ─── Totals ─── */
+  const subtotal = carrito.reduce((s, i) => s + i.precioUnitario * i.cantidad, 0);
+  const igvIncluido = subtotal > 0 ? subtotal - subtotal / 1.18 : 0;
+  const total = subtotal;
+  const vuelto = montoPagado && parseFloat(montoPagado) >= total ? parseFloat(montoPagado) - total : 0;
+  const itemCount = carrito.reduce((s, i) => s + i.cantidad, 0);
+
+  /* ─── Cart actions ─── */
+  const agregarAlCarrito = (producto: Product) => {
+    const key = `${producto.id}`;
+    setCarrito((prev) => {
+      const existe = prev.find((i) => i.key === key);
+      if (existe) {
+        return prev.map((i) =>
+          i.key === key
+            ? { ...i, cantidad: Math.min(producto.stock, i.cantidad + 1) }
+            : i
+        );
+      }
+      return [...prev, { key, producto, cantidad: 1, precioUnitario: producto.precio }];
+    });
   };
 
-  // Cancel sale
-  const handleCancelSale = () => {
-    if (saleItems.length > 0) {
-      if (!confirm("¿Estás seguro de cancelar? Se perderán todos los datos.")) {
-        return;
-      }
-    }
-    setSaleItems([]);
-    setTipoComprobante("BOLETA");
-    setSelectedCliente("");
-    setSelectedMetodoPago(1);
+  const actualizarCantidad = (key: string, delta: number) => {
+    setCarrito((prev) =>
+      prev
+        .map((i) => (i.key === key ? { ...i, cantidad: i.cantidad + delta } : i))
+        .filter((i) => i.cantidad > 0)
+    );
+  };
+
+  const eliminarDelCarrito = (key: string) => {
+    setCarrito((prev) => prev.filter((i) => i.key !== key));
+  };
+
+  const limpiarCarrito = () => {
+    setCarrito([]);
     setMontoPagado("");
-    setSelectedProduct("");
-    setQuantity("1");
-    setSearchProduct("");
-    setSearchCliente("");
+    setClienteSeleccionado("");
+    setBusquedaCliente("");
+    setTipoComprobante("BOLETA");
+    setMetodoPago("EFECTIVO");
+  };
+
+  const procesarVenta = () => {
+    if (carrito.length === 0) return;
+    console.log("Venta procesada:", { tipoComprobante, metodoPago, carrito, total });
+    setVentaExitosa(true);
+    setTimeout(() => {
+      setVentaExitosa(false);
+      limpiarCarrito();
+    }, 2500);
+  };
+
+  /* ─── Payment method config ─── */
+  const metodosPago: Array<{ id: PaymentMethod; label: string; icon: React.ElementType }> = [
+    { id: "EFECTIVO", label: "Efectivo", icon: Banknote },
+    { id: "TARJETA", label: "Tarjeta", icon: CreditCard },
+    { id: "YAPE_PLIN", label: "Yape/Plin", icon: Smartphone },
+    { id: "TRANSFERENCIA", label: "Transferencia", icon: ArrowRightLeft },
+  ];
+
+  /* ─── Styles ─── */
+  const S = {
+    root: {
+      display: "flex",
+      height: "calc(100vh - 80px)",
+      minHeight: "600px",
+      fontFamily: "'Inter', 'Cairo', sans-serif",
+      background: t.bg,
+      overflow: "hidden",
+      gap: "0",
+    } as React.CSSProperties,
+
+    /* LEFT PANEL */
+    left: {
+      flex: 1,
+      display: "flex",
+      flexDirection: "column" as const,
+      overflow: "hidden",
+      padding: "20px 16px 20px 20px",
+      gap: "12px",
+      minWidth: 0,
+    },
+
+    topBar: {
+      display: "flex",
+      alignItems: "center",
+      gap: "12px",
+    },
+
+    searchWrap: {
+      position: "relative" as const,
+      width: "100%",
+    },
+
+    searchIcon: {
+      position: "absolute" as const,
+      left: "14px",
+      top: "50%",
+      transform: "translateY(-50%)",
+      color: t.textMuted,
+      pointerEvents: "none" as const,
+      zIndex: 1,
+    },
+
+    searchInput: {
+      width: "100%",
+      padding: "12px 14px 12px 42px",
+      borderRadius: "14px",
+      border: `1.5px solid ${t.border}`,
+      background: t.panel,
+      color: t.text,
+      fontSize: "14px",
+      fontFamily: "inherit",
+      outline: "none",
+      boxSizing: "border-box" as const,
+      transition: "border-color 0.2s",
+      boxShadow: `0 2px 8px rgba(0,0,0,0.06)`,
+    },
+
+    categoriesRow: {
+      display: "flex",
+      gap: "8px",
+      overflowX: "auto" as const,
+      paddingBottom: "4px",
+      scrollbarWidth: "none" as const,
+    },
+
+    catBtn: (active: boolean) => ({
+      display: "flex",
+      alignItems: "center",
+      gap: "6px",
+      padding: "8px 16px",
+      borderRadius: "40px",
+      border: active ? "none" : `1.5px solid ${t.border}`,
+      background: active ? t.accent : t.panel,
+      color: active ? "#fff" : t.textSub,
+      fontSize: "13px",
+      fontWeight: 600,
+      cursor: "pointer",
+      whiteSpace: "nowrap" as const,
+      transition: "all 0.2s",
+      flexShrink: 0,
+      boxShadow: active ? `0 4px 14px ${t.accentShadow}` : "none",
+    }),
+
+    sectionInfo: {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+    },
+
+    sectionTitle: {
+      fontSize: "15px",
+      fontWeight: 700,
+      color: t.text,
+      margin: 0,
+    },
+
+    sectionCount: {
+      fontSize: "12px",
+      color: t.textMuted,
+      background: t.input,
+      padding: "4px 10px",
+      borderRadius: "20px",
+      fontWeight: 600,
+    },
+
+    grid: {
+      /* Uses .ns-grid CSS class for responsive overrides */
+      display: "grid",
+      gridTemplateColumns: "repeat(auto-fill, minmax(170px, 1fr))",
+      gap: "12px",
+      overflowY: "auto" as const,
+      paddingRight: "4px",
+      flex: 1,
+      alignContent: "start",
+    },
+
+    productCard: (_accent: string) => ({
+      background: t.card,
+      borderRadius: "16px",
+      border: `1.5px solid ${t.border}`,
+      overflow: "hidden",
+      cursor: "pointer",
+      transition: "all 0.2s",
+      display: "flex",
+      flexDirection: "column" as const,
+      position: "relative" as const,
+      minWidth: 0,
+    }),
+
+    productImg: {
+      position: "absolute" as const,
+      inset: 0,
+      width: "100%",
+      height: "100%",
+      objectFit: "cover" as const,
+      zIndex: 1,
+      transition: "transform 0.3s ease",
+    },
+
+    productImgWrap: (accent: string) => ({
+      width: "100%",
+      /* aspect-ratio scales proportionally at any zoom level */
+      aspectRatio: "16/9",
+      position: "relative" as const,
+      overflow: "hidden" as const,
+      background: `linear-gradient(135deg, ${hexRgba(accent, 0.35)}, ${hexRgba(accent, 0.70)})`,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      flexShrink: 0,
+    }),
+
+    productBody: {
+      padding: "12px",
+      display: "flex",
+      flexDirection: "column" as const,
+      gap: "4px",
+      flex: 1,
+    },
+
+    productName: {
+      fontSize: "13px",
+      fontWeight: 700,
+      color: t.text,
+      margin: 0,
+      lineHeight: 1.3,
+    },
+
+    productSub: {
+      fontSize: "11px",
+      color: t.textMuted,
+      margin: 0,
+    },
+
+    productMeta: {
+      fontSize: "11px",
+      color: t.textSub,
+      marginTop: "2px",
+    },
+
+    productPrice: (accent: string) => ({
+      fontSize: "15px",
+      fontWeight: 800,
+      color: accent,
+      marginTop: "4px",
+    }),
+
+    addBtn: (accent: string) => ({
+      width: "32px",
+      height: "32px",
+      borderRadius: "10px",
+      border: "none",
+      background: accent,
+      color: "#fff",
+      cursor: "pointer",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      alignSelf: "flex-end",
+      boxShadow: `0 4px 12px ${accent}55`,
+      transition: "transform 0.15s",
+      flexShrink: 0,
+    }),
+
+    /* RIGHT PANEL - BILL */
+    right: {
+      width: "clamp(260px, 28vw, 340px)",
+      flexShrink: 0,
+      display: "flex",
+      flexDirection: "column" as const,
+      background: t.panel,
+      borderLeft: `1.5px solid ${t.border}`,
+      height: "100%",
+      overflow: "hidden",
+    },
+
+    billHeader: {
+      padding: "20px 20px 16px",
+      borderBottom: `1px solid ${t.border}`,
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+    },
+
+    billTitle: {
+      fontSize: "20px",
+      fontWeight: 800,
+      color: t.text,
+      margin: 0,
+    },
+
+    billCount: {
+      fontSize: "12px",
+      color: t.textSub,
+      background: t.input,
+      padding: "4px 12px",
+      borderRadius: "20px",
+      fontWeight: 600,
+    },
+
+    billItems: {
+      flex: 1,
+      overflowY: "auto" as const,
+      padding: "12px 20px",
+      display: "flex",
+      flexDirection: "column" as const,
+      gap: "10px",
+    },
+
+    billItem: {
+      display: "flex",
+      alignItems: "center",
+      gap: "10px",
+      padding: "10px 12px",
+      background: t.input,
+      borderRadius: "14px",
+      transition: "background 0.15s",
+    },
+
+    billItemImg: {
+      width: "44px",
+      height: "44px",
+      borderRadius: "10px",
+      objectFit: "cover" as const,
+      flexShrink: 0,
+    },
+
+    billItemImgPlaceholder: (accent: string) => ({
+      width: "44px",
+      height: "44px",
+      borderRadius: "10px",
+      background: `linear-gradient(135deg, ${accent}25, ${accent}45)`,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      flexShrink: 0,
+    }),
+
+    billItemInfo: {
+      flex: 1,
+      minWidth: 0,
+    },
+
+    billItemName: {
+      fontSize: "13px",
+      fontWeight: 600,
+      color: t.text,
+      margin: 0,
+      whiteSpace: "nowrap" as const,
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+    },
+
+    billItemSub: {
+      fontSize: "11px",
+      color: t.textMuted,
+    },
+
+    qtyControl: {
+      display: "flex",
+      alignItems: "center",
+      gap: "6px",
+    },
+
+    qtyBtn: (color?: string) => ({
+      width: "24px",
+      height: "24px",
+      borderRadius: "7px",
+      border: "none",
+      background: color || t.card,
+      color: color ? "#fff" : t.textSub,
+      cursor: "pointer",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      transition: "all 0.15s",
+      boxShadow: color ? `0 2px 8px ${color}44` : "none",
+    }),
+
+    qtyNum: {
+      fontSize: "14px",
+      fontWeight: 700,
+      color: t.text,
+      minWidth: "20px",
+      textAlign: "center" as const,
+    },
+
+    billItemPrice: (accent: string) => ({
+      fontSize: "13px",
+      fontWeight: 700,
+      color: accent,
+      flexShrink: 0,
+      textAlign: "right" as const,
+    }),
+
+    emptyCart: {
+      display: "flex",
+      flexDirection: "column" as const,
+      alignItems: "center",
+      justifyContent: "center",
+      flex: 1,
+      gap: "10px",
+      padding: "40px 20px",
+      opacity: 0.45,
+    },
+
+    /* Summary section */
+    summarySection: {
+      padding: "16px 20px",
+      borderTop: `1px solid ${t.border}`,
+      display: "flex",
+      flexDirection: "column" as const,
+      gap: "12px",
+    },
+
+    summaryRow: {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+    },
+
+    summaryLabel: {
+      fontSize: "13px",
+      color: t.textSub,
+    },
+
+    summaryValue: {
+      fontSize: "13px",
+      fontWeight: 600,
+      color: t.text,
+    },
+
+    divider: {
+      borderTop: `1.5px dashed ${t.border}`,
+      margin: "2px 0",
+    },
+
+    totalRow: {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginTop: "2px",
+    },
+
+    totalLabel: {
+      fontSize: "16px",
+      fontWeight: 800,
+      color: t.text,
+    },
+
+    totalValue: {
+      fontSize: "22px",
+      fontWeight: 900,
+      background: t.accentGrad,
+      WebkitBackgroundClip: "text",
+      WebkitTextFillColor: "transparent",
+    },
+
+    /* Payment section */
+    paymentSection: {
+      padding: "0 20px 16px",
+      display: "flex",
+      flexDirection: "column" as const,
+      gap: "12px",
+    },
+
+    paymentLabel: {
+      fontSize: "13px",
+      fontWeight: 700,
+      color: t.text,
+      marginBottom: "4px",
+    },
+
+    paymentMethodsRow: {
+      display: "grid",
+      gridTemplateColumns: "repeat(4, 1fr)",
+      gap: "8px",
+    },
+
+    payMethod: (active: boolean) => ({
+      display: "flex",
+      flexDirection: "column" as const,
+      alignItems: "center",
+      gap: "5px",
+      padding: "10px 4px",
+      borderRadius: "12px",
+      border: active ? `2px solid ${t.accent}` : `1.5px solid ${t.border}`,
+      background: active ? `${t.accent}15` : t.input,
+      cursor: "pointer",
+      transition: "all 0.2s",
+    }),
+
+    payMethodIcon: (active: boolean) => ({
+      color: active ? t.accent : t.textMuted,
+    }),
+
+    payMethodLabel: (active: boolean) => ({
+      fontSize: "10px",
+      fontWeight: 600,
+      color: active ? t.accent : t.textMuted,
+    }),
+
+    comprobanteRow: {
+      display: "flex",
+      gap: "8px",
+    },
+
+    comprobanteBtn: (active: boolean) => ({
+      flex: 1,
+      padding: "8px 4px",
+      borderRadius: "10px",
+      border: active ? `2px solid ${t.accent}` : `1.5px solid ${t.border}`,
+      background: active ? `${t.accent}12` : "transparent",
+      color: active ? t.accent : t.textMuted,
+      fontSize: "12px",
+      fontWeight: 700,
+      cursor: "pointer",
+      transition: "all 0.2s",
+      textAlign: "center" as const,
+    }),
+
+    montoInput: {
+      width: "100%",
+      padding: "10px 14px",
+      borderRadius: "12px",
+      border: `1.5px solid ${t.border}`,
+      background: t.input,
+      color: t.text,
+      fontSize: "14px",
+      fontFamily: "inherit",
+      fontWeight: 600,
+      outline: "none",
+      boxSizing: "border-box" as const,
+    },
+
+    vueltoBox: {
+      background: `${t.success}15`,
+      border: `1.5px solid ${t.success}40`,
+      borderRadius: "12px",
+      padding: "10px 14px",
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+    },
+
+    processBtn: (disabled: boolean) => ({
+      width: "100%",
+      padding: "14px",
+      borderRadius: "14px",
+      border: "none",
+      background: disabled ? t.textMuted : t.accentGrad,
+      color: "#fff",
+      fontSize: "15px",
+      fontWeight: 700,
+      cursor: disabled ? "not-allowed" : "pointer",
+      opacity: disabled ? 0.5 : 1,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: "8px",
+      boxShadow: disabled ? "none" : `0 6px 20px ${t.accentShadow}`,
+      transition: "all 0.2s",
+      fontFamily: "inherit",
+    }),
+
+    successOverlay: {
+      position: "fixed" as const,
+      inset: 0,
+      background: "rgba(0,0,0,0.55)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      zIndex: 1000,
+      backdropFilter: "blur(4px)",
+    },
+
+    successCard: {
+      background: t.panel,
+      borderRadius: "24px",
+      padding: "48px 40px",
+      textAlign: "center" as const,
+      display: "flex",
+      flexDirection: "column" as const,
+      alignItems: "center",
+      gap: "16px",
+      boxShadow: "0 24px 60px rgba(0,0,0,0.4)",
+      animation: "popIn 0.35s cubic-bezier(.34,1.56,.64,1)",
+    },
   };
 
   return (
-    <div style={{ padding: "24px", background: t.mainBg, minHeight: "100vh" }}>
-      {/* Header */}
-      <div style={{ marginBottom: "24px" }}>
-        <h1 style={{ fontSize: "28px", fontWeight: 700, color: t.textPrimary, marginBottom: "8px" }}>
-          Nueva Venta
-        </h1>
-        <p style={{ fontSize: "14px", color: t.textSecondary }}>
-          Registra una nueva venta en el sistema de punto de venta
-        </p>
-      </div>
+    <>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 
-      {/* Main Layout: 2 columns */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 400px", gap: "20px" }}>
-        {/* Left Column: Product Selection & Cart */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-          {/* Add Product Section */}
-          <div style={{ background: t.cardBg, border: `1px solid ${t.borderCard}`, borderRadius: "20px", padding: "24px" }}>
-            <h2 style={{ fontSize: "18px", fontWeight: 700, color: t.textPrimary, marginBottom: "20px", display: "flex", alignItems: "center", gap: "10px" }}>
-              <Package size={20} color={t.accent} />
-              Agregar Productos
-            </h2>
+        /* Card hover effects */
+        .ns-product-card:hover { transform: translateY(-3px); box-shadow: 0 12px 30px rgba(0,0,0,0.18) !important; }
+        .ns-product-card:hover .ns-product-img { transform: scale(1.06); }
+        .ns-add-btn:hover { transform: scale(1.12); }
+        .ns-cat-btn:hover { opacity: 0.85; }
+        .ns-qty-btn:hover { opacity: 0.8; }
+        .ns-process-btn:not(:disabled):hover { transform: translateY(-2px); filter: brightness(1.08); }
+        .ns-comprobante-btn:hover { opacity: 0.85; }
+        .ns-pay-method:hover { opacity: 0.85; }
 
-            <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-              {/* Product Search */}
-              <div>
-                <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px" }}>
-                  <Search size={14} style={{ display: "inline", marginRight: "4px", verticalAlign: "middle" }} />
-                  Buscar Producto
-                </label>
-                <input
-                  type="text"
-                  placeholder="Buscar por nombre comercial o genérico..."
-                  value={searchProduct}
-                  onChange={(e) => setSearchProduct(e.target.value)}
-                  style={{
-                    width: "100%",
-                    padding: "12px 14px",
-                    borderRadius: "14px",
-                    border: `1px solid ${t.border}`,
-                    background: t.inputBg,
-                    color: t.textPrimary,
-                    fontSize: "14px",
-                    fontFamily: "'Cairo', sans-serif",
-                    outline: "none",
-                  }}
-                />
-              </div>
+        /* Responsive grid — overridden by media queries */
+        .ns-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+          gap: 12px;
+          overflow-y: auto;
+          padding-right: 4px;
+          flex: 1;
+          align-content: start;
+        }
+        /* Medium viewport or zoomed-in: 2-col min */
+        @media (max-width: 900px) {
+          .ns-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+        }
+        /* Small viewport */
+        @media (max-width: 640px) {
+          .ns-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+        }
 
-              <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr auto", gap: "12px", alignItems: "end" }}>
-                {/* Product Select */}
-                <div>
-                  <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px" }}>
-                    Producto *
-                  </label>
-                  <select
-                    value={selectedProduct}
-                    onChange={(e) => {
-                      setSelectedProduct(Number(e.target.value));
-                      const product = mockProducts.find(p => p.id_producto === Number(e.target.value));
-                      if (product) {
-                        setQuantity("1");
-                      }
-                    }}
-                    style={{
-                      width: "100%",
-                      padding: "12px 14px",
-                      borderRadius: "14px",
-                      border: `1px solid ${t.border}`,
-                      background: t.inputBg,
-                      color: t.textPrimary,
-                      fontSize: "14px",
-                      cursor: "pointer",
-                      fontFamily: "'Cairo', sans-serif",
-                      outline: "none",
-                    }}
-                  >
-                    <option value="">Seleccionar producto</option>
-                    {filteredProducts.map((product) => (
-                      <option key={product.id_producto} value={product.id_producto}>
-                        {product.nombre_comercial} - S/ {product.precio_venta.toFixed(2)} (Stock: {product.stock_disponible})
-                      </option>
-                    ))}
-                  </select>
-                </div>
+        /* Scrollbars */
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(108,99,255,0.25); border-radius: 10px; }
 
-                {/* Quantity */}
-                <div>
-                  <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px" }}>
-                    Cantidad *
-                  </label>
-                  <input
-                    type="number"
-                    placeholder="1"
-                    min="1"
-                    value={quantity}
-                    onChange={(e) => setQuantity(e.target.value)}
-                    style={{
-                      width: "100%",
-                      padding: "12px 14px",
-                      borderRadius: "14px",
-                      border: `1px solid ${t.border}`,
-                      background: t.inputBg,
-                      color: t.textPrimary,
-                      fontSize: "14px",
-                      fontFamily: "'Cairo', sans-serif",
-                      outline: "none",
-                    }}
-                  />
-                </div>
+        /* Animations */
+        @keyframes popIn { 0% { transform: scale(0.7); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+        @keyframes checkPop { 0% { transform: scale(0); } 60% { transform: scale(1.2); } 100% { transform: scale(1); } }
+        .check-anim { animation: checkPop 0.5s cubic-bezier(.34,1.56,.64,1) 0.1s both; }
+        .ns-success-card { animation: popIn 0.35s cubic-bezier(.34,1.56,.64,1); }
+      `}</style>
 
-                {/* Add Button */}
-                <button
-                  onClick={handleAddItem}
-                  style={{
-                    padding: "12px 20px",
-                    borderRadius: "14px",
-                    border: "none",
-                    background: t.accent,
-                    color: "#fff",
-                    fontSize: "14px",
-                    fontWeight: 600,
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "8px",
-                    fontFamily: "'Cairo', sans-serif",
-                    transition: "all 0.2s",
-                    boxShadow: `0 4px 12px ${t.accent}40`,
-                    whiteSpace: "nowrap",
-                  }}
-                  onMouseEnter={(e) => {
-                    (e.currentTarget as HTMLButtonElement).style.background = t.accentHover;
-                    (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)";
-                    (e.currentTarget as HTMLButtonElement).style.boxShadow = `0 6px 20px ${t.accent}50`;
-                  }}
-                  onMouseLeave={(e) => {
-                    (e.currentTarget as HTMLButtonElement).style.background = t.accent;
-                    (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
-                    (e.currentTarget as HTMLButtonElement).style.boxShadow = `0 4px 12px ${t.accent}40`;
-                  }}
-                >
-                  <Plus size={16} />
-                  Agregar
-                </button>
-              </div>
+      {/* Success overlay */}
+      {ventaExitosa && (
+        <div style={S.successOverlay}>
+          <div style={S.successCard}>
+            <CheckCircle2 size={72} color={t.success} className="check-anim" />
+            <div>
+              <p style={{ fontSize: "24px", fontWeight: 800, color: t.text, margin: "0 0 6px" }}>
+                ¡Venta procesada!
+              </p>
+              <p style={{ fontSize: "14px", color: t.textSub, margin: 0 }}>
+                {formatSoles(total)} — {tipoComprobante}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div style={S.root}>
+        {/* ════════════════════════════════════ LEFT PANEL ═══════════════════════════════════════ */}
+        <div style={S.left}>
+
+          {/* Search + header */}
+          <div style={S.topBar}>
+            <div style={{ flex: 1 }}>
+              <h1 style={{ fontSize: "20px", fontWeight: 800, color: t.text, margin: "0 0 2px" }}>
+                Nueva Venta
+              </h1>
+              <p style={{ fontSize: "12px", color: t.textMuted, margin: 0 }}>
+                Selecciona los productos para agregar al comprobante
+              </p>
             </div>
           </div>
 
-          {/* Shopping Cart */}
-          <div style={{ background: t.cardBg, border: `1px solid ${t.borderCard}`, borderRadius: "20px", padding: "24px", flex: 1 }}>
-            <h2 style={{ fontSize: "18px", fontWeight: 700, color: t.textPrimary, marginBottom: "20px", display: "flex", alignItems: "center", gap: "10px" }}>
-              <ShoppingCart size={20} color={t.accent} />
-              Carrito de Compra ({saleItems.length} {saleItems.length === 1 ? "producto" : "productos"})
-            </h2>
+          {/* Search bar */}
+          <div style={S.searchWrap}>
+            <Search size={16} style={S.searchIcon} />
+            <input
+              style={S.searchInput}
+              placeholder="Buscar por nombre, genérico o laboratorio..."
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              onFocus={(e) => (e.currentTarget.style.borderColor = t.accent)}
+              onBlur={(e) => (e.currentTarget.style.borderColor = t.border)}
+            />
+          </div>
 
-            {saleItems.length === 0 ? (
-              <div style={{ padding: "60px 20px", textAlign: "center" }}>
-                <ShoppingCart size={48} color={t.textMuted} style={{ marginBottom: "12px" }} />
-                <p style={{ fontSize: "16px", fontWeight: 600, color: t.textPrimary, marginBottom: "8px" }}>
-                  Carrito vacío
-                </p>
-                <p style={{ fontSize: "14px", color: t.textSecondary }}>
-                  Agrega productos para comenzar la venta
-                </p>
+          {/* Categories */}
+          <div style={S.categoriesRow}>
+            {categorias.map((cat) => {
+              const Icon = cat.icon;
+              const active = categoriaActiva === cat.id;
+              return (
+                <button
+                  key={cat.id}
+                  className="ns-cat-btn"
+                  style={S.catBtn(active)}
+                  onClick={() => setCategoriaActiva(cat.id)}
+                >
+                  <Icon size={14} />
+                  {cat.label}
+                  <span style={{
+                    background: active ? "rgba(255,255,255,0.25)" : t.input,
+                    color: active ? "#fff" : t.textMuted,
+                    fontSize: "10px",
+                    fontWeight: 700,
+                    padding: "1px 6px",
+                    borderRadius: "10px",
+                  }}>
+                    {cat.count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Products count */}
+          <div style={S.sectionInfo}>
+            <h2 style={S.sectionTitle}>Productos disponibles</h2>
+            <span style={S.sectionCount}>{productosFiltrados.length} resultados</span>
+          </div>
+
+          {/* Products grid */}
+          <div className="ns-grid" style={S.grid}>
+            {productosFiltrados.length === 0 ? (
+              <div style={{ gridColumn: "1/-1", textAlign: "center", padding: "60px 20px", color: t.textMuted }}>
+                <Package size={48} style={{ marginBottom: "12px", opacity: 0.4 }} />
+                <p style={{ fontWeight: 600, margin: "0 0 4px" }}>Sin resultados</p>
+                <p style={{ fontSize: "13px" }}>Prueba con otro término de búsqueda</p>
               </div>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: "12px", maxHeight: "500px", overflowY: "auto" }}>
-                {saleItems.map((item) => (
-                  <div
-                    key={item.id_temporal}
-                    style={{
-                      padding: "16px",
-                      background: t.innerBg,
-                      borderRadius: "16px",
-                      border: `1px solid ${t.border}`,
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "12px",
-                      transition: "all 0.2s",
-                    }}
-                  >
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ fontSize: "14px", fontWeight: 600, color: t.textPrimary, marginBottom: "4px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                        {item.producto.nombre_comercial}
-                      </p>
-                      <p style={{ fontSize: "12px", color: t.textSecondary }}>
-                        S/ {item.precio_unitario.toFixed(2)} x {item.cantidad} = S/ {item.subtotal.toFixed(2)}
-                      </p>
-                    </div>
-
-                    {/* Quantity Controls */}
-                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                      <button
-                        onClick={() => handleUpdateQuantity(item.id_temporal, item.cantidad - 1)}
-                        style={{
-                          width: "32px",
-                          height: "32px",
-                          borderRadius: "8px",
-                          border: "none",
-                          background: t.inputBg,
-                          color: t.textSecondary,
-                          cursor: "pointer",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          transition: "all 0.2s",
-                        }}
-                        onMouseEnter={(e) => {
-                          (e.currentTarget as HTMLButtonElement).style.background = t.hoverBg;
-                          (e.currentTarget as HTMLButtonElement).style.color = t.textPrimary;
-                        }}
-                        onMouseLeave={(e) => {
-                          (e.currentTarget as HTMLButtonElement).style.background = t.inputBg;
-                          (e.currentTarget as HTMLButtonElement).style.color = t.textSecondary;
-                        }}
-                      >
-                        <Minus size={16} />
-                      </button>
-
-                      <span style={{ fontSize: "16px", fontWeight: 700, color: t.textPrimary, minWidth: "30px", textAlign: "center" }}>
-                        {item.cantidad}
-                      </span>
-
-                      <button
-                        onClick={() => handleUpdateQuantity(item.id_temporal, item.cantidad + 1)}
-                        style={{
-                          width: "32px",
-                          height: "32px",
-                          borderRadius: "8px",
-                          border: "none",
-                          background: t.inputBg,
-                          color: t.textSecondary,
-                          cursor: "pointer",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          transition: "all 0.2s",
-                        }}
-                        onMouseEnter={(e) => {
-                          (e.currentTarget as HTMLButtonElement).style.background = t.hoverBg;
-                          (e.currentTarget as HTMLButtonElement).style.color = t.textPrimary;
-                        }}
-                        onMouseLeave={(e) => {
-                          (e.currentTarget as HTMLButtonElement).style.background = t.inputBg;
-                          (e.currentTarget as HTMLButtonElement).style.color = t.textSecondary;
-                        }}
-                      >
-                        <Plus size={16} />
-                      </button>
-                    </div>
-
-                    {/* Remove Button */}
-                    <button
-                      onClick={() => handleRemoveItem(item.id_temporal)}
-                      title="Eliminar producto"
-                      style={{
-                        width: "32px",
-                        height: "32px",
-                        borderRadius: "8px",
-                        border: "none",
-                        background: "transparent",
-                        color: t.textSecondary,
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        transition: "all 0.2s",
-                      }}
-                      onMouseEnter={(e) => {
-                        (e.currentTarget as HTMLButtonElement).style.background = "rgba(239,68,68,0.1)";
-                        (e.currentTarget as HTMLButtonElement).style.color = "#ef4444";
-                      }}
-                      onMouseLeave={(e) => {
-                        (e.currentTarget as HTMLButtonElement).style.background = "transparent";
-                        (e.currentTarget as HTMLButtonElement).style.color = t.textSecondary;
-                      }}
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Right Column: Payment & Summary */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-          {/* Summary Card */}
-          <div style={{ background: t.cardBg, border: `1px solid ${t.borderCard}`, borderRadius: "20px", padding: "24px" }}>
-            <h2 style={{ fontSize: "18px", fontWeight: 700, color: t.textPrimary, marginBottom: "20px", display: "flex", alignItems: "center", gap: "10px" }}>
-              <Calculator size={20} color={t.accent} />
-              Resumen de Venta
-            </h2>
-
-            <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-              {/* Tipo de Comprobante */}
-              <div>
-                <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px" }}>
-                  <Receipt size={14} style={{ display: "inline", marginRight: "4px", verticalAlign: "middle" }} />
-                  Tipo de Comprobante *
-                </label>
-                <select
-                  value={tipoComprobante}
-                  onChange={(e) => {
-                    setTipoComprobante(e.target.value as "BOLETA" | "FACTURA" | "TICKET");
-                    if (e.target.value !== "FACTURA") {
-                      setSelectedCliente("");
-                    }
-                  }}
-                  style={{
-                    width: "100%",
-                    padding: "12px 14px",
-                    borderRadius: "14px",
-                    border: `1px solid ${t.border}`,
-                    background: t.inputBg,
-                    color: t.textPrimary,
-                    fontSize: "14px",
-                    cursor: "pointer",
-                    fontFamily: "'Cairo', sans-serif",
-                    outline: "none",
-                  }}
+              productosFiltrados.map((producto) => (
+                <article
+                  key={producto.id}
+                  className="ns-product-card"
+                  style={S.productCard(producto.accent)}
+                  onClick={() => agregarAlCarrito(producto)}
                 >
-                  <option value="BOLETA">Boleta de Venta</option>
-                  <option value="FACTURA">Factura</option>
-                  <option value="TICKET">Ticket</option>
-                </select>
-              </div>
+                  {/* Badge receta */}
+                  {producto.requiereReceta && (
+                    <div style={{
+                      position: "absolute",
+                      top: "8px",
+                      left: "8px",
+                      background: "rgba(239,68,68,0.9)",
+                      color: "#fff",
+                      fontSize: "9px",
+                      fontWeight: 700,
+                      padding: "2px 7px",
+                      borderRadius: "8px",
+                      backdropFilter: "blur(4px)",
+                      zIndex: 2,
+                    }}>
+                      RECETA
+                    </div>
+                  )}
 
-              {/* Cliente (required for FACTURA) */}
-              {tipoComprobante === "FACTURA" && (
-                <>
-                  <div>
-                    <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px" }}>
-                      Buscar Cliente (RUC)
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Buscar por nombre o documento..."
-                      value={searchCliente}
-                      onChange={(e) => setSearchCliente(e.target.value)}
-                      style={{
-                        width: "100%",
-                        padding: "10px 12px",
-                        borderRadius: "12px",
-                        border: `1px solid ${t.border}`,
-                        background: t.inputBg,
-                        color: t.textPrimary,
-                        fontSize: "13px",
-                        fontFamily: "'Cairo', sans-serif",
-                        outline: "none",
+                  {/* Stock badge */}
+                  <div style={{
+                    position: "absolute",
+                    top: "8px",
+                    right: "8px",
+                    background: "rgba(0,0,0,0.5)",
+                    color: "#fff",
+                    fontSize: "9px",
+                    fontWeight: 700,
+                    padding: "2px 7px",
+                    borderRadius: "8px",
+                    backdropFilter: "blur(4px)",
+                    zIndex: 2,
+                  }}>
+                    {producto.stock} uds
+                  </div>
+
+                  {/* Image — placeholder gradient always visible; photo overlaid on top via z-index */}
+                  <div style={S.productImgWrap(producto.accent)}>
+                    <Pill size={34} color={producto.accent} style={{ opacity: 0.6, flexShrink: 0, filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.25))" }} />
+                    <img
+                      className="ns-product-img"
+                      src={producto.imagen}
+                      alt={producto.nombre}
+                      style={S.productImg}
+                      onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).style.display = "none";
                       }}
                     />
                   </div>
 
-                  <div>
-                    <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px" }}>
-                      <User size={14} style={{ display: "inline", marginRight: "4px", verticalAlign: "middle" }} />
-                      Cliente * (Solo RUC)
-                    </label>
-                    <select
-                      value={selectedCliente}
-                      onChange={(e) => setSelectedCliente(Number(e.target.value))}
-                      style={{
-                        width: "100%",
-                        padding: "12px 14px",
-                        borderRadius: "14px",
-                        border: `1px solid ${t.border}`,
-                        background: t.inputBg,
-                        color: t.textPrimary,
-                        fontSize: "14px",
-                        cursor: "pointer",
-                        fontFamily: "'Cairo', sans-serif",
-                        outline: "none",
-                      }}
-                    >
-                      <option value="">Seleccionar cliente</option>
-                      {filteredClientes
-                        .filter(c => c.tipo_documento === "RUC")
-                        .map((cliente) => (
-                          <option key={cliente.id_cliente} value={cliente.id_cliente}>
-                            {cliente.nombre_razon_social} - {cliente.numero_documento}
-                          </option>
-                        ))}
-                    </select>
+                  {/* Body */}
+                  <div style={S.productBody}>
+                    <h3 style={S.productName}>{producto.nombre}</h3>
+                    <p style={S.productSub}>{producto.generico}</p>
+                    <p style={S.productMeta}>
+                      <span style={{
+                        display: "inline-block",
+                        background: `${producto.accent}20`,
+                        color: producto.accent,
+                        fontSize: "10px",
+                        fontWeight: 700,
+                        padding: "1px 7px",
+                        borderRadius: "8px",
+                        marginRight: "4px",
+                      }}>
+                        {producto.categoriaLabel}
+                      </span>
+                      {producto.laboratorio}
+                    </p>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "6px" }}>
+                      <div>
+                        <span style={S.productPrice(producto.accent)}>
+                          {formatSoles(producto.precio)}
+                        </span>
+                        <span style={{ fontSize: "10px", color: t.textMuted, marginLeft: "3px" }}>
+                          / {producto.unidad}
+                        </span>
+                      </div>
+                      <button
+                        className="ns-add-btn"
+                        style={S.addBtn(producto.accent)}
+                        onClick={(e) => { e.stopPropagation(); agregarAlCarrito(producto); }}
+                      >
+                        <Plus size={16} />
+                      </button>
+                    </div>
+                    {/* Sold indicator */}
+                    <p style={{ fontSize: "10px", color: t.textMuted, margin: "4px 0 0", display: "flex", alignItems: "center", gap: "4px" }}>
+                      <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: t.success, display: "inline-block" }} />
+                      Disponible · {producto.vendidos} vendidos
+                    </p>
                   </div>
-                </>
-              )}
+                </article>
+              ))
+            )}
+          </div>
+        </div>
 
-              {/* Método de Pago */}
-              <div>
-                <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px" }}>
-                  <CreditCard size={14} style={{ display: "inline", marginRight: "4px", verticalAlign: "middle" }} />
-                  Método de Pago *
-                </label>
-                <select
-                  value={selectedMetodoPago}
-                  onChange={(e) => {
-                    setSelectedMetodoPago(Number(e.target.value));
-                    // Reset monto pagado si no es efectivo
-                    const metodo = mockMetodosPago.find(m => m.id_metodo_pago === Number(e.target.value));
-                    if (metodo?.nombre_metodo !== "EFECTIVO") {
-                      setMontoPagado(total.toFixed(2));
-                    } else {
-                      setMontoPagado("");
-                    }
-                  }}
+        {/* ════════════════════════════════════ RIGHT PANEL - BILL ══════════════════════════════ */}
+        <div style={S.right}>
+
+          {/* Bill header */}
+          <div style={S.billHeader}>
+            <h2 style={S.billTitle}>Comprobante</h2>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              {carrito.length > 0 && (
+                <button
+                  onClick={limpiarCarrito}
                   style={{
-                    width: "100%",
-                    padding: "12px 14px",
-                    borderRadius: "14px",
-                    border: `1px solid ${t.border}`,
-                    background: t.inputBg,
-                    color: t.textPrimary,
-                    fontSize: "14px",
+                    background: "transparent",
+                    border: "none",
+                    color: t.danger,
                     cursor: "pointer",
-                    fontFamily: "'Cairo', sans-serif",
-                    outline: "none",
-                  }}
-                >
-                  <option value="">Seleccionar método</option>
-                  {mockMetodosPago.map((metodo) => (
-                    <option key={metodo.id_metodo_pago} value={metodo.id_metodo_pago}>
-                      {metodo.nombre_metodo} - {metodo.descripcion}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Monto Pagado (only for EFECTIVO) */}
-              {selectedMetodoPago === 1 && (
-                <div>
-                  <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px" }}>
-                    <DollarSign size={14} style={{ display: "inline", marginRight: "4px", verticalAlign: "middle" }} />
-                    Monto Pagado *
-                  </label>
-                  <input
-                    type="number"
-                    placeholder="0.00"
-                    min="0"
-                    step="0.01"
-                    value={montoPagado}
-                    onChange={(e) => setMontoPagado(e.target.value)}
-                    style={{
-                      width: "100%",
-                      padding: "12px 14px",
-                      borderRadius: "14px",
-                      border: `1px solid ${t.border}`,
-                      background: t.inputBg,
-                      color: t.textPrimary,
-                      fontSize: "14px",
-                      fontFamily: "'Cairo', sans-serif",
-                      outline: "none",
-                    }}
-                  />
-                </div>
-              )}
-
-              {/* Summary Totals */}
-              <div style={{ marginTop: "16px", padding: "20px", background: t.innerBg, borderRadius: "16px", border: `1px solid ${t.border}` }}>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "12px" }}>
-                  <span style={{ fontSize: "14px", color: t.textSecondary }}>Subtotal:</span>
-                  <span style={{ fontSize: "14px", fontWeight: 600, color: t.textPrimary }}>
-                    S/ {subtotal.toFixed(2)}
-                  </span>
-                </div>
-
-                <div
-                  style={{
-                    borderTop: `2px solid ${t.border}`,
-                    paddingTop: "12px",
-                    display: "flex",
-                    justifyContent: "space-between",
-                  }}
-                >
-                  <span style={{ fontSize: "16px", fontWeight: 700, color: t.textPrimary }}>Total a Pagar:</span>
-                  <span style={{ fontSize: "20px", fontWeight: 700, color: t.accent }}>
-                    S/ {total.toFixed(2)}
-                  </span>
-                </div>
-
-                {selectedMetodoPago === 1 && montoPagado && parseFloat(montoPagado) >= total && (
-                  <>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginTop: "12px", paddingTop: "12px", borderTop: `1px solid ${t.border}` }}>
-                      <span style={{ fontSize: "14px", color: t.textSecondary }}>Monto Pagado:</span>
-                      <span style={{ fontSize: "14px", fontWeight: 600, color: t.textPrimary }}>
-                        S/ {parseFloat(montoPagado).toFixed(2)}
-                      </span>
-                    </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginTop: "8px" }}>
-                      <span style={{ fontSize: "14px", fontWeight: 700, color: "#22c55e" }}>Vuelto:</span>
-                      <span style={{ fontSize: "16px", fontWeight: 700, color: "#22c55e" }}>
-                        S/ {vuelto.toFixed(2)}
-                      </span>
-                    </div>
-                  </>
-                )}
-              </div>
-
-              {/* Warning Alert */}
-              {tipoComprobante === "FACTURA" && !selectedCliente && (
-                <div
-                  style={{
-                    padding: "12px 16px",
-                    background: "rgba(249, 115, 22, 0.1)",
-                    border: "1px solid rgba(249, 115, 22, 0.3)",
-                    borderRadius: "12px",
+                    padding: "4px",
+                    borderRadius: "8px",
                     display: "flex",
                     alignItems: "center",
-                    gap: "10px",
                   }}
+                  title="Limpiar carrito"
                 >
-                  <AlertCircle size={18} color="#fb923c" />
-                  <p style={{ fontSize: "12px", color: "#fb923c", lineHeight: 1.4 }}>
-                    Para emitir FACTURA debes seleccionar un cliente con RUC
+                  <Trash2 size={16} />
+                </button>
+              )}
+              <span style={S.billCount}>
+                {itemCount} {itemCount === 1 ? "ítem" : "ítems"}
+              </span>
+            </div>
+          </div>
+
+          {/* Cart items */}
+          <div style={S.billItems}>
+            {carrito.length === 0 ? (
+              <div style={S.emptyCart}>
+                <ShoppingCart size={52} color={t.textMuted} />
+                <div style={{ textAlign: "center" }}>
+                  <p style={{ fontWeight: 700, color: t.textSub, margin: "0 0 4px", fontSize: "15px" }}>
+                    Carrito vacío
+                  </p>
+                  <p style={{ color: t.textMuted, margin: 0, fontSize: "13px" }}>
+                    Haz clic en un producto para agregarlo
                   </p>
                 </div>
-              )}
+              </div>
+            ) : (
+              carrito.map((item) => (
+                <div key={item.key} style={S.billItem}>
+                  {/* Thumbnail */}
+                  <div>
+                    <img
+                      src={item.producto.imagen}
+                      alt={item.producto.nombre}
+                      style={S.billItemImg}
+                      onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).style.display = "none";
+                        const ph = e.currentTarget.nextElementSibling as HTMLElement;
+                        if (ph) ph.style.display = "flex";
+                      }}
+                    />
+                    <div style={{ ...S.billItemImgPlaceholder(item.producto.accent), display: "none" }}>
+                      <Pill size={20} color={item.producto.accent} />
+                    </div>
+                  </div>
 
-              {/* Action Buttons */}
-              <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "8px" }}>
-                <button
-                  onClick={handleProcessSale}
-                  disabled={saleItems.length === 0}
-                  style={{
-                    padding: "14px 20px",
-                    borderRadius: "14px",
-                    border: "none",
-                    background: saleItems.length === 0 ? t.textMuted : t.accent,
-                    color: "#fff",
-                    fontSize: "14px",
-                    fontWeight: 600,
-                    cursor: saleItems.length === 0 ? "not-allowed" : "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: "8px",
-                    fontFamily: "'Cairo', sans-serif",
-                    transition: "all 0.2s",
-                    boxShadow: saleItems.length === 0 ? "none" : `0 4px 12px ${t.accent}40`,
-                    opacity: saleItems.length === 0 ? 0.5 : 1,
-                  }}
-                  onMouseEnter={(e) => {
-                    if (saleItems.length > 0) {
-                      (e.currentTarget as HTMLButtonElement).style.background = t.accentHover;
-                      (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)";
-                      (e.currentTarget as HTMLButtonElement).style.boxShadow = `0 6px 20px ${t.accent}50`;
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (saleItems.length > 0) {
-                      (e.currentTarget as HTMLButtonElement).style.background = t.accent;
-                      (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
-                      (e.currentTarget as HTMLButtonElement).style.boxShadow = `0 4px 12px ${t.accent}40`;
-                    }
-                  }}
-                >
-                  <Save size={16} />
-                  Procesar Venta
-                </button>
+                  {/* Info */}
+                  <div style={S.billItemInfo}>
+                    <p style={S.billItemName}>{item.producto.nombre}</p>
+                    <p style={S.billItemSub}>{item.producto.categoriaLabel}</p>
+                  </div>
 
-                <button
-                  onClick={handleCancelSale}
-                  style={{
-                    padding: "12px 20px",
-                    borderRadius: "14px",
-                    border: `1px solid ${t.border}`,
-                    background: t.cardBg,
-                    color: t.textSecondary,
-                    fontSize: "14px",
-                    fontWeight: 600,
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: "8px",
-                    fontFamily: "'Cairo', sans-serif",
-                    transition: "all 0.2s",
-                  }}
-                  onMouseEnter={(e) => {
-                    (e.currentTarget as HTMLButtonElement).style.background = t.hoverBg;
-                    (e.currentTarget as HTMLButtonElement).style.color = t.textPrimary;
-                  }}
-                  onMouseLeave={(e) => {
-                    (e.currentTarget as HTMLButtonElement).style.background = t.cardBg;
-                    (e.currentTarget as HTMLButtonElement).style.color = t.textSecondary;
-                  }}
-                >
-                  <X size={16} />
-                  Cancelar Venta
-                </button>
+                  {/* Qty controls */}
+                  <div style={S.qtyControl}>
+                    <button
+                      className="ns-qty-btn"
+                      style={S.qtyBtn()}
+                      onClick={() => actualizarCantidad(item.key, -1)}
+                    >
+                      <Minus size={11} />
+                    </button>
+                    <span style={S.qtyNum}>{item.cantidad}</span>
+                    <button
+                      className="ns-qty-btn"
+                      style={S.qtyBtn(t.accent)}
+                      onClick={() => actualizarCantidad(item.key, 1)}
+                    >
+                      <Plus size={11} />
+                    </button>
+                  </div>
+
+                  {/* Price + remove */}
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "4px" }}>
+                    <span style={S.billItemPrice(item.producto.accent)}>
+                      {formatSoles(item.precioUnitario * item.cantidad)}
+                    </span>
+                    <button
+                      style={{ background: "none", border: "none", cursor: "pointer", color: t.textMuted, padding: "0" }}
+                      onClick={() => eliminarDelCarrito(item.key)}
+                    >
+                      <X size={13} />
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Summary */}
+          {carrito.length > 0 && (
+            <div style={S.summarySection}>
+              <div style={S.summaryRow}>
+                <span style={S.summaryLabel}>Ítems ({itemCount})</span>
+                <span style={S.summaryValue}>{formatSoles(subtotal)}</span>
+              </div>
+              <div style={S.summaryRow}>
+                <span style={S.summaryLabel}>IGV incluido (18%)</span>
+                <span style={S.summaryValue}>{formatSoles(igvIncluido)}</span>
+              </div>
+              <div style={S.divider} />
+              <div style={S.totalRow}>
+                <span style={S.totalLabel}>Total</span>
+                <span style={S.totalValue}>{formatSoles(total)}</span>
               </div>
             </div>
+          )}
+
+          {/* Payment section */}
+          <div style={S.paymentSection}>
+            {/* Tipo comprobante */}
+            <p style={S.paymentLabel}>Comprobante</p>
+            <div style={S.comprobanteRow}>
+              {(["BOLETA", "FACTURA", "TICKET"] as TipoComprobante[]).map((tc) => (
+                <button
+                  key={tc}
+                  className="ns-comprobante-btn"
+                  style={S.comprobanteBtn(tipoComprobante === tc)}
+                  onClick={() => setTipoComprobante(tc)}
+                >
+                  {tc}
+                </button>
+              ))}
+            </div>
+
+            {/* Cliente para factura */}
+            {tipoComprobante === "FACTURA" && (
+              <div>
+                <div style={{ position: "relative" }}>
+                  <User size={14} style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: t.textMuted, pointerEvents: "none" }} />
+                  <select
+                    value={clienteSeleccionado}
+                    onChange={(e) => setClienteSeleccionado(Number(e.target.value))}
+                    style={{
+                      ...S.montoInput,
+                      paddingLeft: "34px",
+                      cursor: "pointer",
+                      color: clienteSeleccionado ? t.text : t.textMuted,
+                    }}
+                  >
+                    <option value="">Seleccionar cliente (RUC)...</option>
+                    {mockClientes.filter(c => c.tipo === "RUC").map(c => (
+                      <option key={c.id} value={c.id}>{c.nombre} — {c.documento}</option>
+                    ))}
+                  </select>
+                </div>
+                {tipoComprobante === "FACTURA" && !clienteSeleccionado && (
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "6px" }}>
+                    <AlertCircle size={13} color={t.orange} />
+                    <p style={{ fontSize: "11px", color: t.orange, margin: 0 }}>
+                      Selecciona un cliente con RUC para factura
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Método de pago */}
+            <p style={{ ...S.paymentLabel, marginBottom: "4px" }}>Método de pago</p>
+            <div style={S.paymentMethodsRow}>
+              {metodosPago.map((mp) => {
+                const Icon = mp.icon;
+                const active = metodoPago === mp.id;
+                return (
+                  <button
+                    key={mp.id}
+                    className="ns-pay-method"
+                    style={S.payMethod(active)}
+                    onClick={() => {
+                      setMetodoPago(mp.id);
+                      if (mp.id !== "EFECTIVO") setMontoPagado("");
+                    }}
+                  >
+                    <Icon size={18} style={S.payMethodIcon(active)} />
+                    <span style={S.payMethodLabel(active)}>{mp.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Monto pagado (solo efectivo) */}
+            {metodoPago === "EFECTIVO" && (
+              <div>
+                <div style={{ position: "relative" }}>
+                  <DollarSign size={14} style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: t.textMuted, pointerEvents: "none" }} />
+                  <input
+                    type="number"
+                    placeholder="Monto recibido..."
+                    value={montoPagado}
+                    min={0}
+                    step={0.1}
+                    onChange={(e) => setMontoPagado(e.target.value)}
+                    style={{ ...S.montoInput, paddingLeft: "34px" }}
+                    onFocus={(e) => (e.currentTarget.style.borderColor = t.accent)}
+                    onBlur={(e) => (e.currentTarget.style.borderColor = t.border)}
+                  />
+                </div>
+                {montoPagado && parseFloat(montoPagado) >= total && total > 0 && (
+                  <div style={S.vueltoBox}>
+                    <span style={{ fontSize: "13px", fontWeight: 700, color: t.success }}>Vuelto</span>
+                    <span style={{ fontSize: "16px", fontWeight: 800, color: t.success }}>
+                      {formatSoles(vuelto)}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Process button */}
+            <button
+              className="ns-process-btn"
+              style={S.processBtn(carrito.length === 0)}
+              disabled={carrito.length === 0}
+              onClick={procesarVenta}
+            >
+              <Receipt size={18} />
+              Procesar Venta · {formatSoles(total)}
+            </button>
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
+
+
