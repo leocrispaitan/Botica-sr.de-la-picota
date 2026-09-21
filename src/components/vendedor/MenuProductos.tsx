@@ -58,7 +58,6 @@ export default function MenuProductos({
 
       <div className="seller-categories" aria-label="Categorias de productos">
         {categories.map((category) => {
-          const Icon = category.icon;
           const isActive = activeCategory === category.id;
 
           return (
@@ -67,7 +66,12 @@ export default function MenuProductos({
               className={`seller-category ${isActive ? "is-active" : ""}`}
               onClick={() => onSelectCategory(category.id)}
             >
-              <Icon size={26} />
+              <span
+                className="seller-category-emoji"
+                style={{ "--category-color": category.color } as CSSProperties}
+              >
+                <span className="seller-category-emoji-glyph">{category.emoji}</span>
+              </span>
               <span>{category.label}</span>
             </button>
           );

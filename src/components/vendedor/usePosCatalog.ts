@@ -1,14 +1,4 @@
 import { useEffect, useState } from "react";
-import {
-  BadgePercent,
-  LayoutGrid,
-  Package,
-  Pill,
-  ReceiptText,
-  ShieldCheck,
-  Stethoscope,
-  type LucideIcon,
-} from "lucide-react";
 import categoriesService from "../../services/categoriesService";
 import productsService from "../../services/productsService";
 import type { Product } from "./posData";
@@ -20,7 +10,10 @@ import type { Product } from "./posData";
 export interface PosCategory {
   id: string;
   label: string;
-  icon: LucideIcon;
+  /** Emoji propio de la categoría (ej. 🦠 ANTIBIOTICOS, 🧴 DERMATOLOGICOS). */
+  emoji: string;
+  /** Color propio del icono de la categoría (cada categoría tiene el suyo). */
+  color: string;
 }
 
 export interface UsePosCatalogResult {
@@ -43,21 +36,31 @@ const ACCENTS = [
   "#f97316",
 ];
 
-/** Ícono por coincidencia de palabra clave en el nombre real de la categoría. */
-const CATEGORY_ICONS: Array<{ keywords: string[]; icon: LucideIcon }> = [
-  { keywords: ["ANALGESICO", "DOLOR"], icon: Pill },
-  { keywords: ["ANTIBIOTICO"], icon: ShieldCheck },
-  { keywords: ["DIGESTIVO", "GASTRO", "ANTIACIDO"], icon: Package },
-  { keywords: ["ALERGIA", "ANTIHISTAMINICO"], icon: BadgePercent },
-  { keywords: ["RESPIRATORIO", "BRONQUIAL"], icon: Stethoscope },
-  { keywords: ["DIABETES", "GLUCOSA"], icon: ReceiptText },
+/** Emoji por coincidencia de palabra clave en el nombre real de la categoría. */
+const CATEGORY_EMOJIS: Array<{ keywords: string[]; emoji: string }> = [
+  { keywords: ["ANALGESICO", "DOLOR"], emoji: "💊" },
+  { keywords: ["ANTIBIOTICO"], emoji: "🦠" },
+  { keywords: ["ANTIINFLAMAT"], emoji: "🧊" },
+  { keywords: ["DIGESTIVO", "GASTRO", "ANTIACIDO"], emoji: "🍽️" },
+  { keywords: ["RESPIRATORIO", "BRONQUIAL"], emoji: "🫁" },
+  { keywords: ["DERMATO", "TOPICO"], emoji: "🧴" },
+  { keywords: ["ALERGIA", "ANTIHISTAMINICO"], emoji: "🤧" },
+  { keywords: ["CARDIOVASCULAR", "CARDIACO"], emoji: "🫀" },
+  { keywords: ["VITAMINA", "SUPLEMENTO", "MINERAL"], emoji: "🍊" },
+  { keywords: ["OFTALMICO", "OPHTALMIC"], emoji: "👁️" },
+  { keywords: ["OTICO", "OIDO"], emoji: "👂" },
+  { keywords: ["NEUROLOGICO", "NEURO"], emoji: "🧠" },
+  { keywords: ["ENDOCRINO", "DIABETES", "GLUCOSA"], emoji: "🩸" },
 ];
 
-const pickCategoryIcon = (name: string): LucideIcon => {
+const pickCategoryEmoji = (name: string): string => {
   const upper = (name || "").toUpperCase();
-  const match = CATEGORY_ICONS.find((item) => item.keywords.some((keyword) => upper.includes(keyword)));
-  return match?.icon ?? Package;
+  const match = CATEGORY_EMOJIS.find((item) => item.keywords.some((keyword) => upper.includes(keyword)));
+  return match?.emoji ?? "🏥";
 };
+
+/** Color del icono por índice de categoría (determinista, basado en la paleta). */
+const pickCategoryColor = (index: number): string => ACCENTS[index % ACCENTS.length];
 
 /**
  * Carga categorías y productos reales desde el backend
@@ -82,10 +85,11 @@ export default function usePosCatalog(): UsePosCatalogResult {
 
         const realCategories = (categorias || [])
           .filter((categoria) => categoria.estado_logico !== false)
-          .map((categoria) => ({
+          .map((categoria, index) => ({
             id: String(categoria.id_categoria),
             label: categoria.nombre_categoria,
-            icon: pickCategoryIcon(categoria.nombre_categoria),
+            emoji: pickCategoryEmoji(categoria.nombre_categoria),
+            color: pickCategoryColor(index),
           }));
 
         const realProducts = (productos || [])
@@ -111,7 +115,7 @@ export default function usePosCatalog(): UsePosCatalogResult {
             ],
           }));
 
-        setCategories([{ id: "all", label: "Todo", icon: LayoutGrid }, ...realCategories]);
+        setCategories([{ id: "all", label: "Todo", emoji: "🗂️", color: ACCENTS[0] }, ...realCategories]);
         setProducts(realProducts);
         setLoading(false);
       })

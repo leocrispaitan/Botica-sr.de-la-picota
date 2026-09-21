@@ -893,6 +893,28 @@ export default function PuntoVenta() {
           color: #607286;
         }
 
+        .seller-category-emoji {
+          width: 48px;
+          height: 48px;
+          border-radius: 14px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: color-mix(in srgb, var(--category-color) 14%, transparent);
+          border: 1px solid color-mix(in srgb, var(--category-color) 30%, transparent);
+          transition: transform 0.2s ease;
+        }
+
+        .seller-category-emoji-glyph {
+          font-size: 24px;
+          line-height: 1;
+        }
+
+        .seller-category:hover .seller-category-emoji,
+        .seller-category.is-active .seller-category-emoji {
+          transform: scale(1.08);
+        }
+
         .seller-category:hover,
         .seller-category.is-active {
           color: #0f9f63;
