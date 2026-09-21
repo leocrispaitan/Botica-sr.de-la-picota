@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect, useCallback } from "react";
-import { X, Send, Sparkles, RotateCcw, Copy, Check, ChevronDown, Database } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { X, Send, Sparkles, RotateCcw, Copy, Check, ChevronDown } from "lucide-react";
 import { getLiveBusinessContext } from "../../services/aiContextService";
 
 /* ─── Tipos ─────────────────────────────────────────────────────────── */
