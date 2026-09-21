@@ -57,6 +57,7 @@ import ReportesInventario from "./ReportesInventario";
 import ReportesMovimientos from "./ReportesMovimientos";
 import MiPerfil from "../shared/MiPerfil";
 import SolicitudesRegistro from "./SolicitudesRegistro";
+import GeminiAIAssistant from "./GeminiAIAssistant";
 
 import {
   // imgCanvas,
@@ -3638,6 +3639,9 @@ export default function Dashboard({ onLogout }: { onLogout?: () => void }) {
 
         </main>
       </div>
+
+      {/* ═══ Asistente IA Gemini - Flotante global ═══ */}
+      <GeminiAIAssistant isDark={isDark} activeMenu={activeMenu} />
 
     </div>
   );
