@@ -28,6 +28,12 @@ type CategoryId = "all" | "pain" | "antibiotics" | "digestive" | "allergy" | "re
 type PaymentMethod = "EFECTIVO" | "TARJETA" | "YAPE_PLIN" | "TRANSFERENCIA";
 type TipoComprobante = "BOLETA" | "FACTURA" | "TICKET";
 
+interface OpcionVenta {
+  label: string;
+  shortLabel: string;
+  precio: number;
+}
+
 interface Product {
   id: number;
   nombre: string;
@@ -40,13 +46,16 @@ interface Product {
   laboratorio: string;
   imagen: string;
   accent: string;
-  precio: number;
-  unidad: string;
+  opciones: OpcionVenta[];
+  precio?: number;
+  unidad?: string;
 }
 
 interface CartItem {
   key: string;
   producto: Product;
+  opcionLabel: string;
+  opcionShortLabel: string;
   cantidad: number;
   precioUnitario: number;
 }
@@ -71,60 +80,148 @@ const categorias: Array<{ id: CategoryId; label: string; icon: React.ElementType
 
 const productos: Product[] = [
   {
-    id: 1, nombre: "Paracetamol 500mg", generico: "Paracetamol",
-    categoria: "pain", categoriaLabel: "Analgésico", stock: 500, vendidos: 64,
-    requiereReceta: false, laboratorio: "Genfar",
+    id: 1,
+    nombre: "Paracetamol 500mg",
+    generico: "Paracetamol",
+    categoria: "pain",
+    categoriaLabel: "Analgésico",
+    stock: 500,
+    vendidos: 64,
+    requiereReceta: false,
+    laboratorio: "Genfar",
     imagen: "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&w=400&q=80",
-    accent: "#0fbf70", precio: 0.50, unidad: "Tableta",
+    accent: "#0fbf70",
+    opciones: [
+      { label: "Tableta", shortLabel: "TAB", precio: 0.5 },
+      { label: "Blister", shortLabel: "BL", precio: 5.0 },
+      { label: "Caja", shortLabel: "CJ", precio: 42.0 },
+    ],
   },
   {
-    id: 2, nombre: "Ibuprofeno 400mg", generico: "Ibuprofeno",
-    categoria: "pain", categoriaLabel: "Antiinflamatorio", stock: 300, vendidos: 51,
-    requiereReceta: false, laboratorio: "Medifarma",
+    id: 2,
+    nombre: "Ibuprofeno 400mg",
+    generico: "Ibuprofeno",
+    categoria: "pain",
+    categoriaLabel: "Antiinflamatorio",
+    stock: 300,
+    vendidos: 51,
+    requiereReceta: false,
+    laboratorio: "Medifarma",
     imagen: "https://images.unsplash.com/photo-1550572017-edd951aa8f72?auto=format&fit=crop&w=400&q=80",
-    accent: "#22a7f0", precio: 0.80, unidad: "Tableta",
+    accent: "#22a7f0",
+    opciones: [
+      { label: "Tableta", shortLabel: "TAB", precio: 0.8 },
+      { label: "Blister", shortLabel: "BL", precio: 8.0 },
+      { label: "Caja", shortLabel: "CJ", precio: 68.0 },
+    ],
   },
   {
-    id: 3, nombre: "Amoxicilina 500mg", generico: "Amoxicilina",
-    categoria: "antibiotics", categoriaLabel: "Antibiótico", stock: 118, vendidos: 22,
-    requiereReceta: true, laboratorio: "Portugal",
+    id: 3,
+    nombre: "Amoxicilina 500mg",
+    generico: "Amoxicilina",
+    categoria: "antibiotics",
+    categoriaLabel: "Antibiótico",
+    stock: 118,
+    vendidos: 22,
+    requiereReceta: true,
+    laboratorio: "Portugal",
     imagen: "https://images.unsplash.com/photo-1607619056574-7b8d3ee536b2?auto=format&fit=crop&w=400&q=80",
-    accent: "#f59e0b", precio: 1.20, unidad: "Cápsula",
+    accent: "#f59e0b",
+    opciones: [
+      { label: "Cápsula", shortLabel: "CAP", precio: 1.2 },
+      { label: "Blister", shortLabel: "BL", precio: 12.0 },
+      { label: "Caja", shortLabel: "CJ", precio: 98.0 },
+    ],
   },
   {
-    id: 4, nombre: "Omeprazol 20mg", generico: "Omeprazol",
-    categoria: "digestive", categoriaLabel: "Digestivo", stock: 240, vendidos: 39,
-    requiereReceta: false, laboratorio: "Farmindustria",
+    id: 4,
+    nombre: "Omeprazol 20mg",
+    generico: "Omeprazol",
+    categoria: "digestive",
+    categoriaLabel: "Digestivo",
+    stock: 240,
+    vendidos: 39,
+    requiereReceta: false,
+    laboratorio: "Farmindustria",
     imagen: "https://images.unsplash.com/photo-1585435557343-3b092031a831?auto=format&fit=crop&w=400&q=80",
-    accent: "#8b5cf6", precio: 1.50, unidad: "Cápsula",
+    accent: "#8b5cf6",
+    opciones: [
+      { label: "Cápsula", shortLabel: "CAP", precio: 1.5 },
+      { label: "Blister", shortLabel: "BL", precio: 15.0 },
+      { label: "Caja", shortLabel: "CJ", precio: 125.0 },
+    ],
   },
   {
-    id: 5, nombre: "Loratadina 10mg", generico: "Loratadina",
-    categoria: "allergy", categoriaLabel: "Alergias", stock: 350, vendidos: 45,
-    requiereReceta: false, laboratorio: "Bago",
+    id: 5,
+    nombre: "Loratadina 10mg",
+    generico: "Loratadina",
+    categoria: "allergy",
+    categoriaLabel: "Alergias",
+    stock: 350,
+    vendidos: 45,
+    requiereReceta: false,
+    laboratorio: "Bago",
     imagen: "https://images.unsplash.com/photo-1631549916768-4119b2e5f926?auto=format&fit=crop&w=400&q=80",
-    accent: "#06b6d4", precio: 0.60, unidad: "Tableta",
+    accent: "#06b6d4",
+    opciones: [
+      { label: "Tableta", shortLabel: "TAB", precio: 0.6 },
+      { label: "Blister", shortLabel: "BL", precio: 6.0 },
+      { label: "Caja", shortLabel: "CJ", precio: 52.0 },
+    ],
   },
   {
-    id: 6, nombre: "Salbutamol Inhalador", generico: "Salbutamol 100mcg",
-    categoria: "respiratory", categoriaLabel: "Respiratorio", stock: 48, vendidos: 16,
-    requiereReceta: true, laboratorio: "Glaxo",
+    id: 6,
+    nombre: "Salbutamol Inhalador",
+    generico: "Salbutamol 100mcg",
+    categoria: "respiratory",
+    categoriaLabel: "Respiratorio",
+    stock: 48,
+    vendidos: 16,
+    requiereReceta: true,
+    laboratorio: "Glaxo",
     imagen: "https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&w=400&q=80",
-    accent: "#ef4444", precio: 25.00, unidad: "Unidad",
+    accent: "#ef4444",
+    opciones: [
+      { label: "Unidad", shortLabel: "UND", precio: 25.0 },
+      { label: "Pack x2", shortLabel: "P2", precio: 48.0 },
+      { label: "Caja", shortLabel: "CJ", precio: 290.0 },
+    ],
   },
   {
-    id: 7, nombre: "Metformina 850mg", generico: "Metformina",
-    categoria: "diabetes", categoriaLabel: "Diabetes", stock: 600, vendidos: 72,
-    requiereReceta: true, laboratorio: "AC Farma",
+    id: 7,
+    nombre: "Metformina 850mg",
+    generico: "Metformina",
+    categoria: "diabetes",
+    categoriaLabel: "Diabetes",
+    stock: 600,
+    vendidos: 72,
+    requiereReceta: true,
+    laboratorio: "AC Farma",
     imagen: "https://images.unsplash.com/photo-1471864190281-a93a3070b6de?auto=format&fit=crop&w=400&q=80",
-    accent: "#14b8a6", precio: 0.90, unidad: "Tableta",
+    accent: "#14b8a6",
+    opciones: [
+      { label: "Tableta", shortLabel: "TAB", precio: 0.9 },
+      { label: "Blister", shortLabel: "BL", precio: 9.0 },
+      { label: "Caja", shortLabel: "CJ", precio: 76.0 },
+    ],
   },
   {
-    id: 8, nombre: "Vitamina C 1g", generico: "Ácido ascórbico",
-    categoria: "allergy", categoriaLabel: "Suplemento", stock: 180, vendidos: 31,
-    requiereReceta: false, laboratorio: "Mason",
+    id: 8,
+    nombre: "Vitamina C 1g",
+    generico: "Ácido ascórbico",
+    categoria: "allergy",
+    categoriaLabel: "Suplemento",
+    stock: 180,
+    vendidos: 31,
+    requiereReceta: false,
+    laboratorio: "Mason",
     imagen: "https://images.unsplash.com/photo-1628771065518-0d82f1938462?auto=format&fit=crop&w=400&q=80",
-    accent: "#f97316", precio: 1.10, unidad: "Tableta",
+    accent: "#f97316",
+    opciones: [
+      { label: "Tableta", shortLabel: "TAB", precio: 1.1 },
+      { label: "Tubo", shortLabel: "TUB", precio: 16.0 },
+      { label: "Caja", shortLabel: "CJ", precio: 90.0 },
+    ],
   },
 ];
 
@@ -202,6 +299,9 @@ export default function NewSale({ isDark = true }: { isDark?: boolean }) {
   const [clienteSeleccionado, setClienteSeleccionado] = useState<number | "">("");
   const [busquedaCliente, setBusquedaCliente] = useState("");
   const [ventaExitosa, setVentaExitosa] = useState(false);
+  const [opcionSeleccionada, setOpcionSeleccionada] = useState<Record<number, string>>(() =>
+    productos.reduce((acc, p) => ({ ...acc, [p.id]: p.opciones[0].label }), {})
+  );
 
   /* ─── Filtered products ─── */
   const productosFiltrados = useMemo(() => {
@@ -226,7 +326,11 @@ export default function NewSale({ isDark = true }: { isDark?: boolean }) {
 
   /* ─── Cart actions ─── */
   const agregarAlCarrito = (producto: Product) => {
-    const key = `${producto.id}`;
+    const opcionActiva =
+      producto.opciones.find((opt) => opt.label === (opcionSeleccionada[producto.id] || producto.opciones[0].label)) ||
+      producto.opciones[0];
+    const key = `${producto.id}-${opcionActiva.label}`;
+
     setCarrito((prev) => {
       const existe = prev.find((i) => i.key === key);
       if (existe) {
@@ -236,7 +340,17 @@ export default function NewSale({ isDark = true }: { isDark?: boolean }) {
             : i
         );
       }
-      return [...prev, { key, producto, cantidad: 1, precioUnitario: producto.precio }];
+      return [
+        ...prev,
+        {
+          key,
+          producto,
+          opcionLabel: opcionActiva.label,
+          opcionShortLabel: opcionActiva.shortLabel,
+          cantidad: 1,
+          precioUnitario: opcionActiva.precio,
+        },
+      ];
     });
   };
 
@@ -297,9 +411,10 @@ export default function NewSale({ isDark = true }: { isDark?: boolean }) {
       display: "flex",
       flexDirection: "column" as const,
       overflow: "hidden",
-      padding: "20px 16px 20px 20px",
-      gap: "12px",
+      padding: "16px 16px 20px 20px",
+      gap: "10px",
       minWidth: 0,
+      minHeight: 0,
     },
 
     topBar: {
@@ -387,13 +502,12 @@ export default function NewSale({ isDark = true }: { isDark?: boolean }) {
     },
 
     grid: {
-      /* Uses .ns-grid CSS class for responsive overrides */
-      display: "grid",
-      gridTemplateColumns: "repeat(auto-fill, minmax(170px, 1fr))",
       gap: "12px",
       overflowY: "auto" as const,
-      paddingRight: "4px",
+      paddingRight: "6px",
+      paddingBottom: "32px",
       flex: 1,
+      minHeight: 0,
       alignContent: "start",
     },
 
@@ -408,6 +522,8 @@ export default function NewSale({ isDark = true }: { isDark?: boolean }) {
       flexDirection: "column" as const,
       position: "relative" as const,
       minWidth: 0,
+      height: "100%",
+      boxSizing: "border-box" as const,
     }),
 
     productImg: {
@@ -437,7 +553,7 @@ export default function NewSale({ isDark = true }: { isDark?: boolean }) {
       padding: "12px",
       display: "flex",
       flexDirection: "column" as const,
-      gap: "4px",
+      gap: "6px",
       flex: 1,
     },
 
@@ -462,16 +578,17 @@ export default function NewSale({ isDark = true }: { isDark?: boolean }) {
     },
 
     productPrice: (accent: string) => ({
-      fontSize: "15px",
+      fontSize: "14px",
       fontWeight: 800,
       color: accent,
-      marginTop: "4px",
+      margin: 0,
+      lineHeight: 1.2,
     }),
 
     addBtn: (accent: string) => ({
-      width: "32px",
-      height: "32px",
-      borderRadius: "10px",
+      width: "30px",
+      height: "30px",
+      borderRadius: "9px",
       border: "none",
       background: accent,
       color: "#fff",
@@ -479,7 +596,6 @@ export default function NewSale({ isDark = true }: { isDark?: boolean }) {
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
-      alignSelf: "flex-end",
       boxShadow: `0 4px 12px ${accent}55`,
       transition: "transform 0.15s",
       flexShrink: 0,
@@ -820,29 +936,43 @@ export default function NewSale({ isDark = true }: { isDark?: boolean }) {
         .ns-product-card:hover { transform: translateY(-3px); box-shadow: 0 12px 30px rgba(0,0,0,0.18) !important; }
         .ns-product-card:hover .ns-product-img { transform: scale(1.06); }
         .ns-add-btn:hover { transform: scale(1.12); }
+        .ns-opt-btn:hover { filter: brightness(1.12); transform: translateY(-1px); }
         .ns-cat-btn:hover { opacity: 0.85; }
         .ns-qty-btn:hover { opacity: 0.8; }
         .ns-process-btn:not(:disabled):hover { transform: translateY(-2px); filter: brightness(1.08); }
         .ns-comprobante-btn:hover { opacity: 0.85; }
         .ns-pay-method:hover { opacity: 0.85; }
 
-        /* Responsive grid — overridden by media queries */
+        /* Responsive grid — cards push cleanly to next row, never overlapping */
         .ns-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
-          gap: 12px;
-          overflow-y: auto;
-          padding-right: 4px;
-          flex: 1;
-          align-content: start;
+          display: grid !important;
+          grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)) !important;
+          grid-auto-rows: max-content !important;
+          gap: 16px !important;
+          overflow-y: auto !important;
+          padding-right: 6px !important;
+          padding-bottom: 40px !important;
+          flex: 1 !important;
+          min-height: 0 !important;
+          align-content: start !important;
+        }
+        @media (max-width: 1200px) {
+          .ns-grid { grid-template-columns: repeat(auto-fill, minmax(175px, 1fr)) !important; gap: 14px !important; }
         }
         /* Medium viewport or zoomed-in: 2-col min */
         @media (max-width: 900px) {
-          .ns-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+          .ns-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)) !important; gap: 10px !important; }
         }
         /* Small viewport */
         @media (max-width: 640px) {
-          .ns-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+          .ns-grid { grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
+        }
+
+        .ns-product-card {
+          display: flex !important;
+          flex-direction: column !important;
+          height: 100% !important;
+          position: relative !important;
         }
 
         /* Scrollbars */
@@ -947,107 +1077,259 @@ export default function NewSale({ isDark = true }: { isDark?: boolean }) {
                 <p style={{ fontSize: "13px" }}>Prueba con otro término de búsqueda</p>
               </div>
             ) : (
-              productosFiltrados.map((producto) => (
-                <article
-                  key={producto.id}
-                  className="ns-product-card"
-                  style={S.productCard(producto.accent)}
-                  onClick={() => agregarAlCarrito(producto)}
-                >
-                  {/* Badge receta */}
-                  {producto.requiereReceta && (
-                    <div style={{
-                      position: "absolute",
-                      top: "8px",
-                      left: "8px",
-                      background: "rgba(239,68,68,0.9)",
-                      color: "#fff",
-                      fontSize: "9px",
-                      fontWeight: 700,
-                      padding: "2px 7px",
-                      borderRadius: "8px",
-                      backdropFilter: "blur(4px)",
-                      zIndex: 2,
-                    }}>
-                      RECETA
-                    </div>
-                  )}
+              productosFiltrados.map((producto) => {
+                const opcionActiva =
+                  producto.opciones.find(
+                    (opt) => opt.label === (opcionSeleccionada[producto.id] || producto.opciones[0].label)
+                  ) || producto.opciones[0];
 
-                  {/* Stock badge */}
-                  <div style={{
-                    position: "absolute",
-                    top: "8px",
-                    right: "8px",
-                    background: "rgba(0,0,0,0.5)",
-                    color: "#fff",
-                    fontSize: "9px",
-                    fontWeight: 700,
-                    padding: "2px 7px",
-                    borderRadius: "8px",
-                    backdropFilter: "blur(4px)",
-                    zIndex: 2,
-                  }}>
-                    {producto.stock} uds
-                  </div>
-
-                  {/* Image — placeholder gradient always visible; photo overlaid on top via z-index */}
-                  <div style={S.productImgWrap(producto.accent)}>
-                    <Pill size={34} color={producto.accent} style={{ opacity: 0.6, flexShrink: 0, filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.25))" }} />
-                    <img
-                      className="ns-product-img"
-                      src={producto.imagen}
-                      alt={producto.nombre}
-                      style={S.productImg}
-                      onError={(e) => {
-                        (e.currentTarget as HTMLImageElement).style.display = "none";
-                      }}
-                    />
-                  </div>
-
-                  {/* Body */}
-                  <div style={S.productBody}>
-                    <h3 style={S.productName}>{producto.nombre}</h3>
-                    <p style={S.productSub}>{producto.generico}</p>
-                    <p style={S.productMeta}>
-                      <span style={{
-                        display: "inline-block",
-                        background: `${producto.accent}20`,
-                        color: producto.accent,
-                        fontSize: "10px",
-                        fontWeight: 700,
-                        padding: "1px 7px",
-                        borderRadius: "8px",
-                        marginRight: "4px",
-                      }}>
-                        {producto.categoriaLabel}
-                      </span>
-                      {producto.laboratorio}
-                    </p>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "6px" }}>
-                      <div>
-                        <span style={S.productPrice(producto.accent)}>
-                          {formatSoles(producto.precio)}
-                        </span>
-                        <span style={{ fontSize: "10px", color: t.textMuted, marginLeft: "3px" }}>
-                          / {producto.unidad}
-                        </span>
-                      </div>
-                      <button
-                        className="ns-add-btn"
-                        style={S.addBtn(producto.accent)}
-                        onClick={(e) => { e.stopPropagation(); agregarAlCarrito(producto); }}
+                return (
+                  <article
+                    key={producto.id}
+                    className="ns-product-card"
+                    style={S.productCard(producto.accent)}
+                    onClick={() => agregarAlCarrito(producto)}
+                  >
+                    {/* Badge receta superior */}
+                    {producto.requiereReceta && (
+                      <div
+                        style={{
+                          position: "absolute",
+                          top: "8px",
+                          left: "8px",
+                          background: "rgba(239,68,68,0.92)",
+                          color: "#fff",
+                          fontSize: "9px",
+                          fontWeight: 700,
+                          padding: "2px 7px",
+                          borderRadius: "8px",
+                          backdropFilter: "blur(4px)",
+                          zIndex: 2,
+                        }}
                       >
-                        <Plus size={16} />
-                      </button>
+                        RECETA
+                      </div>
+                    )}
+
+                    {/* Stock badge */}
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: "8px",
+                        right: "8px",
+                        background: "rgba(0,0,0,0.5)",
+                        color: "#fff",
+                        fontSize: "9px",
+                        fontWeight: 700,
+                        padding: "2px 7px",
+                        borderRadius: "8px",
+                        backdropFilter: "blur(4px)",
+                        zIndex: 2,
+                      }}
+                    >
+                      {producto.stock} uds
                     </div>
-                    {/* Sold indicator */}
-                    <p style={{ fontSize: "10px", color: t.textMuted, margin: "4px 0 0", display: "flex", alignItems: "center", gap: "4px" }}>
-                      <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: t.success, display: "inline-block" }} />
-                      Disponible · {producto.vendidos} vendidos
-                    </p>
-                  </div>
-                </article>
-              ))
+
+                    {/* Image — placeholder gradient always visible; photo overlaid on top via z-index */}
+                    <div style={S.productImgWrap(producto.accent)}>
+                      <Pill
+                        size={34}
+                        color={producto.accent}
+                        style={{
+                          opacity: 0.6,
+                          flexShrink: 0,
+                          filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.25))",
+                        }}
+                      />
+                      <img
+                        className="ns-product-img"
+                        src={producto.imagen}
+                        alt={producto.nombre}
+                        style={S.productImg}
+                        onError={(e) => {
+                          (e.currentTarget as HTMLImageElement).style.display = "none";
+                        }}
+                      />
+                    </div>
+
+                    {/* Body */}
+                    <div style={S.productBody}>
+                      <h3 style={S.productName}>{producto.nombre}</h3>
+                      <p style={S.productSub}>{producto.generico}</p>
+                      <p style={S.productMeta}>
+                        <span
+                          style={{
+                            display: "inline-block",
+                            background: `${producto.accent}20`,
+                            color: producto.accent,
+                            fontSize: "10px",
+                            fontWeight: 700,
+                            padding: "1px 7px",
+                            borderRadius: "8px",
+                            marginRight: "4px",
+                          }}
+                        >
+                          {producto.categoriaLabel}
+                        </span>
+                        {producto.laboratorio}
+                      </p>
+
+                      {/* Forma de venta & Receta labels */}
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          fontSize: "10px",
+                          fontWeight: 700,
+                          color: t.textSub,
+                          marginTop: "8px",
+                          marginBottom: "4px",
+                        }}
+                      >
+                        <span>Forma de venta</span>
+                        <span>Receta</span>
+                      </div>
+
+                      {/* Forma de venta & Receta buttons */}
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+                          gap: "5px",
+                        }}
+                      >
+                        {producto.opciones.map((opt) => {
+                          const isSelected = opcionActiva.label === opt.label;
+                          return (
+                            <button
+                              key={opt.label}
+                              type="button"
+                              className="ns-opt-btn"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpcionSeleccionada((prev) => ({
+                                  ...prev,
+                                  [producto.id]: opt.label,
+                                }));
+                              }}
+                              style={{
+                                height: "26px",
+                                borderRadius: "7px",
+                                border: isSelected
+                                  ? `1.5px solid ${producto.accent}`
+                                  : `1px solid ${t.border}`,
+                                background: isSelected ? `${producto.accent}22` : t.input,
+                                color: isSelected ? producto.accent : t.textMuted,
+                                fontSize: "10px",
+                                fontWeight: 800,
+                                cursor: "pointer",
+                                padding: 0,
+                                transition: "all 0.15s ease",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                              }}
+                              title={`${opt.label} (${opt.shortLabel}) - ${formatSoles(opt.precio)}`}
+                            >
+                              {opt.shortLabel}
+                            </button>
+                          );
+                        })}
+
+                        {/* Botón de estado de receta */}
+                        <button
+                          type="button"
+                          className="ns-receta-btn"
+                          onClick={(e) => e.stopPropagation()}
+                          style={{
+                            height: "26px",
+                            borderRadius: "7px",
+                            border: producto.requiereReceta
+                              ? "1px solid rgba(245, 158, 11, 0.5)"
+                              : "1px solid rgba(15, 191, 112, 0.4)",
+                            background: producto.requiereReceta
+                              ? "rgba(245, 158, 11, 0.14)"
+                              : "rgba(15, 191, 112, 0.10)",
+                            color: producto.requiereReceta ? "#f59e0b" : "#0fbf70",
+                            fontSize: "10px",
+                            fontWeight: 800,
+                            cursor: "default",
+                            padding: 0,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
+                          title={producto.requiereReceta ? "Requiere receta médica" : "Venta libre (Sin receta)"}
+                        >
+                          {producto.requiereReceta ? "SI" : "NO"}
+                        </button>
+                      </div>
+
+                      {/* Bottom action area: Precio, Botón Agregar y Disponibilidad */}
+                      <div style={{ marginTop: "auto", paddingTop: "8px" }}>
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                          }}
+                        >
+                          <div>
+                            <span style={S.productPrice(producto.accent)}>
+                              {formatSoles(opcionActiva.precio)}
+                            </span>
+                            <span
+                              style={{
+                                fontSize: "10px",
+                                color: t.textMuted,
+                                marginLeft: "3px",
+                              }}
+                            >
+                              / {opcionActiva.label}
+                            </span>
+                          </div>
+                          <button
+                            className="ns-add-btn"
+                            style={S.addBtn(producto.accent)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              agregarAlCarrito(producto);
+                            }}
+                            title={`Agregar ${producto.nombre} (${opcionActiva.label}) al carrito`}
+                          >
+                            <Plus size={16} />
+                          </button>
+                        </div>
+
+                        {/* Sold indicator */}
+                        <p
+                          style={{
+                            fontSize: "10px",
+                            color: t.textMuted,
+                            margin: "4px 0 0",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "4px",
+                          }}
+                        >
+                          <span
+                            style={{
+                              width: "6px",
+                              height: "6px",
+                              borderRadius: "50%",
+                              background: t.success,
+                              display: "inline-block",
+                              flexShrink: 0,
+                            }}
+                          />
+                          Disponible · {producto.vendidos} vendidos
+                        </p>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })
             )}
           </div>
         </div>
@@ -1120,7 +1402,12 @@ export default function NewSale({ isDark = true }: { isDark?: boolean }) {
                   {/* Info */}
                   <div style={S.billItemInfo}>
                     <p style={S.billItemName}>{item.producto.nombre}</p>
-                    <p style={S.billItemSub}>{item.producto.categoriaLabel}</p>
+                    <p style={S.billItemSub}>
+                      {item.producto.categoriaLabel} ·{" "}
+                      <span style={{ color: item.producto.accent, fontWeight: 700 }}>
+                        {item.opcionLabel} ({item.opcionShortLabel})
+                      </span>
+                    </p>
                   </div>
 
                   {/* Qty controls */}
