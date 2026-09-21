@@ -7,7 +7,6 @@ import {
   Search,
   Plus,
   Trash2,
-  ShoppingCart,
   CreditCard,
   DollarSign,
   X,
