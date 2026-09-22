@@ -207,6 +207,12 @@ export default function GeminiAIAssistant({ isDark, activeMenu = "Dashboard" }: 
 
     const activeApiKey = import.meta.env.VITE_GEMINI_API_KEY || GEMINI_API_KEY;
 
+    if (!activeApiKey) {
+      throw new Error(
+        "Falta configurar la variable VITE_GEMINI_API_KEY en Vercel. Ve a Settings > Environment Variables, agrégala y haz un Redeploy del proyecto."
+      );
+    }
+
     const response = await fetch(`${GEMINI_API_URL}?key=${activeApiKey}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
