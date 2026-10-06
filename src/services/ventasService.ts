@@ -83,6 +83,14 @@ export const ventasService = {
     return response.data.data;
   },
 
+  /** Historial del vendedor: today=false trae todo (límite máx. 100 del backend). */
+  getHistorial: async (filtros?: { today?: boolean; limit?: number }): Promise<Venta[]> => {
+    const response = await api.get<GetVentasResponse>('/ventas', {
+      params: { today: filtros?.today ? 1 : 0, limit: filtros?.limit ?? 100 },
+    });
+    return response.data.data;
+  },
+
   getVentaById: async (id: number): Promise<Venta> => {
     const response = await api.get<{ success: boolean; message: string; data: Venta }>(`/ventas/${id}`);
     return response.data.data;

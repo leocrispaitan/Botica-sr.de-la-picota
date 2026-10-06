@@ -21,6 +21,18 @@ export const queryKeys = {
   laboratorios: { all: ["laboratorios"] as const },
   purchaseData: ["purchases", "data"] as const,
   purchaseHistory: ["purchases", "history"] as const,
+  // Vendedor (mismo flujo que admin: caché 5 min + realtime)
+  pos: {
+    catalog: ["pos", "catalog"] as const,
+  },
+  ventas: {
+    turno: ["ventas", "turno"] as const,
+    all: ["ventas"] as const,
+  },
+  clientes: {
+    // Prefijo para búsquedas: ["clientes", "search", texto, limite]
+    searchPrefix: ["clientes"] as const,
+  },
   reportes: {
     ventas: ["reportes", "ventas"] as const,
     inventario: ["reportes", "inventario"] as const,

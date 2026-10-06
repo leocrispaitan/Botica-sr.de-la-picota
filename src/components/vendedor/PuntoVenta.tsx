@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import type { LucideIcon } from "lucide-react";
 import {
   Banknote,
@@ -28,10 +29,11 @@ import HistorialVentas from "./HistorialVentas";
 import Clientes from "./Clientes";
 import PerfilVendedor from "./PerfilVendedor";
 import usePosCatalog from "./usePosCatalog";
+import "./viewTransitions.css";
 import ComprobanteModal, { type ComprobanteData } from "./ComprobanteModal";
 import ventasService, { type Venta } from "../../services/ventasService";
-import metodosPagoService, { type MetodoPago } from "../../services/metodosPagoService";
-import clientesService, { type Cliente } from "../../services/clientesService";
+import { useMetodosPagoQuery } from "../../hooks/useAdminQueries";
+import { useClientesSearchQuery, useInvalidarTrasVenta } from "../../hooks/useVendedorQueries";
 import {
   formatCurrency,
   formatStock,
@@ -57,10 +59,15 @@ export default function PuntoVenta() {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [customerName, setCustomerName] = useState("");
   const [idCliente, setIdCliente] = useState<number | null>(null);
-  const [clientesSugeridos, setClientesSugeridos] = useState<Cliente[]>([]);
+  const [suggestQ, setSuggestQ] = useState("");
+  // Sugerencias cacheadas: solo busca con 2+ caracteres; si no, lista vacía.
+  const { data: sugeridos } = useClientesSearchQuery(suggestQ, 6, suggestQ.trim().length >= 2);
+  const clientesSugeridos = sugeridos ?? [];
   const [documentType, setDocumentType] = useState<"Boleta" | "Factura" | "Ticket">("Boleta");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
-  const [metodosPago, setMetodosPago] = useState<MetodoPago[]>([]);
+  // Métodos de pago cacheados (misma query que admin + realtime).
+  const { data: metodosData } = useMetodosPagoQuery();
+  const metodosPago = metodosData ?? [];
   const [montoPagado, setMontoPagado] = useState("");
   const [processing, setProcessing] = useState(false);
   const [saleError, setSaleError] = useState<string | null>(null);
@@ -102,22 +109,18 @@ export default function PuntoVenta() {
   }, [dni]);
 
   // Métodos de pago reales (EFECTIVO=1, TARJETA=2, YAPE_PLIN=3)
-  useEffect(() => {
-    metodosPagoService.getAllMetodosPago().then(setMetodosPago).catch(() => undefined);
-  }, []);
-
-  // Buscador de clientes para el input del detalle de venta
+  // Sugerencias con debounce: la query cachea cada texto buscado.
   useEffect(() => {
     const q = customerName.trim();
     if (q.length < 2) {
-      setClientesSugeridos([]);
+      setSuggestQ("");
       return;
     }
-    const t = setTimeout(() => {
-      clientesService.search(q, 6).then(setClientesSugeridos).catch(() => undefined);
-    }, 300);
+    const t = setTimeout(() => setSuggestQ(q), 300);
     return () => clearTimeout(t);
   }, [customerName]);
+
+  const invalidarTrasVenta = useInvalidarTrasVenta();
 
   const resolveMetodoId = (): number => {
     if (metodosPago.length > 0) {
@@ -274,7 +277,7 @@ export default function PuntoVenta() {
   const handleSelectCustomer = (cliente: { id: number | null; nombre: string }) => {
     setIdCliente(cliente.id);
     setCustomerName(cliente.nombre);
-    setClientesSugeridos([]);
+    setSuggestQ("");
     if (cliente.id !== null) {
       setDni("");
       setDniNombre("");
@@ -288,7 +291,7 @@ export default function PuntoVenta() {
     setDni("");
     setDniNombre("");
     setDniError(null);
-    setClientesSugeridos([]);
+    setSuggestQ("");
   };
 
   const handleProcessSale = async () => {
@@ -361,7 +364,7 @@ export default function PuntoVenta() {
       setMontoPagado("");
       setPaymentMethod("cash");
       setSelectedProductId(null);
-      reload();
+      invalidarTrasVenta();
     } catch (err: unknown) {
       const data = (err as { response?: { data?: { message?: string; error?: string[] | string } } })?.response?.data;
       const msg =
@@ -1644,6 +1647,126 @@ export default function PuntoVenta() {
           font-weight: 700;
         }
 
+        .seller-client-row {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) auto;
+          gap: 8px;
+          align-items: stretch;
+        }
+
+        .seller-mini-btn {
+          min-height: 50px;
+          padding: 0 16px;
+          border: 1px solid #0E9F6E;
+          border-radius: 14px;
+          background: #fff;
+          color: #0B7A55;
+          font: inherit;
+          font-size: 13px;
+          font-weight: 800;
+          cursor: pointer;
+          white-space: nowrap;
+        }
+
+        .seller-mini-btn:hover:not(:disabled) { background: #ECFDF5; }
+
+        .seller-mini-btn:disabled {
+          border-color: #E5E7EB;
+          color: #9CA3AF;
+          cursor: not-allowed;
+        }
+
+        .seller-client-chip {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 12px 14px;
+          border: 1px solid #A7F3D0;
+          border-radius: 14px;
+          background: #ECFDF5;
+        }
+
+        .seller-client-chip strong {
+          flex: 1;
+          min-width: 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          color: #0F172A;
+          font-size: 14px;
+        }
+
+        .seller-client-chip span {
+          color: #0B7A55;
+          font-size: 12px;
+          font-weight: 800;
+          white-space: nowrap;
+        }
+
+        .seller-client-chip button {
+          flex: 0 0 26px;
+          width: 26px;
+          height: 26px;
+          display: grid;
+          place-items: center;
+          border: 0;
+          border-radius: 50%;
+          background: #fff;
+          color: #64748B;
+          cursor: pointer;
+          font-size: 13px;
+        }
+
+        .seller-client-chip button:hover { color: #DC2626; }
+
+        .seller-client-error {
+          margin: 0;
+          color: #B91C1C;
+          font-size: 13px;
+          font-weight: 700;
+        }
+
+        .seller-suggest-wrap { position: relative; }
+
+        .seller-suggest {
+          position: absolute;
+          left: 0;
+          right: 0;
+          top: calc(100% + 6px);
+          z-index: 50;
+          margin: 0;
+          padding: 6px;
+          list-style: none;
+          background: #fff;
+          border: 1px solid #E5E7EB;
+          border-radius: 14px;
+          box-shadow: 0 16px 40px rgba(15, 23, 42, 0.14);
+          max-height: 240px;
+          overflow-y: auto;
+        }
+
+        .seller-suggest button {
+          width: 100%;
+          display: block;
+          text-align: left;
+          border: 0;
+          border-radius: 10px;
+          background: transparent;
+          padding: 10px 12px;
+          cursor: pointer;
+          font: inherit;
+        }
+
+        .seller-suggest button:hover { background: #F1F5F9; }
+
+        .seller-suggest strong {
+          display: block;
+          color: #0F172A;
+          font-size: 14px;
+        }
+
+        .seller-suggest span { color: #64748B; font-size: 12px; font-weight: 700; }
+
         .seller-divider {
           height: 1px;
           margin: 2px 0 22px;
@@ -2222,7 +2345,21 @@ export default function PuntoVenta() {
             </div>
           </header>
 
-          <main className="seller-content">{renderWorkspace()}</main>
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.main
+              key={activeView}
+              className="seller-content"
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8, transition: { duration: 0.12, ease: "easeOut" } }}
+              transition={{
+                duration: 0.3,
+                ease: [0.16, 1, 0.3, 1],
+              }}
+            >
+              {renderWorkspace()}
+            </motion.main>
+          </AnimatePresence>
         </section>
 
         {activeView === "menu" && (
@@ -2235,65 +2372,65 @@ export default function PuntoVenta() {
           <div className="seller-form-block">
             <label htmlFor="seller-dni">Cliente {cartExigeReceta ? "(DNI obligatorio: hay receta)" : "(opcional)"}</label>
             {idCliente ? (
-              <div>
+              <div className="seller-client-chip">
                 <strong>{customerName || "Cliente registrado"}</strong>
                 <button type="button" onClick={limpiarCliente} aria-label="Quitar cliente">✕</button>
               </div>
             ) : dniValidado ? (
-              <div>
+              <div className="seller-client-chip">
                 <strong>{dniNombre}</strong>
                 <span>DNI {maskDni(dni)}</span>
                 <button type="button" onClick={limpiarCliente} aria-label="Quitar cliente">✕</button>
               </div>
             ) : (
               <>
-                <input
-                  id="seller-dni"
-                  value={dni}
-                  onChange={(event) => {
-                    setDni(event.target.value.replace(/\D/g, "").slice(0, 8));
-                    setDniNombre("");
-                    setDniError(null);
-                  }}
-                  placeholder="DNI del cliente (8 dígitos)"
-                  inputMode="numeric"
-                  maxLength={8}
-                />
-                <button
-                  type="button"
-                  onClick={() => buscarDni(dni)}
-                  disabled={dniLoading || !/^\d{8}$/.test(dni.trim())}
-                >
-                  {dniLoading ? "Validando..." : "Validar DNI"}
-                </button>
-                {dniError && <p role="alert">{dniError}</p>}
-                <input
-                  id="seller-customer"
-                  value={customerName}
-                  onChange={(event) => {
-                    setCustomerName(event.target.value);
-                    setIdCliente(null);
-                  }}
-                  placeholder="o buscar cliente/RUC registrado..."
-                  list="seller-client-options"
-                  autoComplete="off"
-                />
-                <datalist id="seller-client-options">
-                  {clientesSugeridos.map((c) => (
-                    <option key={c.id_cliente} value={c.nombre_razon_social}>
-                      {c.tipo_documento}: {c.numero_documento}
-                    </option>
-                  ))}
-                </datalist>
-                {clientesSugeridos.length > 0 && (
-                  <div>
-                    {clientesSugeridos.map((c) => (
-                      <button key={c.id_cliente} type="button" onClick={() => handleSelectCustomer({ id: c.id_cliente, nombre: c.nombre_razon_social })}>
-                        {c.nombre_razon_social} · {c.numero_documento}
-                      </button>
-                    ))}
-                  </div>
-                )}
+                <div className="seller-client-row">
+                  <input
+                    id="seller-dni"
+                    value={dni}
+                    onChange={(event) => {
+                      setDni(event.target.value.replace(/\D/g, "").slice(0, 8));
+                      setDniNombre("");
+                      setDniError(null);
+                    }}
+                    placeholder="DNI del cliente (8 dígitos)"
+                    inputMode="numeric"
+                    maxLength={8}
+                  />
+                  <button
+                    type="button"
+                    className="seller-mini-btn"
+                    onClick={() => buscarDni(dni)}
+                    disabled={dniLoading || !/^\d{8}$/.test(dni.trim())}
+                  >
+                    {dniLoading ? "Validando..." : "Validar DNI"}
+                  </button>
+                </div>
+                {dniError && <p className="seller-client-error" role="alert">{dniError}</p>}
+                <div className="seller-suggest-wrap">
+                  <input
+                    id="seller-customer"
+                    value={customerName}
+                    onChange={(event) => {
+                      setCustomerName(event.target.value);
+                      setIdCliente(null);
+                    }}
+                    placeholder="o buscar cliente/RUC registrado..."
+                    autoComplete="off"
+                  />
+                  {clientesSugeridos.length > 0 && (
+                    <ul className="seller-suggest">
+                      {clientesSugeridos.map((c) => (
+                        <li key={c.id_cliente}>
+                          <button type="button" onClick={() => handleSelectCustomer({ id: c.id_cliente, nombre: c.nombre_razon_social })}>
+                            <strong>{c.nombre_razon_social}</strong>
+                            <span>{c.tipo_documento}: {c.numero_documento}</span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
               </>
             )}
           </div>

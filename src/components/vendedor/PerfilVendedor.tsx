@@ -1,7 +1,6 @@
-import { useEffect, useState } from "react";
 import { BadgeCheck, CalendarDays, Mail, ShoppingBag, Star, Wallet } from "lucide-react";
 import { formatCurrency } from "./posData";
-import ventasService, { type Venta } from "../../services/ventasService";
+import { useVentasTurnoQuery } from "../../hooks/useVendedorQueries";
 
 interface PerfilVendedorProps {
   userName: string;
@@ -10,26 +9,10 @@ interface PerfilVendedorProps {
 }
 
 export default function PerfilVendedor({ userName, userEmail, userAvatar }: PerfilVendedorProps) {
-  const [ventas, setVentas] = useState<Venta[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let active = true;
-    ventasService
-      .getHistorialTurno()
-      .then((data) => {
-        if (!active) return;
-        setVentas(data);
-        setLoading(false);
-      })
-      .catch(() => {
-        if (!active) return;
-        setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
+  // Misma caché que Historial: entrar aquí no dispara fetch nuevo.
+  const { data, isLoading } = useVentasTurnoQuery();
+  const ventas = data || [];
+  const loading = isLoading && ventas.length === 0;
 
   const totalCobrado = ventas.reduce((s, v) => s + Number(v.total_pagar || 0), 0);
   const ticketPromedio = ventas.length > 0 ? totalCobrado / ventas.length : 0;

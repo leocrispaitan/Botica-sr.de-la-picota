@@ -1,37 +1,17 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Search, UserRound, Users } from "lucide-react";
-import clientesService, { type Cliente } from "../../services/clientesService";
+import { useClientesSearchQuery } from "../../hooks/useVendedorQueries";
 
 interface ClientesProps {
   onSelectCustomer: (cliente: { id: number | null; nombre: string }) => void;
 }
 
 export default function Clientes({ onSelectCustomer }: ClientesProps) {
-  const [clientes, setClientes] = useState<Cliente[]>([]);
   const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let active = true;
-    setLoading(true);
-    const t = setTimeout(() => {
-      clientesService
-        .search(search, 12)
-        .then((data) => {
-          if (!active) return;
-          setClientes(data);
-          setLoading(false);
-        })
-        .catch(() => {
-          if (!active) return;
-          setLoading(false);
-        });
-    }, search ? 300 : 0);
-    return () => {
-      active = false;
-      clearTimeout(t);
-    };
-  }, [search]);
+  // Cacheado: volver a esta vista no refetchea si ya se buscó lo mismo.
+  const { data, isLoading, isFetching } = useClientesSearchQuery(search, 12);
+  const clientes = data || [];
+  const loading = isLoading || (isFetching && clientes.length === 0);
 
   return (
     <section className="v2-clients">

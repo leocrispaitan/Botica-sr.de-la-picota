@@ -69,6 +69,10 @@ const ENTITY_CONFIG: Record<string, EntityRealtimeConfig> = {
   metodosPago: { keys: [queryKeys.metodosPago.all], related: [] },
   laboratorios: { keys: [queryKeys.laboratorios.all], related: [] },
   purchases: { keys: [], related: [queryKeys.purchaseData, queryKeys.purchaseHistory] },
+  // Vendedor: una venta nueva refresca historial del turno, timeline,
+  // catálogo POS (stock) y búsquedas de clientes (puede haber creado uno por DNI).
+  ventas: { keys: [], related: [queryKeys.ventas.turno, queryKeys.ventas.all, queryKeys.pos.catalog] },
+  clientes: { keys: [], related: [queryKeys.clientes.searchPrefix] },
 };
 
 /** Número de identificación de cada entidad (para el upsert/delete). */
@@ -82,6 +86,8 @@ const ENTITY_ID_FIELD: Record<string, string> = {
   formasFarmaceuticas: "id_forma_farmaceutica",
   metodosPago: "id_metodo_pago",
   laboratorios: "id_laboratorio",
+  ventas: "id_venta",
+  clientes: "id_cliente",
 };
 
 function applyRealtimeChange(client: QueryClient, event: RealtimeChange): void {

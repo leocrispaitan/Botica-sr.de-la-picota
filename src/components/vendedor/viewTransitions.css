@@ -1,0 +1,140 @@
+/* ═══════════════════════════════════════════════════════════════════
+ *  Dashboard Flow — transiciones de vistas y microinteracciones (vendedor)
+ *  Curva del sistema: cubic-bezier(0.16, 1, 0.3, 1) · stagger 50–100ms
+ * ═══════════════════════════════════════════════════════════════════ */
+
+/* 1. Entrada en cascada de los bloques internos de cada vista.
+ *    Solo corre al montar (cambiar de sección); re-renders no la repiten. */
+.v2-history > *,
+.v2-order > *,
+.v2-profile > *,
+.v2-clients > * {
+  animation: v2-view-item-in 0.38s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+.v2-history > *:nth-child(2),
+.v2-order > *:nth-child(2),
+.v2-profile > *:nth-child(2),
+.v2-clients > *:nth-child(2) { animation-delay: 60ms; }
+.v2-history > *:nth-child(3),
+.v2-order > *:nth-child(3),
+.v2-profile > *:nth-child(3),
+.v2-clients > *:nth-child(3) { animation-delay: 120ms; }
+.v2-history > *:nth-child(4),
+.v2-order > *:nth-child(4),
+.v2-profile > *:nth-child(4),
+.v2-clients > *:nth-child(4) { animation-delay: 180ms; }
+.v2-history > *:nth-child(n + 5),
+.v2-order > *:nth-child(n + 5),
+.v2-profile > *:nth-child(n + 5),
+.v2-clients > *:nth-child(n + 5) { animation-delay: 240ms; }
+
+@keyframes v2-view-item-in {
+  from { opacity: 0; transform: translateY(15px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* 2. Dropdown de clientes: despliegue vertical + opciones con hover lateral */
+.seller-suggest {
+  transform-origin: top center;
+  animation: v2-drop-in 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes v2-drop-in {
+  from { opacity: 0; transform: scaleY(0.6) translateY(-6px); }
+  to { opacity: 1; transform: scaleY(1) translateY(0); }
+}
+.seller-suggest button {
+  transition: background 0.18s ease, transform 0.18s ease;
+}
+.seller-suggest button:hover {
+  transform: translateX(4px);
+}
+
+/* 3. Tarjetas del mostrador: zoom de imagen + elevación al hover (300ms) */
+.seller-product-card {
+  transition: transform 0.3s ease-out, box-shadow 0.3s ease-out, border-color 0.3s ease-out;
+}
+.seller-product-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.12);
+}
+.seller-product-image {
+  overflow: hidden;
+}
+.seller-product-image img {
+  transition: transform 0.3s ease-out;
+}
+.seller-product-card:hover .seller-product-image img {
+  transform: scale(1.05);
+}
+
+/* Filas clicables (historial, clientes, orden): elevación sutil */
+.v2-sale-row,
+.v2-client-card {
+  transition: transform 0.25s ease-out, box-shadow 0.25s ease-out, border-color 0.25s ease-out, background 0.25s ease-out;
+}
+.v2-sale-row:hover,
+.v2-client-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.1);
+}
+
+/* Botones principales: respuesta táctil */
+.seller-process-button,
+.v2-primary-btn,
+.ticket-btn-print {
+  transition: transform 0.15s ease-out, background 0.2s ease-out, box-shadow 0.2s ease-out;
+}
+.seller-process-button:active:not(:disabled),
+.v2-primary-btn:active,
+.ticket-btn-print:active {
+  transform: scale(0.98);
+}
+
+/* Modales: pop suave (escala + fundido) */
+.ticket-overlay > div,
+.v2-modal-overlay .v2-modal {
+  animation: v2-modal-pop 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.ticket-overlay,
+.v2-modal-overlay {
+  animation: v2-overlay-fade 0.2s ease-out;
+}
+@keyframes v2-modal-pop {
+  from { opacity: 0; transform: scale(0.96) translateY(10px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes v2-overlay-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Sidebar vendedor: cross-fade del indicador activo ya existe;
+ * se suaviza el cambio de icono/texto al colapsar. */
+.seller-nav-button,
+.seller-logout-button {
+  transition:
+    color 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+    background 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Accesibilidad: sin movimiento */
+@media (prefers-reduced-motion: reduce) {
+  .v2-history > *,
+  .v2-order > *,
+  .v2-profile > *,
+  .v2-clients > *,
+  .ticket-overlay > div,
+  .v2-modal-overlay .v2-modal {
+    animation: none;
+  }
+  .seller-product-card:hover,
+  .v2-sale-row:hover,
+  .v2-client-card:hover {
+    transform: none;
+  }
+  .seller-product-card:hover .seller-product-image img {
+    transform: none;
+  }
+}
