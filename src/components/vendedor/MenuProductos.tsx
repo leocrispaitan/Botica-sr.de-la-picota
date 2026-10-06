@@ -1,8 +1,12 @@
 import { useState } from "react";
 import type { CSSProperties } from "react";
 import { ChevronDown, Minus, Pill, Plus, ShoppingCart } from "lucide-react";
-import { formatCurrency, type CategoryId, type Product, type ProductSelection } from "./posData";
+import { formatCurrency, formatStock, type CategoryId, type Product, type ProductSelection } from "./posData";
 import type { PosCategory } from "./usePosCatalog";
+
+/** Vendidos puede ser fraccionado (ventas por TAB descuentan 0.1 base): mostrar entero o 1 decimal. */
+const formatVendidos = (value: number): string =>
+  Number.isInteger(value) ? `${value}` : `${Number(value.toFixed(1))}`;
 
 interface MenuProductosProps {
   categories: PosCategory[];
@@ -83,7 +87,7 @@ export default function MenuProductos({
           <p className="seller-eyebrow">Mostrador</p>
           <h2>Productos disponibles</h2>
         </div>
-        <span>{products.reduce((sum, product) => sum + product.stock, 0)} unidades en stock</span>
+        <span>{formatStock(products.reduce((sum, product) => sum + product.stock, 0))} unidades en stock</span>
       </div>
 
       <div className="seller-product-grid">
@@ -125,9 +129,14 @@ export default function MenuProductos({
                       <p className="seller-product-generic">{product.genericName}</p>
                     )}
                     <p className="seller-product-meta">
-                      {product.stock} disponibles · {product.sold} vendidos
+                      {formatStock(product.stock)} base disponibles · {formatVendidos(product.sold)} vendidos
+                      {option.factorABase !== 1 && (
+                        <> · ≈{formatStock(Math.floor(product.stock / option.factorABase))} {option.nombreUnidad.toLowerCase()}s</>
+                      )}
                     </p>
-                    <strong>{formatCurrency(option.price)}</strong>
+                    <strong>
+                      {formatCurrency(option.price)} <small>/ {option.nombreUnidad}</small>
+                    </strong>
                   </div>
 
                   {/* Indicador de expansión */}

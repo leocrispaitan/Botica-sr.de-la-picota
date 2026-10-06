@@ -7,6 +7,12 @@ export interface SaleOption {
   label: string;
   shortLabel: string;
   price: number;
+  /** Código de presentación (TAB/BL/CJ/CAP/UND/FCO...) */
+  codigo: string;
+  /** Nombre de la unidad (Tableta, Blíster, Caja...) para mostrar "S/ 0.50 / Tableta" */
+  nombreUnidad: string;
+  /** Cuántas unidades base equivale 1 unidad de esta presentación (ej. TAB de caja-10 = 0.1) */
+  factorABase: number;
 }
 
 export interface Product {
@@ -15,6 +21,7 @@ export interface Product {
   genericName: string;
   category: CategoryId;
   categoryLabel: string;
+  /** Stock en unidades base (ej. cajas). El POS muestra el equivalente fraccionado. */
   stock: number;
   sold: number;
   requiresPrescription: boolean;
@@ -35,6 +42,9 @@ export interface CartItem {
   saleType: string;
   unitPrice: number;
   quantity: number;
+  /** Presentación elegida para trazabilidad y envío al backend */
+  presentacionCodigo: string;
+  factorABase: number;
 }
 
 export const recentSales = [
@@ -49,6 +59,19 @@ export const formatCurrency = (value: number) =>
     currency: "PEN",
     minimumFractionDigits: 2,
   }).format(value);
+
+/** Stock puede ser fraccionado (0.1 base por TAB): enteros tal cual, resto máx. 3 decimales sin ceros. */
+export const formatStock = (value: number): string => {
+  if (!Number.isFinite(value)) return "0";
+  if (Number.isInteger(value)) return `${value}`;
+  return `${Number(value.toFixed(3))}`;
+};
+
+/** DNI enmascarado para el comprobante: 63381113 -> 63****13 */
+export const maskDni = (dni: string | null | undefined): string => {
+  if (!dni || dni.length < 4) return "***";
+  return `${dni.slice(0, 2)}****${dni.slice(-2)}`;
+};
 
 export const getInitialSelections = (productList: Product[]) =>
   productList.reduce<Record<number, ProductSelection>>((acc, product) => {

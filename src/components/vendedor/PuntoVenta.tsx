@@ -28,8 +28,14 @@ import HistorialVentas from "./HistorialVentas";
 import Clientes from "./Clientes";
 import PerfilVendedor from "./PerfilVendedor";
 import usePosCatalog from "./usePosCatalog";
+import ComprobanteModal, { type ComprobanteData } from "./ComprobanteModal";
+import ventasService, { type Venta } from "../../services/ventasService";
+import metodosPagoService, { type MetodoPago } from "../../services/metodosPagoService";
+import clientesService, { type Cliente } from "../../services/clientesService";
 import {
   formatCurrency,
+  formatStock,
+  maskDni,
   getInitialSelections,
   type CartItem,
   type CategoryId,
@@ -50,10 +56,79 @@ export default function PuntoVenta() {
   const [selectionByProduct, setSelectionByProduct] = useState<Record<number, ProductSelection>>({});
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [customerName, setCustomerName] = useState("");
+  const [idCliente, setIdCliente] = useState<number | null>(null);
+  const [clientesSugeridos, setClientesSugeridos] = useState<Cliente[]>([]);
   const [documentType, setDocumentType] = useState<"Boleta" | "Factura" | "Ticket">("Boleta");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
+  const [metodosPago, setMetodosPago] = useState<MetodoPago[]>([]);
+  const [montoPagado, setMontoPagado] = useState("");
+  const [processing, setProcessing] = useState(false);
+  const [saleError, setSaleError] = useState<string | null>(null);
+  const [lastSale, setLastSale] = useState<Venta | null>(null);
+  const [comprobante, setComprobante] = useState<ComprobanteData | null>(null);
+  // Cliente rápido por DNI (AQPFACT vía backend). Opcional, salvo receta/FACTURA.
+  const [dni, setDni] = useState("");
+  const [dniNombre, setDniNombre] = useState("");
+  const [dniLoading, setDniLoading] = useState(false);
+  const [dniError, setDniError] = useState<string | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  const cartExigeReceta = cartItems.some((item) => item.product.requiresPrescription);
+  const dniValidado = dniNombre.trim().length > 0 && /^\d{8}$/.test(dni);
+
+  const buscarDni = async (numero: string) => {
+    const limpio = numero.trim();
+    if (!/^\d{8}$/.test(limpio)) return;
+    setDniLoading(true);
+    setDniError(null);
+    try {
+      const data = await ventasService.validarDni(limpio);
+      setDniNombre(data.nombreCompleto);
+    } catch {
+      setDniNombre("");
+      setDniError("DNI no encontrado. Verifica los 8 dígitos.");
+    } finally {
+      setDniLoading(false);
+    }
+  };
+
+  // Autocompletar nombre al completar los 8 dígitos
+  useEffect(() => {
+    if (!/^\d{8}$/.test(dni.trim()) || dniNombre) return;
+    const t = setTimeout(() => buscarDni(dni), 500);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dni]);
+
+  // Métodos de pago reales (EFECTIVO=1, TARJETA=2, YAPE_PLIN=3)
+  useEffect(() => {
+    metodosPagoService.getAllMetodosPago().then(setMetodosPago).catch(() => undefined);
+  }, []);
+
+  // Buscador de clientes para el input del detalle de venta
+  useEffect(() => {
+    const q = customerName.trim();
+    if (q.length < 2) {
+      setClientesSugeridos([]);
+      return;
+    }
+    const t = setTimeout(() => {
+      clientesService.search(q, 6).then(setClientesSugeridos).catch(() => undefined);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [customerName]);
+
+  const resolveMetodoId = (): number => {
+    if (metodosPago.length > 0) {
+      const want = paymentMethod === "cash" ? "EFECTIVO" : paymentMethod === "card" ? "TARJETA" : "YAPE";
+      const found =
+        metodosPago.find((m) => m.nombre_metodo.toUpperCase().includes(want)) ||
+        (paymentMethod === "yape" ? metodosPago.find((m) => m.nombre_metodo.toUpperCase().includes("PLIN")) : undefined);
+      if (found) return found.id_metodo_pago;
+    }
+    return paymentMethod === "cash" ? 1 : paymentMethod === "card" ? 2 : 3;
+  };
 
   // Sembrar selecciones y el producto inicial cuando llegan los datos reales
   useEffect(() => {
@@ -112,15 +187,24 @@ export default function PuntoVenta() {
     }));
   };
 
+  /** Stock máximo expresado en unidades de la presentación elegida (ej. 122 cajas = 1220 TAB). */
+  const maxEnPresentacion = (product: Product, codigo: string): number => {
+    const option = product.saleOptions.find((item) => item.codigo === codigo) || product.saleOptions[0];
+    const factor = option?.factorABase || 1;
+    return Math.max(1, Math.floor(product.stock / factor));
+  };
+
   const changeQuantity = (productId: number, direction: "up" | "down") => {
     const product = products.find((item) => item.id === productId);
     const currentSelection = selectionByProduct[productId] ?? {
       saleType: product?.saleOptions[0].label ?? "Unidad",
       quantity: 1,
     };
+    const option = product?.saleOptions.find((item) => item.label === currentSelection.saleType) || product?.saleOptions[0];
+    const maxQty = product && option ? maxEnPresentacion(product, option.codigo) : 1;
     const nextQuantity =
       direction === "up"
-        ? Math.min(product?.stock || 1, currentSelection.quantity + 1)
+        ? Math.min(maxQty, currentSelection.quantity + 1)
         : Math.max(1, currentSelection.quantity - 1);
 
     updateProductSelection(productId, { quantity: nextQuantity });
@@ -132,7 +216,8 @@ export default function PuntoVenta() {
       quantity: 1,
     };
     const option = product.saleOptions.find((item) => item.label === selection.saleType) || product.saleOptions[0];
-    const cartKey = `${product.id}-${option.label}`;
+    const cartKey = `${product.id}-${option.codigo}`;
+    const maxQty = maxEnPresentacion(product, option.codigo);
 
     setSelectedProductId(product.id);
     setCartItems((currentItems) => {
@@ -143,7 +228,7 @@ export default function PuntoVenta() {
           item.key === cartKey
             ? {
                 ...item,
-                quantity: Math.min(product.stock, item.quantity + selection.quantity),
+                quantity: Math.min(maxQty, item.quantity + selection.quantity),
               }
             : item,
         );
@@ -156,7 +241,9 @@ export default function PuntoVenta() {
           product,
           saleType: option.label,
           unitPrice: option.price,
-          quantity: selection.quantity,
+          quantity: Math.min(maxQty, selection.quantity),
+          presentacionCodigo: option.codigo,
+          factorABase: option.factorABase,
         },
       ];
     });
@@ -173,7 +260,7 @@ export default function PuntoVenta() {
         item.key === cartKey
           ? {
               ...item,
-              quantity: Math.min(item.product.stock, quantity),
+              quantity: Math.min(maxEnPresentacion(item.product, item.presentacionCodigo), quantity),
             }
           : item,
       ),
@@ -184,16 +271,106 @@ export default function PuntoVenta() {
     setCartItems((currentItems) => currentItems.filter((item) => item.key !== cartKey));
   };
 
-  const handleProcessSale = () => {
+  const handleSelectCustomer = (cliente: { id: number | null; nombre: string }) => {
+    setIdCliente(cliente.id);
+    setCustomerName(cliente.nombre);
+    setClientesSugeridos([]);
+    if (cliente.id !== null) {
+      setDni("");
+      setDniNombre("");
+      setDniError(null);
+    }
+  };
+
+  const limpiarCliente = () => {
+    setIdCliente(null);
+    setCustomerName("");
+    setDni("");
+    setDniNombre("");
+    setDniError(null);
+    setClientesSugeridos([]);
+  };
+
+  const handleProcessSale = async () => {
+    if (processing) return;
     if (cartItems.length === 0) {
-      alert("Agrega al menos un producto al carrito.");
+      setSaleError("Agrega al menos un producto al carrito.");
       return;
     }
+    if (documentType === "Factura" && !idCliente) {
+      setSaleError("La FACTURA requiere un cliente con RUC: búscalo por nombre e identifícalo.");
+      return;
+    }
+    if (cartExigeReceta && !idCliente && !dniValidado) {
+      setSaleError("Hay productos con receta médica: ingresa el DNI del cliente (8 dígitos).");
+      return;
+    }
+    const montoNum = montoPagado.trim() === "" ? total : Number(montoPagado);
+    if (!Number.isFinite(montoNum) || montoNum < total) {
+      setSaleError(`El monto pagado debe ser mayor o igual al total (${formatCurrency(total)}).`);
+      return;
+    }
+    // Foto del carrito para el comprobante (se limpia tras el éxito)
+    const itemsFoto = cartItems.map((item) => ({
+      nombre: item.product.name,
+      presentacion: item.saleType,
+      cantidad: item.quantity,
+      precio: item.unitPrice,
+      conReceta: item.product.requiresPrescription,
+    }));
+    const clienteFoto = idCliente ? customerName || "Cliente registrado" : dniValidado ? dniNombre : "Cliente mostrador";
+    const docFoto = idCliente ? null : dniValidado ? dni : null;
+    const metodoFoto =
+      metodosPago.find((m) => m.id_metodo_pago === resolveMetodoId())?.nombre_metodo ||
+      (paymentMethod === "cash" ? "EFECTIVO" : paymentMethod === "card" ? "TARJETA" : "YAPE/PLIN");
 
-    alert("Venta simulada correctamente. Esta pantalla es solo frontend.");
-    setCartItems([]);
-    setCustomerName("");
-    setPaymentMethod("cash");
+    setProcessing(true);
+    setSaleError(null);
+    try {
+      const venta = await ventasService.createVenta({
+        id_cliente: idCliente,
+        dni_cliente: !idCliente && dniValidado ? dni.trim() : null,
+        nombre_cliente: !idCliente && dniValidado ? dniNombre : null,
+        id_metodo_pago: resolveMetodoId(),
+        tipo_comprobante: documentType.toUpperCase() as "BOLETA" | "FACTURA" | "TICKET",
+        monto_pagado: montoNum,
+        items: cartItems.map((item) => ({
+          id_producto: item.product.id,
+          cantidad: item.quantity,
+          codigo_presentacion: item.presentacionCodigo,
+        })),
+      });
+      setLastSale(venta);
+      setComprobante({
+        idVenta: venta.id_venta,
+        fecha: venta.fecha_venta,
+        tipo: documentType.toUpperCase() as "BOLETA" | "FACTURA" | "TICKET",
+        clienteNombre: clienteFoto,
+        clienteDoc: docFoto,
+        items: itemsFoto,
+        subtotal,
+        descuento: discount,
+        total,
+        pagado: Number(venta.monto_pagado),
+        vuelto: Number(venta.vuelto || 0),
+        metodoPago: metodoFoto,
+        vendedor: userName,
+      });
+      setCartItems([]);
+      limpiarCliente();
+      setMontoPagado("");
+      setPaymentMethod("cash");
+      reload();
+    } catch (err: unknown) {
+      const data = (err as { response?: { data?: { message?: string; error?: string[] | string } } })?.response?.data;
+      const msg =
+        data?.message ||
+        (Array.isArray(data?.error) ? data.error.join(", ") : undefined) ||
+        "No se pudo registrar la venta. Revisa tu conexión e inténtalo de nuevo.";
+      setSaleError(msg);
+    } finally {
+      setProcessing(false);
+    }
   };
 
   const handleLogout = async () => {
@@ -221,7 +398,7 @@ export default function PuntoVenta() {
     }
 
     if (activeView === "clients") {
-      return <Clientes onSelectCustomer={setCustomerName} />;
+      return <Clientes onSelectCustomer={handleSelectCustomer} />;
     }
 
     if (activeView === "profile") {
@@ -2034,17 +2211,73 @@ export default function PuntoVenta() {
         <aside className="seller-bill">
           <div className="seller-bill-header">
             <h2>Detalle de venta</h2>
-            <span>#POS-546234</span>
+            <span>{lastSale ? `#V-${lastSale.id_venta}` : "#POS-nuevo"}</span>
           </div>
 
           <div className="seller-form-block">
-            <label htmlFor="seller-customer">Cliente</label>
-            <input
-              id="seller-customer"
-              value={customerName}
-              onChange={(event) => setCustomerName(event.target.value)}
-              placeholder="Cliente mostrador"
-            />
+            <label htmlFor="seller-dni">Cliente {cartExigeReceta ? "(DNI obligatorio: hay receta)" : "(opcional)"}</label>
+            {idCliente ? (
+              <div>
+                <strong>{customerName || "Cliente registrado"}</strong>
+                <button type="button" onClick={limpiarCliente} aria-label="Quitar cliente">✕</button>
+              </div>
+            ) : dniValidado ? (
+              <div>
+                <strong>{dniNombre}</strong>
+                <span>DNI {maskDni(dni)}</span>
+                <button type="button" onClick={limpiarCliente} aria-label="Quitar cliente">✕</button>
+              </div>
+            ) : (
+              <>
+                <input
+                  id="seller-dni"
+                  value={dni}
+                  onChange={(event) => {
+                    setDni(event.target.value.replace(/\D/g, "").slice(0, 8));
+                    setDniNombre("");
+                    setDniError(null);
+                  }}
+                  placeholder="DNI del cliente (8 dígitos)"
+                  inputMode="numeric"
+                  maxLength={8}
+                />
+                <button
+                  type="button"
+                  onClick={() => buscarDni(dni)}
+                  disabled={dniLoading || !/^\d{8}$/.test(dni.trim())}
+                >
+                  {dniLoading ? "Validando..." : "Validar DNI"}
+                </button>
+                {dniError && <p role="alert">{dniError}</p>}
+                <input
+                  id="seller-customer"
+                  value={customerName}
+                  onChange={(event) => {
+                    setCustomerName(event.target.value);
+                    setIdCliente(null);
+                  }}
+                  placeholder="o buscar cliente/RUC registrado..."
+                  list="seller-client-options"
+                  autoComplete="off"
+                />
+                <datalist id="seller-client-options">
+                  {clientesSugeridos.map((c) => (
+                    <option key={c.id_cliente} value={c.nombre_razon_social}>
+                      {c.tipo_documento}: {c.numero_documento}
+                    </option>
+                  ))}
+                </datalist>
+                {clientesSugeridos.length > 0 && (
+                  <div>
+                    {clientesSugeridos.map((c) => (
+                      <button key={c.id_cliente} type="button" onClick={() => handleSelectCustomer({ id: c.id_cliente, nombre: c.nombre_razon_social })}>
+                        {c.nombre_razon_social} · {c.numero_documento}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
           </div>
 
           <div className="seller-divider" />
@@ -2092,7 +2325,18 @@ export default function PuntoVenta() {
               </div>
               <div>
                 <span>Stock</span>
-                <strong>{selectedProduct.stock} unidades</strong>
+                <strong>
+                  {formatStock(selectedProduct.stock)} base
+                  {selectedProductSelection.saleType &&
+                    (() => {
+                      const opt = selectedProduct.saleOptions.find(
+                        (o) => o.label === selectedProductSelection.saleType
+                      );
+                      return opt && opt.factorABase !== 1
+                        ? ` (≈${formatStock(Math.floor(selectedProduct.stock / opt.factorABase))} ${opt.nombreUnidad.toLowerCase()}s)`
+                        : "";
+                    })()}
+                </strong>
               </div>
               <div>
                 <span>Receta médica</span>
@@ -2191,11 +2435,41 @@ export default function PuntoVenta() {
             </button>
           </div>
 
-          <button className="seller-process-button" disabled={cartItems.length === 0} onClick={handleProcessSale}>
-            Procesar venta
+          <div className="seller-form-block">
+            <label htmlFor="seller-pagado">Monto pagado (S/)</label>
+            <input
+              id="seller-pagado"
+              value={montoPagado}
+              onChange={(event) => setMontoPagado(event.target.value)}
+              placeholder={total.toFixed(2)}
+              inputMode="decimal"
+            />
+          </div>
+
+          {saleError && <p role="alert">{saleError}</p>}
+          {lastSale && !comprobante && (
+            <p>
+              Venta #V-{lastSale.id_venta} registrada · Vuelto {formatCurrency(Number(lastSale.vuelto || 0))}
+            </p>
+          )}
+
+          <button
+            className="seller-process-button"
+            disabled={cartItems.length === 0 || processing}
+            onClick={handleProcessSale}
+          >
+            {processing ? "Procesando..." : "Procesar venta"}
           </button>
         </aside>
       </div>
+
+      {comprobante && (
+        <ComprobanteModal
+          data={comprobante}
+          onClose={() => setComprobante(null)}
+          onNewSale={() => setComprobante(null)}
+        />
+      )}
     </div>
   );
 }

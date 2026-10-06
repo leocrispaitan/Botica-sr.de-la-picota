@@ -39,6 +39,17 @@ export interface Laboratorio {
   pais: string | null;
 }
 
+export interface ProductoPresentacion {
+  id_presentacion: number;
+  codigo_presentacion: string;
+  nombre_presentacion: string;
+  factor_a_base: number;
+  precio_venta: number;
+  es_base: boolean;
+  permite_venta: boolean;
+  estado_logico: boolean;
+}
+
 export interface Producto {
   id_producto: number;
   nombre_comercial: string;
@@ -61,6 +72,10 @@ export interface Producto {
   id_fabricante: number | null;
   estado_logico: boolean;
   fecha_registro: string;
+  // Aditivo (backend): presentaciones de venta fraccionada + unidades vendidas.
+  // Los módulos de admin que no los usan los ignoran sin romperse.
+  presentaciones?: ProductoPresentacion[] | null;
+  vendidos?: number;
   categoria?: Categoria | null;
   proveedor?: Proveedor | null;
   forma_farmaceutica?: FormaFarmaceutica | null;
