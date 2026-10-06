@@ -220,6 +220,54 @@ function ChartTooltip({
   );
 }
 
+/* ─── Tooltip top productos: ingresos + desglose por presentación ────── */
+function TopProductoTooltip({
+  active,
+  payload,
+  label,
+  theme,
+}: {
+  active?: boolean;
+  payload?: Array<{ payload?: { nombre?: string; ingresos?: number; presentaciones?: Array<{ codigo: string; cantidad: number }> } }>;
+  label?: string | number;
+  theme: Theme;
+}) {
+  if (!active || !payload || payload.length === 0) return null;
+  const datum = payload[0]?.payload;
+  if (!datum) return null;
+  const desglose = (datum.presentaciones || [])
+    .map((p) => `${p.cantidad} ${p.codigo}`)
+    .join(" · ");
+  return (
+    <div
+      style={{
+        background: theme.cardBg,
+        border: `1px solid ${theme.border}`,
+        borderRadius: 12,
+        padding: "10px 12px",
+        boxShadow: "0 10px 30px rgba(0,0,0,0.18)",
+        minWidth: 130,
+        maxWidth: 260,
+      }}
+    >
+      <div style={{ fontSize: 11, fontWeight: 700, color: theme.textSecondary, marginBottom: 6 }}>
+        {datum.nombre || label}
+      </div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 18 }}>
+        <span style={{ fontSize: 12, color: theme.textSecondary }}>Ingresos</span>
+        <span style={{ fontSize: 12, fontWeight: 700, color: theme.textPrimary }}>
+          {moneyFmt(Number(datum.ingresos) || 0)}
+        </span>
+      </div>
+      {desglose && (
+        <div style={{ fontSize: 11, color: theme.textSecondary, marginTop: 4 }}>
+          {desglose}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ─── Tooltip para barras con ingresos + ventas ───────────────────────── */
 function ChartTooltip2({
   active,
@@ -1206,7 +1254,7 @@ export default function ReportesVentas({ isDark = true }: { isDark?: boolean }) 
                         axisLine={false}
                         width={118}
                       />
-                      <Tooltip content={<ChartTooltip theme={t} money />} cursor={{ fill: `${t.accent}0d` }} />
+                      <Tooltip content={<TopProductoTooltip theme={t} />} cursor={{ fill: `${t.accent}0d` }} />
                       <Bar dataKey="ingresos" name="ingresos" radius={[0, 6, 6, 0]} maxBarSize={18}>
                         {top5.map((_, i) => (
                           <Cell key={i} fill={[COLORS[2], COLORS[0], COLORS[1], COLORS[3], COLORS[5]][i % 5]} />

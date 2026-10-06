@@ -60,6 +60,8 @@ export interface TopProducto {
   cantidad: number;
   ingresos: number;
   porcentaje: number;
+  /** Desglose en unidades de venta (ej. 6 CJ + 2 TAB). Aditivo. */
+  presentaciones?: Array<{ codigo: string; cantidad: number }>;
 }
 
 export interface VentaReciente {

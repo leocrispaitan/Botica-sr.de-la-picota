@@ -72,6 +72,10 @@ export interface Producto {
   id_fabricante: number | null;
   estado_logico: boolean;
   fecha_registro: string;
+  // Fraccionamiento explícito (cuántas tabletas/blíster trae la base)
+  unidades_por_base: number | null;
+  unidad_fraccion: string | null;
+  tamano_blister: number | null;
   // Aditivo (backend): presentaciones de venta fraccionada + unidades vendidas.
   // Los módulos de admin que no los usan los ignoran sin romperse.
   presentaciones?: ProductoPresentacion[] | null;
@@ -115,6 +119,10 @@ export interface NewProductoInput {
   id_laboratorio_titular?: number;
   id_fabricante?: number;
   estado_logico?: boolean;
+  // Fraccionamiento (solo para unidades fraccionables como CAJA)
+  unidades_por_base?: number | null;
+  unidad_fraccion?: string | null;
+  tamano_blister?: number | null;
 }
 
 interface GetProductsResponse {
@@ -179,6 +187,22 @@ export const productsService = {
    */
   deleteProduct: async (id: number): Promise<Producto> => {
     const response = await api.delete<DeleteProductResponse>(`/products/${id}`);
+    return response.data.data;
+  },
+
+  /**
+   * Ajustar precio/vigencia de presentaciones de venta (TAB/BL/CJ).
+   * El precio base se edita en el producto.
+   */
+  updatePresentaciones: async (
+    id: number,
+    presentaciones: Array<{ codigo_presentacion: string; precio_venta?: number; permite_venta?: boolean }>
+  ): Promise<ProductoPresentacion[]> => {
+    const response = await api.put<{
+      success: boolean;
+      message: string;
+      data: ProductoPresentacion[];
+    }>(`/products/${id}/presentaciones`, { presentaciones });
     return response.data.data;
   },
 };

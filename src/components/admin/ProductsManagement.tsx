@@ -35,6 +35,7 @@ import {
 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import { productsService } from "../../services/productsService";
+import PresentacionesEditor from "./PresentacionesEditor";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "../../lib/queryKeys";
 import { useProductsManagementQuery } from "../../hooks/useAdminQueries";
@@ -111,6 +112,9 @@ interface NewProductFormData {
   nombre_generico: string;
   unidad_medida: string;
   presentacion: string;
+  unidades_por_base: string;
+  unidad_fraccion: string;
+  tamano_blister: string;
   composicion: string;
   imagen_url: string;
   id_categoria: SelectValue;
@@ -130,6 +134,9 @@ interface NewProductFormErrors {
   nombre_comercial?: string;
   nombre_generico?: string;
   unidad_medida?: string;
+  unidades_por_base?: string;
+  unidad_fraccion?: string;
+  tamano_blister?: string;
   id_categoria?: string;
   id_proveedor?: string;
   precio_venta?: string;
@@ -156,6 +163,9 @@ const emptyNewProductForm: NewProductFormData = {
   nombre_generico: "",
   unidad_medida: "UNIDAD",
   presentacion: "",
+  unidades_por_base: "",
+  unidad_fraccion: "",
+  tamano_blister: "",
   composicion: "",
   imagen_url: "",
   id_categoria: "",
@@ -209,6 +219,9 @@ const buildProductPayload = (formData: NewProductFormData): NewProductoInput => 
   precio_venta: Number(formData.precio_venta),
   costo_referencial: Number(formData.costo_referencial),
   stock_minimo_alerta: Number(formData.stock_minimo_alerta),
+  unidades_por_base: formData.unidades_por_base === "" ? null : Number(formData.unidades_por_base),
+  unidad_fraccion: formData.unidad_fraccion === "" ? null : formData.unidad_fraccion,
+  tamano_blister: formData.tamano_blister === "" ? null : Number(formData.tamano_blister),
 });
 
 /* ─── Toast de éxito / error para productos ──────────────────────── */
@@ -611,6 +624,29 @@ export default function ProductsManagement({ isDark = true }: { isDark?: boolean
     if (imagen && !/^https?:\/\/.+/.test(imagen)) {
       newErrors.imagen_url = "Ingresa una URL válida (https://...)";
     }
+    // Fraccionamiento (tabletas/blíster por caja): espejo del backend
+    const n = String(formData.unidades_por_base || "").trim();
+    const f = String(formData.unidad_fraccion || "").trim();
+    const tb = String(formData.tamano_blister || "").trim();
+    const NO_FRACC = ["FRASCO", "FRASCO GOTERO", "TUBO", "GOTERO", "SOBRE", "SPRAY"];
+    if (n && (!Number.isInteger(Number(n)) || Number(n) <= 0)) {
+      newErrors.unidades_por_base = "Entero mayor a 0.";
+    }
+    if ((n || tb) && !f) {
+      newErrors.unidad_fraccion = "Elige TAB, CAP o AMP.";
+    }
+    if (f && !["TAB", "CAP", "AMP"].includes(f)) {
+      newErrors.unidad_fraccion = "Debe ser TAB, CAP o AMP.";
+    }
+    if (f && !n) {
+      newErrors.unidades_por_base = "Indica cuántas trae la base.";
+    }
+    if (tb && (!Number.isInteger(Number(tb)) || Number(tb) <= 0)) {
+      newErrors.tamano_blister = "Entero mayor a 0.";
+    }
+    if (n && NO_FRACC.includes(String(formData.unidad_medida || "").toUpperCase())) {
+      newErrors.unidades_por_base = "Esta unidad no se fracciona.";
+    }
     setFormErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -664,6 +700,9 @@ export default function ProductsManagement({ isDark = true }: { isDark?: boolean
       nombre_generico: product.nombre_generico || "",
       unidad_medida: product.unidad_medida || "",
       presentacion: product.presentacion || "",
+      unidades_por_base: product.unidades_por_base != null ? String(product.unidades_por_base) : "",
+      unidad_fraccion: product.unidad_fraccion || "",
+      tamano_blister: product.tamano_blister != null ? String(product.tamano_blister) : "",
       composicion: product.composicion || "",
       imagen_url: product.imagen_url || "",
       id_categoria: product.id_categoria ?? "",
@@ -1777,6 +1816,66 @@ export default function ProductsManagement({ isDark = true }: { isDark?: boolean
                       </div>
                     </div>
 
+                    {/* Fraccionamiento: cuántas tabletas/blíster trae la base */}
+                    <div style={{ gridColumn: "1 / -1" }}>
+                      <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px" }}>
+                        Fraccionamiento <span style={{ fontSize: "11px", color: t.textMuted }}>(Opcional · solo si la unidad se vende por partes)</span>
+                      </label>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px" }}>
+                        <div style={{ position: "relative" }}>
+                          <Layers size={16} style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: t.textMuted, zIndex: 1 }} />
+                          <input
+                            type="number"
+                            min={1}
+                            step={1}
+                            value={formData.unidades_por_base}
+                            onChange={(e) => handleInputChange("unidades_por_base", e.target.value)}
+                            placeholder="Ej. 10"
+                            title="Unidades por base"
+                            style={{ ...inputStyle(!!formErrors.unidades_por_base), paddingLeft: "38px" }}
+                            onFocus={(e) => handleFieldFocus(e, !!formErrors.unidades_por_base)}
+                            onBlur={(e) => handleFieldBlur(e, !!formErrors.unidades_por_base)}
+                          />
+                        </div>
+                        <div style={{ position: "relative" }}>
+                          <Pill size={16} style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: t.textMuted, zIndex: 1 }} />
+                          <select
+                            value={formData.unidad_fraccion}
+                            onChange={(e) => handleInputChange("unidad_fraccion", e.target.value)}
+                            style={{ ...selectStyle(!!formErrors.unidad_fraccion), paddingLeft: "38px" }}
+                            onFocus={(e) => handleFieldFocus(e, !!formErrors.unidad_fraccion)}
+                            onBlur={(e) => handleFieldBlur(e, !!formErrors.unidad_fraccion)}
+                          >
+                            <option value="">Sin fraccionar</option>
+                            <option value="TAB">Tableta (TAB)</option>
+                            <option value="CAP">Cápsula (CAP)</option>
+                            <option value="AMP">Ampolla (AMP)</option>
+                          </select>
+                        </div>
+                        <div style={{ position: "relative" }}>
+                          <Package size={16} style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: t.textMuted }} />
+                          <input
+                            type="number"
+                            min={1}
+                            step={1}
+                            value={formData.tamano_blister}
+                            onChange={(e) => handleInputChange("tamano_blister", e.target.value)}
+                            placeholder="Blíster x10"
+                            title="Tamaño del blíster"
+                            style={{ ...inputStyle(!!formErrors.tamano_blister), paddingLeft: "38px" }}
+                            onFocus={(e) => handleFieldFocus(e, !!formErrors.tamano_blister)}
+                            onBlur={(e) => handleFieldBlur(e, !!formErrors.tamano_blister)}
+                          />
+                        </div>
+                      </div>
+                      {fieldError(formErrors.unidades_por_base)}
+                      {fieldError(formErrors.unidad_fraccion)}
+                      {fieldError(formErrors.tamano_blister)}
+                      <p style={{ fontSize: "11px", color: t.textMuted, marginTop: "6px" }}>
+                        Ej. Caja con 10 tabletas → 10 + Tableta. Genera precios TAB/BL/CJ automáticamente.
+                      </p>
+                    </div>
+
                     {/* Composición */}
                     <div style={{ gridColumn: "1 / -1" }}>
                       <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px" }}>
@@ -2446,6 +2545,66 @@ export default function ProductsManagement({ isDark = true }: { isDark?: boolean
                           onBlur={(e) => handleFieldBlur(e, false)}
                         />
                       </div>
+                    </div>
+
+                    {/* Fraccionamiento: cuántas tabletas/blíster trae la base */}
+                    <div style={{ gridColumn: "1 / -1" }}>
+                      <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: t.textSecondary, marginBottom: "8px" }}>
+                        Fraccionamiento <span style={{ fontSize: "11px", color: t.textMuted }}>(Opcional · solo si la unidad se vende por partes)</span>
+                      </label>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px" }}>
+                        <div style={{ position: "relative" }}>
+                          <Layers size={16} style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: t.textMuted, zIndex: 1 }} />
+                          <input
+                            type="number"
+                            min={1}
+                            step={1}
+                            value={formData.unidades_por_base}
+                            onChange={(e) => handleInputChange("unidades_por_base", e.target.value)}
+                            placeholder="Ej. 10"
+                            title="Unidades por base"
+                            style={{ ...inputStyle(!!formErrors.unidades_por_base), paddingLeft: "38px" }}
+                            onFocus={(e) => handleFieldFocus(e, !!formErrors.unidades_por_base)}
+                            onBlur={(e) => handleFieldBlur(e, !!formErrors.unidades_por_base)}
+                          />
+                        </div>
+                        <div style={{ position: "relative" }}>
+                          <Pill size={16} style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: t.textMuted, zIndex: 1 }} />
+                          <select
+                            value={formData.unidad_fraccion}
+                            onChange={(e) => handleInputChange("unidad_fraccion", e.target.value)}
+                            style={{ ...selectStyle(!!formErrors.unidad_fraccion), paddingLeft: "38px" }}
+                            onFocus={(e) => handleFieldFocus(e, !!formErrors.unidad_fraccion)}
+                            onBlur={(e) => handleFieldBlur(e, !!formErrors.unidad_fraccion)}
+                          >
+                            <option value="">Sin fraccionar</option>
+                            <option value="TAB">Tableta (TAB)</option>
+                            <option value="CAP">Cápsula (CAP)</option>
+                            <option value="AMP">Ampolla (AMP)</option>
+                          </select>
+                        </div>
+                        <div style={{ position: "relative" }}>
+                          <Package size={16} style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: t.textMuted }} />
+                          <input
+                            type="number"
+                            min={1}
+                            step={1}
+                            value={formData.tamano_blister}
+                            onChange={(e) => handleInputChange("tamano_blister", e.target.value)}
+                            placeholder="Blíster x10"
+                            title="Tamaño del blíster"
+                            style={{ ...inputStyle(!!formErrors.tamano_blister), paddingLeft: "38px" }}
+                            onFocus={(e) => handleFieldFocus(e, !!formErrors.tamano_blister)}
+                            onBlur={(e) => handleFieldBlur(e, !!formErrors.tamano_blister)}
+                          />
+                        </div>
+                      </div>
+                      {fieldError(formErrors.unidades_por_base)}
+                      {fieldError(formErrors.unidad_fraccion)}
+                      {fieldError(formErrors.tamano_blister)}
+                      <p style={{ fontSize: "11px", color: t.textMuted, marginTop: "6px" }}>
+                        Ej. Caja con 10 tabletas → 10 + Tableta. Genera precios TAB/BL/CJ automáticamente.
+                      </p>
                     </div>
 
                     {/* Composición */}
@@ -3162,6 +3321,37 @@ export default function ProductsManagement({ isDark = true }: { isDark?: boolean
                     </div>
                   </div>
                 </div>
+              </div>
+
+              {/* ─── Sección: Presentaciones de venta ─── */}
+              <div style={{ marginBottom: "28px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
+                  <div style={{ width: "32px", height: "32px", borderRadius: "8px", background: `${t.accent}15`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <Layers size={16} color={t.accent} />
+                  </div>
+                  <h3 style={{ fontSize: "16px", fontWeight: 700, color: t.textPrimary }}>
+                    Presentaciones de venta
+                  </h3>
+                </div>
+                {viewingProduct.unidades_por_base ? (
+                  <p style={{ fontSize: "12px", color: t.textMuted, margin: "0 0 12px 40px" }}>
+                    1 base = {viewingProduct.unidades_por_base} {viewingProduct.unidad_fraccion === "CAP" ? "cápsulas" : viewingProduct.unidad_fraccion === "AMP" ? "ampollas" : "tabletas"}
+                    {" "}· Blíster x{viewingProduct.tamano_blister ?? 10} · Precios TAB/BL/CJ por presentación
+                  </p>
+                ) : (
+                  <p style={{ fontSize: "12px", color: t.textMuted, margin: "0 0 12px 40px" }}>
+                    Venta directa por unidad base. Define el fraccionamiento editando el producto.
+                  </p>
+                )}
+                <PresentacionesEditor
+                  producto={viewingProduct}
+                  t={t as unknown as Record<string, string>}
+                  onChanged={(presentaciones) => {
+                    setViewingProduct({ ...viewingProduct, presentaciones });
+                    void queryClient.invalidateQueries({ queryKey: queryKeys.products.management });
+                    void queryClient.invalidateQueries({ queryKey: queryKeys.products.all });
+                  }}
+                />
               </div>
 
               {/* ─── Sección: Clasificación ─── */}

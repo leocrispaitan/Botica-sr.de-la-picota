@@ -1,4 +1,6 @@
 import { useState, useMemo } from "react";
+import { useVentasTimelineQuery } from "../../hooks/useVendedorQueries";
+import ventasService, { type Venta } from "../../services/ventasService";
 import {
   Search,
   Filter,
@@ -23,6 +25,8 @@ interface SaleDetail {
   cantidad: number;
   precio_unitario_venta: number;
   subtotal: number;
+  /** Presentación vendida (TAB/BL/CJ...). Solo informativo. */
+  presentacion?: string;
 }
 
 interface Sale {
@@ -51,317 +55,53 @@ interface Sale {
   detalles: SaleDetail[];
 }
 
-/* ─── Mock Data ───────────────────────────────────────────────────────── */
-const mockSales: Sale[] = [
-  {
-    id_venta: 1,
-    fecha_venta: "2026-08-27 10:30:00",
-    cliente: {
-      id_cliente: 1,
-      nombre_razon_social: "Carlos Ramírez Torres",
-      tipo_documento: "DNI",
-      numero_documento: "45678912",
-    },
-    usuario: {
-      id_usuario: 2,
-      nombre_completo: "María López Ruiz",
-    },
-    metodo_pago: {
-      id_metodo_pago: 1,
-      nombre_metodo: "EFECTIVO",
-    },
-    tipo_comprobante: "BOLETA",
-    total_pagar: 25.50,
-    monto_pagado: 30.00,
-    vuelto: 4.50,
-    estado_venta: "PAGADA",
-    cantidad_productos: 3,
-    detalles: [
-      {
-        id_detalle_venta: 1,
-        nombre_producto: "Paracetamol 500mg",
-        cantidad: 20,
-        precio_unitario_venta: 0.50,
-        subtotal: 10.00,
-      },
-      {
-        id_detalle_venta: 2,
-        nombre_producto: "Ibuprofeno 400mg",
-        cantidad: 10,
-        precio_unitario_venta: 0.80,
-        subtotal: 8.00,
-      },
-      {
-        id_detalle_venta: 3,
-        nombre_producto: "Loratadina 10mg",
-        cantidad: 12,
-        precio_unitario_venta: 0.60,
-        subtotal: 7.20,
-      },
-    ],
-  },
-  {
-    id_venta: 2,
-    fecha_venta: "2026-08-27 11:15:00",
-    cliente: {
-      id_cliente: 2,
-      nombre_razon_social: "FARMACORP SAC",
-      tipo_documento: "RUC",
-      numero_documento: "20123456789",
-    },
-    usuario: {
-      id_usuario: 2,
-      nombre_completo: "María López Ruiz",
-    },
-    metodo_pago: {
-      id_metodo_pago: 4,
-      nombre_metodo: "TRANSFERENCIA",
-    },
-    tipo_comprobante: "FACTURA",
-    total_pagar: 450.00,
-    monto_pagado: 450.00,
-    vuelto: 0.00,
-    estado_venta: "PAGADA",
-    cantidad_productos: 5,
-    detalles: [
-      {
-        id_detalle_venta: 3,
-        nombre_producto: "Amoxicilina 500mg",
-        cantidad: 100,
-        precio_unitario_venta: 1.20,
-        subtotal: 120.00,
-      },
-      {
-        id_detalle_venta: 4,
-        nombre_producto: "Omeprazol 20mg",
-        cantidad: 80,
-        precio_unitario_venta: 1.50,
-        subtotal: 120.00,
-      },
-      {
-        id_detalle_venta: 5,
-        nombre_producto: "Metformina 850mg",
-        cantidad: 100,
-        precio_unitario_venta: 0.90,
-        subtotal: 90.00,
-      },
-      {
-        id_detalle_venta: 6,
-        nombre_producto: "Atorvastatina 20mg",
-        cantidad: 50,
-        precio_unitario_venta: 1.80,
-        subtotal: 90.00,
-      },
-      {
-        id_detalle_venta: 7,
-        nombre_producto: "Salbutamol Inhalador 100mcg",
-        cantidad: 1,
-        precio_unitario_venta: 25.00,
-        subtotal: 25.00,
-      },
-    ],
-  },
-  {
-    id_venta: 3,
-    fecha_venta: "2026-08-27 14:20:00",
-    cliente: null,
-    usuario: {
-      id_usuario: 2,
-      nombre_completo: "María López Ruiz",
-    },
-    metodo_pago: {
-      id_metodo_pago: 3,
-      nombre_metodo: "YAPE_PLIN",
-    },
-    tipo_comprobante: "TICKET",
-    total_pagar: 12.80,
-    monto_pagado: 12.80,
-    vuelto: 0.00,
-    estado_venta: "PAGADA",
-    cantidad_productos: 2,
-    detalles: [
-      {
-        id_detalle_venta: 8,
-        nombre_producto: "Paracetamol 500mg",
-        cantidad: 10,
-        precio_unitario_venta: 0.50,
-        subtotal: 5.00,
-      },
-      {
-        id_detalle_venta: 9,
-        nombre_producto: "Loratadina 10mg",
-        cantidad: 13,
-        precio_unitario_venta: 0.60,
-        subtotal: 7.80,
-      },
-    ],
-  },
-  {
-    id_venta: 4,
-    fecha_venta: "2026-08-27 15:45:00",
-    cliente: {
-      id_cliente: 3,
-      nombre_razon_social: "María González Pérez",
-      tipo_documento: "DNI",
-      numero_documento: "87654321",
-    },
-    usuario: {
-      id_usuario: 2,
-      nombre_completo: "María López Ruiz",
-    },
-    metodo_pago: {
-      id_metodo_pago: 2,
-      nombre_metodo: "TARJETA",
-    },
-    tipo_comprobante: "BOLETA",
-    total_pagar: 38.40,
-    monto_pagado: 38.40,
-    vuelto: 0.00,
-    estado_venta: "PAGADA",
-    cantidad_productos: 4,
-    detalles: [
-      {
-        id_detalle_venta: 10,
-        nombre_producto: "Ibuprofeno 400mg",
-        cantidad: 20,
-        precio_unitario_venta: 0.80,
-        subtotal: 16.00,
-      },
-      {
-        id_detalle_venta: 11,
-        nombre_producto: "Omeprazol 20mg",
-        cantidad: 10,
-        precio_unitario_venta: 1.50,
-        subtotal: 15.00,
-      },
-      {
-        id_detalle_venta: 12,
-        nombre_producto: "Loratadina 10mg",
-        cantidad: 8,
-        precio_unitario_venta: 0.60,
-        subtotal: 4.80,
-      },
-      {
-        id_detalle_venta: 13,
-        nombre_producto: "Metformina 850mg",
-        cantidad: 3,
-        precio_unitario_venta: 0.90,
-        subtotal: 2.70,
-      },
-    ],
-  },
-  {
-    id_venta: 5,
-    fecha_venta: "2026-08-26 16:30:00",
-    cliente: null,
-    usuario: {
-      id_usuario: 2,
-      nombre_completo: "María López Ruiz",
-    },
-    metodo_pago: {
-      id_metodo_pago: 1,
-      nombre_metodo: "EFECTIVO",
-    },
-    tipo_comprobante: "BOLETA",
-    total_pagar: 15.00,
-    monto_pagado: 20.00,
-    vuelto: 5.00,
-    estado_venta: "PAGADA",
-    cantidad_productos: 1,
-    detalles: [
-      {
-        id_detalle_venta: 14,
-        nombre_producto: "Amoxicilina 500mg",
-        cantidad: 10,
-        precio_unitario_venta: 1.20,
-        subtotal: 12.00,
-      },
-    ],
-  },
-  {
-    id_venta: 6,
-    fecha_venta: "2026-08-26 09:15:00",
-    cliente: null,
-    usuario: {
-      id_usuario: 2,
-      nombre_completo: "María López Ruiz",
-    },
-    metodo_pago: {
-      id_metodo_pago: 1,
-      nombre_metodo: "EFECTIVO",
-    },
-    tipo_comprobante: "TICKET",
-    total_pagar: 5.00,
-    monto_pagado: 5.00,
-    vuelto: 0.00,
-    estado_venta: "ANULADA",
-    cantidad_productos: 1,
-    detalles: [
-      {
-        id_detalle_venta: 15,
-        nombre_producto: "Paracetamol 500mg",
-        cantidad: 10,
-        precio_unitario_venta: 0.50,
-        subtotal: 5.00,
-      },
-    ],
-  },
-];
+/* Ventas reales: backend + Supabase (TanStack Query, caché compartida). */
 
-/* ─── Estado Badge Colors ───────────────────────────────────────────── */
-const getStatusBadgeColors = (status: string, isDark: boolean) => {
-  if (status === "PAGADA") {
+/* ─── Badge helpers ──────────────────────────────────────────────────── */
+const getStatusBadgeColors = (estado: string, isDark: boolean): { bg: string; text: string; border: string; icon: string } => {
+  if (estado === "PAGADA") {
     return {
-      bg: isDark ? "rgba(34, 197, 94, 0.12)" : "rgba(34, 197, 94, 0.08)",
-      text: "#4ade80",
-      border: isDark ? "rgba(34, 197, 94, 0.3)" : "rgba(34, 197, 94, 0.25)",
+      bg: isDark ? "rgba(15,191,112,0.12)" : "#ECFDF5",
+      text: isDark ? "#4ade80" : "#0B7A55",
+      border: isDark ? "rgba(15,191,112,0.3)" : "#A7F3D0",
       icon: "✓",
     };
   }
-  if (status === "PENDIENTE") {
+  if (estado === "ANULADA") {
     return {
-      bg: isDark ? "rgba(249, 115, 22, 0.12)" : "rgba(249, 115, 22, 0.08)",
-      text: "#fb923c",
-      border: isDark ? "rgba(249, 115, 22, 0.3)" : "rgba(249, 115, 22, 0.25)",
-      icon: "⏳",
-    };
-  }
-  if (status === "ANULADA") {
-    return {
-      bg: isDark ? "rgba(239, 68, 68, 0.12)" : "rgba(239, 68, 68, 0.08)",
-      text: "#ef4444",
-      border: isDark ? "rgba(239, 68, 68, 0.3)" : "rgba(239, 68, 68, 0.25)",
-      icon: "✗",
+      bg: isDark ? "rgba(239,68,68,0.12)" : "#FEF2F2",
+      text: isDark ? "#f87171" : "#B91C1C",
+      border: isDark ? "rgba(239,68,68,0.3)" : "#FECACA",
+      icon: "✕",
     };
   }
   return {
-    bg: isDark ? "rgba(91, 207, 197, 0.12)" : "rgba(91, 207, 197, 0.08)",
-    text: "#5bcfc5",
-    border: isDark ? "rgba(91, 207, 197, 0.3)" : "rgba(91, 207, 197, 0.25)",
-    icon: "•",
+    bg: isDark ? "rgba(245,158,11,0.12)" : "#FFFBEB",
+    text: isDark ? "#fbbf24" : "#92400E",
+    border: isDark ? "rgba(245,158,11,0.3)" : "#FDE68A",
+    icon: "◷",
   };
 };
 
-/* ─── Comprobante Badge Colors ──────────────────────────────────────── */
-const getComprobanteBadgeColors = (tipo: string, isDark: boolean) => {
+const getComprobanteBadgeColors = (tipo: string, isDark: boolean): { bg: string; text: string; border: string } => {
   if (tipo === "FACTURA") {
     return {
-      bg: isDark ? "rgba(139, 92, 246, 0.12)" : "rgba(139, 92, 246, 0.08)",
-      text: "#a78bfa",
-      border: isDark ? "rgba(139, 92, 246, 0.3)" : "rgba(139, 92, 246, 0.25)",
+      bg: isDark ? "rgba(108,99,255,0.12)" : "#EEF2FF",
+      text: isDark ? "#a5b4fc" : "#4338CA",
+      border: isDark ? "rgba(108,99,255,0.3)" : "#C7D2FE",
     };
   }
-  if (tipo === "BOLETA") {
+  if (tipo === "TICKET") {
     return {
-      bg: isDark ? "rgba(34, 197, 94, 0.12)" : "rgba(34, 197, 94, 0.08)",
-      text: "#4ade80",
-      border: isDark ? "rgba(34, 197, 94, 0.3)" : "rgba(34, 197, 94, 0.25)",
+      bg: isDark ? "rgba(62,207,207,0.12)" : "#ECFEFF",
+      text: isDark ? "#67e8f9" : "#0E7490",
+      border: isDark ? "rgba(62,207,207,0.3)" : "#A5F3FC",
     };
   }
   return {
-    bg: isDark ? "rgba(91, 207, 197, 0.12)" : "rgba(91, 207, 197, 0.08)",
-    text: "#5bcfc5",
-    border: isDark ? "rgba(91, 207, 197, 0.3)" : "rgba(91, 207, 197, 0.25)",
+    bg: isDark ? "rgba(91,207,197,0.12)" : "#F0FDFD",
+    text: isDark ? "#5bcfc5" : "#0F766E",
+    border: isDark ? "rgba(91,207,197,0.3)" : "#99F6E4",
   };
 };
 
@@ -413,13 +153,48 @@ export default function SalesHistory({ isDark = true }: { isDark?: boolean }) {
   const [showFilters, setShowFilters] = useState(false);
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [cargandoDetalle, setCargandoDetalle] = useState(false);
+  const [errorHistorial, setErrorHistorial] = useState<string | null>(null);
   const itemsPerPage = 10;
 
   const t = getTheme(isDark);
 
+  // Ventas reales (admin ve todas). Caché compartida + realtime.
+  const { data: ventasData, isLoading: cargandoVentas } = useVentasTimelineQuery();
+
+  const mapearVenta = (v: Venta): Sale => ({
+    id_venta: v.id_venta,
+    fecha_venta: v.fecha_venta,
+    cliente: v.cliente
+      ? {
+          id_cliente: v.cliente.id_cliente,
+          nombre_razon_social: v.cliente.nombre_razon_social,
+          tipo_documento: "—",
+          numero_documento: v.cliente.numero_documento || "",
+        }
+      : null,
+    usuario: {
+      id_usuario: v.usuario?.id_usuario || 0,
+      nombre_completo: v.usuario?.nombre_completo || "—",
+    },
+    metodo_pago: {
+      id_metodo_pago: 0,
+      nombre_metodo: v.metodo_pago?.nombre_metodo || "—",
+    },
+    tipo_comprobante: (v.tipo_comprobante as Sale["tipo_comprobante"]) || "BOLETA",
+    total_pagar: Number(v.total_pagar),
+    monto_pagado: Number(v.monto_pagado),
+    vuelto: Number(v.vuelto || 0),
+    estado_venta: (v.estado_venta as Sale["estado_venta"]) || "PAGADA",
+    cantidad_productos: v.items || 0,
+    detalles: [],
+  });
+
+  const todasLasVentas = useMemo(() => (ventasData || []).map(mapearVenta), [ventasData]);
+
   // Filtered sales
   const filteredSales = useMemo(() => {
-    return mockSales.filter((sale) => {
+    return todasLasVentas.filter((sale) => {
       const matchesSearch =
         sale.id_venta.toString().includes(searchTerm) ||
         (sale.cliente?.nombre_razon_social.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -443,7 +218,7 @@ export default function SalesHistory({ isDark = true }: { isDark?: boolean }) {
 
       return matchesSearch && matchesStatus && matchesTipoComprobante && matchesMetodoPago && matchesDate;
     });
-  }, [searchTerm, statusFilter, tipoComprobanteFilter, metodoPagoFilter, dateFrom, dateTo]);
+  }, [todasLasVentas, searchTerm, statusFilter, tipoComprobanteFilter, metodoPagoFilter, dateFrom, dateTo]);
 
   // Pagination
   const totalPages = Math.ceil(filteredSales.length / itemsPerPage);
@@ -462,10 +237,47 @@ export default function SalesHistory({ isDark = true }: { isDark?: boolean }) {
   const ventasPagadas = filteredSales.filter(s => s.estado_venta === "PAGADA").length;
   const ventasAnuladas = filteredSales.filter(s => s.estado_venta === "ANULADA").length;
 
-  // View sale details
-  const handleViewDetails = (sale: Sale) => {
-    setSelectedSale(sale);
-    setShowDetailModal(true);
+  // View sale details (detalle real con presentaciones)
+  const handleViewDetails = async (sale: Sale) => {
+    setCargandoDetalle(true);
+    setErrorHistorial(null);
+    try {
+      const v = await ventasService.getVentaById(sale.id_venta);
+      const completa: Sale = {
+        ...mapearVenta(v),
+        cliente: v.cliente
+          ? {
+              id_cliente: v.cliente.id_cliente,
+              nombre_razon_social: v.cliente.nombre_razon_social,
+              tipo_documento: (v.cliente as { tipo_documento?: string }).tipo_documento || "—",
+              numero_documento: (v.cliente as { numero_documento?: string }).numero_documento || "",
+            }
+          : null,
+        detalles: (v.detalle_venta || []).map((d) => {
+          const codigo = (d as { codigo_presentacion?: string }).codigo_presentacion || null;
+          const cantPresRaw = (d as { cantidad_presentacion?: number | string }).cantidad_presentacion;
+          const cantPres = cantPresRaw != null ? Number(cantPresRaw) : Number(d.cantidad);
+          const pu = cantPres > 0 ? Number(d.subtotal) / cantPres : 0;
+          return {
+            id_detalle_venta: d.id_detalle_venta,
+            nombre_producto: d.producto?.nombre_comercial || "Producto",
+            cantidad: cantPres,
+            precio_unitario_venta: pu,
+            subtotal: Number(d.subtotal),
+            presentacion: codigo || undefined,
+          };
+        }),
+      };
+      setSelectedSale(completa);
+      setShowDetailModal(true);
+    } catch (err) {
+      setErrorHistorial(
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+          "No se pudo cargar el detalle de la venta."
+      );
+    } finally {
+      setCargandoDetalle(false);
+    }
   };
 
   return (
@@ -1035,6 +847,11 @@ export default function SalesHistory({ isDark = true }: { isDark?: boolean }) {
             No se encontraron resultados para "{searchTerm}"
           </p>
         )}
+        {errorHistorial && (
+          <p style={{ fontSize: "13px", color: "#ef4444", fontWeight: 600 }}>
+            {errorHistorial}
+          </p>
+        )}
       </div>
 
       {/* Sales Table */}
@@ -1067,7 +884,15 @@ export default function SalesHistory({ isDark = true }: { isDark?: boolean }) {
               </tr>
             </thead>
             <tbody>
-              {currentSales.length === 0 ? (
+              {cargandoVentas ? (
+                <tr>
+                  <td colSpan={7} style={{ padding: "60px 20px", textAlign: "center" }}>
+                    <p style={{ fontSize: "15px", fontWeight: 600, color: t.textSecondary }}>
+                      Cargando ventas del servidor...
+                    </p>
+                  </td>
+                </tr>
+              ) : currentSales.length === 0 ? (
                 <tr>
                   <td colSpan={7} style={{ padding: "60px 20px", textAlign: "center" }}>
                     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "12px" }}>
@@ -1234,7 +1059,8 @@ export default function SalesHistory({ isDark = true }: { isDark?: boolean }) {
                         <div style={{ display: "flex", justifyContent: "center", gap: "4px" }}>
                           <button
                             onClick={() => handleViewDetails(sale)}
-                            title="Ver detalles"
+                            disabled={cargandoDetalle}
+                            title={cargandoDetalle ? "Cargando detalle..." : "Ver detalles"}
                             style={{
                               padding: "8px",
                               borderRadius: "8px",
@@ -1603,6 +1429,11 @@ export default function SalesHistory({ isDark = true }: { isDark?: boolean }) {
                             <p style={{ fontSize: "13px", fontWeight: 600, color: t.textPrimary }}>
                               {detail.nombre_producto}
                             </p>
+                            {detail.presentacion && (
+                              <p style={{ fontSize: "11px", color: t.textSecondary, marginTop: "2px" }}>
+                                {detail.cantidad} x {detail.presentacion}
+                              </p>
+                            )}
                           </td>
                           <td style={{ padding: "12px 16px", textAlign: "center" }}>
                             <span style={{ fontSize: "13px", color: t.textPrimary }}>

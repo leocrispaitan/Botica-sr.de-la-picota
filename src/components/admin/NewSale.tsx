@@ -3,6 +3,13 @@ import LottieLib from "lottie-react";
 import cartEmptyAnimation from "../../assets/cart-empty.json";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const Lottie = (LottieLib as any).default ?? LottieLib;
+import { useProductsQuery, useCategoriesQuery, useMetodosPagoQuery } from "../../hooks/useAdminQueries";
+import { useClientesSearchQuery } from "../../hooks/useVendedorQueries";
+import ventasService from "../../services/ventasService";
+import { queryClient } from "../../lib/queryClient";
+import { queryKeys } from "../../lib/queryKeys";
+import { useAuth } from "../../contexts/AuthContext";
+import ComprobanteModal, { type ComprobanteData } from "../vendedor/ComprobanteModal";
 import {
   Search,
   Plus,
@@ -27,7 +34,7 @@ import {
 } from "lucide-react";
 
 /* ─── Types ─────────────────────────────────────────────────────────── */
-type CategoryId = "all" | "pain" | "antibiotics" | "digestive" | "allergy" | "respiratory" | "diabetes";
+type CategoryId = string;
 type PaymentMethod = "EFECTIVO" | "TARJETA" | "YAPE_PLIN" | "TRANSFERENCIA";
 type TipoComprobante = "BOLETA" | "FACTURA" | "TICKET";
 
@@ -35,6 +42,8 @@ interface OpcionVenta {
   label: string;
   shortLabel: string;
   precio: number;
+  codigo?: string;
+  factorABase?: number;
 }
 
 interface Product {
@@ -61,6 +70,8 @@ interface CartItem {
   opcionShortLabel: string;
   cantidad: number;
   precioUnitario: number;
+  codigoPresentacion?: string;
+  factorABase?: number;
 }
 
 interface Cliente {
@@ -70,169 +81,21 @@ interface Cliente {
   nombre: string;
 }
 
-/* ─── Mock Data ───────────────────────────────────────────────────────── */
-const categorias: Array<{ id: CategoryId; label: string; icon: React.ElementType; count: number }> = [
-  { id: "all", label: "Todo", icon: LayoutGrid, count: 8 },
-  { id: "pain", label: "Analgésicos", icon: Pill, count: 2 },
-  { id: "antibiotics", label: "Antibióticos", icon: ShieldCheck, count: 1 },
-  { id: "digestive", label: "Digestivo", icon: Package, count: 1 },
-  { id: "allergy", label: "Alergias", icon: BadgePercent, count: 2 },
-  { id: "respiratory", label: "Respiratorio", icon: Stethoscope, count: 1 },
-  { id: "diabetes", label: "Diabetes", icon: Receipt, count: 1 },
-];
+/* ─── Datos reales (backend + Supabase) ──────────────────────────────── */
+const ACCENTS = ["#0fbf70", "#22a7f0", "#f59e0b", "#8b5cf6", "#06b6d4", "#ef4444", "#14b8a6", "#f97316"];
 
-const productos: Product[] = [
-  {
-    id: 1,
-    nombre: "Paracetamol 500mg",
-    generico: "Paracetamol",
-    categoria: "pain",
-    categoriaLabel: "Analgésico",
-    stock: 500,
-    vendidos: 64,
-    requiereReceta: false,
-    laboratorio: "Genfar",
-    imagen: "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&w=400&q=80",
-    accent: "#0fbf70",
-    opciones: [
-      { label: "Tableta", shortLabel: "TAB", precio: 0.5 },
-      { label: "Blister", shortLabel: "BL", precio: 5.0 },
-      { label: "Caja", shortLabel: "CJ", precio: 42.0 },
-    ],
-  },
-  {
-    id: 2,
-    nombre: "Ibuprofeno 400mg",
-    generico: "Ibuprofeno",
-    categoria: "pain",
-    categoriaLabel: "Antiinflamatorio",
-    stock: 300,
-    vendidos: 51,
-    requiereReceta: false,
-    laboratorio: "Medifarma",
-    imagen: "https://images.unsplash.com/photo-1550572017-edd951aa8f72?auto=format&fit=crop&w=400&q=80",
-    accent: "#22a7f0",
-    opciones: [
-      { label: "Tableta", shortLabel: "TAB", precio: 0.8 },
-      { label: "Blister", shortLabel: "BL", precio: 8.0 },
-      { label: "Caja", shortLabel: "CJ", precio: 68.0 },
-    ],
-  },
-  {
-    id: 3,
-    nombre: "Amoxicilina 500mg",
-    generico: "Amoxicilina",
-    categoria: "antibiotics",
-    categoriaLabel: "Antibiótico",
-    stock: 118,
-    vendidos: 22,
-    requiereReceta: true,
-    laboratorio: "Portugal",
-    imagen: "https://images.unsplash.com/photo-1607619056574-7b8d3ee536b2?auto=format&fit=crop&w=400&q=80",
-    accent: "#f59e0b",
-    opciones: [
-      { label: "Cápsula", shortLabel: "CAP", precio: 1.2 },
-      { label: "Blister", shortLabel: "BL", precio: 12.0 },
-      { label: "Caja", shortLabel: "CJ", precio: 98.0 },
-    ],
-  },
-  {
-    id: 4,
-    nombre: "Omeprazol 20mg",
-    generico: "Omeprazol",
-    categoria: "digestive",
-    categoriaLabel: "Digestivo",
-    stock: 240,
-    vendidos: 39,
-    requiereReceta: false,
-    laboratorio: "Farmindustria",
-    imagen: "https://images.unsplash.com/photo-1585435557343-3b092031a831?auto=format&fit=crop&w=400&q=80",
-    accent: "#8b5cf6",
-    opciones: [
-      { label: "Cápsula", shortLabel: "CAP", precio: 1.5 },
-      { label: "Blister", shortLabel: "BL", precio: 15.0 },
-      { label: "Caja", shortLabel: "CJ", precio: 125.0 },
-    ],
-  },
-  {
-    id: 5,
-    nombre: "Loratadina 10mg",
-    generico: "Loratadina",
-    categoria: "allergy",
-    categoriaLabel: "Alergias",
-    stock: 350,
-    vendidos: 45,
-    requiereReceta: false,
-    laboratorio: "Bago",
-    imagen: "https://images.unsplash.com/photo-1631549916768-4119b2e5f926?auto=format&fit=crop&w=400&q=80",
-    accent: "#06b6d4",
-    opciones: [
-      { label: "Tableta", shortLabel: "TAB", precio: 0.6 },
-      { label: "Blister", shortLabel: "BL", precio: 6.0 },
-      { label: "Caja", shortLabel: "CJ", precio: 52.0 },
-    ],
-  },
-  {
-    id: 6,
-    nombre: "Salbutamol Inhalador",
-    generico: "Salbutamol 100mcg",
-    categoria: "respiratory",
-    categoriaLabel: "Respiratorio",
-    stock: 48,
-    vendidos: 16,
-    requiereReceta: true,
-    laboratorio: "Glaxo",
-    imagen: "https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&w=400&q=80",
-    accent: "#ef4444",
-    opciones: [
-      { label: "Unidad", shortLabel: "UND", precio: 25.0 },
-      { label: "Pack x2", shortLabel: "P2", precio: 48.0 },
-      { label: "Caja", shortLabel: "CJ", precio: 290.0 },
-    ],
-  },
-  {
-    id: 7,
-    nombre: "Metformina 850mg",
-    generico: "Metformina",
-    categoria: "diabetes",
-    categoriaLabel: "Diabetes",
-    stock: 600,
-    vendidos: 72,
-    requiereReceta: true,
-    laboratorio: "AC Farma",
-    imagen: "https://images.unsplash.com/photo-1471864190281-a93a3070b6de?auto=format&fit=crop&w=400&q=80",
-    accent: "#14b8a6",
-    opciones: [
-      { label: "Tableta", shortLabel: "TAB", precio: 0.9 },
-      { label: "Blister", shortLabel: "BL", precio: 9.0 },
-      { label: "Caja", shortLabel: "CJ", precio: 76.0 },
-    ],
-  },
-  {
-    id: 8,
-    nombre: "Vitamina C 1g",
-    generico: "Ácido ascórbico",
-    categoria: "allergy",
-    categoriaLabel: "Suplemento",
-    stock: 180,
-    vendidos: 31,
-    requiereReceta: false,
-    laboratorio: "Mason",
-    imagen: "https://images.unsplash.com/photo-1628771065518-0d82f1938462?auto=format&fit=crop&w=400&q=80",
-    accent: "#f97316",
-    opciones: [
-      { label: "Tableta", shortLabel: "TAB", precio: 1.1 },
-      { label: "Tubo", shortLabel: "TUB", precio: 16.0 },
-      { label: "Caja", shortLabel: "CJ", precio: 90.0 },
-    ],
-  },
-];
+const iconoPorCategoria = (nombre: string): React.ElementType => {
+  const upper = (nombre || "").toUpperCase();
+  if (/ANALGESICO|DOLOR/.test(upper)) return Pill;
+  if (/ANTIBIOTICO/.test(upper)) return ShieldCheck;
+  if (/DIGESTIVO|GASTRO/.test(upper)) return Package;
+  if (/ALERGIA/.test(upper)) return BadgePercent;
+  if (/RESPIRATORIO|BRONQUIAL/.test(upper)) return Stethoscope;
+  if (/DIABETES|ENDOCRINO/.test(upper)) return Receipt;
+  return LayoutGrid;
+};
 
-const mockClientes: Cliente[] = [
-  { id: 1, tipo: "DNI", documento: "45678912", nombre: "Carlos Ramírez Torres" },
-  { id: 2, tipo: "RUC", documento: "20123456789", nombre: "FARMACORP SAC" },
-  { id: 3, tipo: "DNI", documento: "87654321", nombre: "María González Pérez" },
-];
+/* Catálogo real: categorías, productos y clientes vienen del backend (hooks). */
 
 const formatSoles = (v: number) =>
   new Intl.NumberFormat("es-PE", { style: "currency", currency: "PEN", minimumFractionDigits: 2 }).format(v);
@@ -293,6 +156,9 @@ function getTheme(isDark: boolean) {
 export default function NewSale({ isDark = true }: { isDark?: boolean }) {
   const t = getTheme(isDark);
 
+  const { user } = useAuth();
+  const nombreVendedor = user?.nombre_completo || "Administrador";
+
   const [categoriaActiva, setCategoriaActiva] = useState<CategoryId>("all");
   const [busqueda, setBusqueda] = useState("");
   const [carrito, setCarrito] = useState<CartItem[]>([]);
@@ -301,9 +167,99 @@ export default function NewSale({ isDark = true }: { isDark?: boolean }) {
   const [montoPagado, setMontoPagado] = useState("");
   const [clienteSeleccionado, setClienteSeleccionado] = useState<number | "">("");
   const [ventaExitosa, setVentaExitosa] = useState(false);
-  const [opcionSeleccionada, setOpcionSeleccionada] = useState<Record<number, string>>(() =>
-    productos.reduce((acc, p) => ({ ...acc, [p.id]: p.opciones[0].label }), {})
+  const [verTicket, setVerTicket] = useState(false);
+  const [procesando, setProcesando] = useState(false);
+  const [errorVenta, setErrorVenta] = useState<string | null>(null);
+  const [comprobante, setComprobante] = useState<ComprobanteData | null>(null);
+  const [opcionSeleccionada, setOpcionSeleccionada] = useState<Record<number, string>>({});
+
+  /* ─── Datos reales (misma caché que el resto del admin) ─── */
+  const { data: productosData, isLoading: cargandoProductos } = useProductsQuery();
+  const { data: categoriasData } = useCategoriesQuery();
+  const { data: metodosData } = useMetodosPagoQuery();
+  const { data: clientesData } = useClientesSearchQuery("", 50);
+
+  const productos: Product[] = useMemo(
+    () =>
+      (productosData || [])
+        .filter((p) => p.estado_logico !== false)
+        .map((p) => {
+          const presentaciones = (p.presentaciones || []).filter(
+            (x) => x.estado_logico !== false && x.permite_venta !== false
+          );
+          const opciones: OpcionVenta[] =
+            presentaciones.length > 0
+              ? presentaciones.map((x) => ({
+                  label: x.nombre_presentacion,
+                  shortLabel: x.codigo_presentacion,
+                  precio: Number(x.precio_venta) || 0,
+                  codigo: x.codigo_presentacion,
+                  factorABase: Number(x.factor_a_base) || 1,
+                }))
+              : [
+                  {
+                    label: p.unidad_medida || "Unidad",
+                    shortLabel: (p.unidad_medida || "Unidad").slice(0, 3).toUpperCase(),
+                    precio: Number(p.precio_venta) || 0,
+                    codigo: (p.unidad_medida || "UND").slice(0, 3).toUpperCase(),
+                    factorABase: 1,
+                  },
+                ];
+          return {
+            id: p.id_producto,
+            nombre: p.nombre_comercial,
+            generico: p.nombre_generico,
+            categoria: String(p.id_categoria),
+            categoriaLabel: p.categoria?.nombre_categoria ?? "",
+            stock: Number(p.stock_actual ?? 0),
+            vendidos: Number(p.vendidos ?? 0),
+            requiereReceta: p.condicion_venta?.requiere_receta ?? false,
+            laboratorio: p.laboratorio_titular?.nombre ?? p.fabricante?.nombre ?? "",
+            imagen: p.imagen_url ?? "",
+            accent: ACCENTS[p.id_producto % ACCENTS.length],
+            opciones,
+          };
+        }),
+    [productosData]
   );
+
+  const categorias = useMemo(() => {
+    const reales = (categoriasData || []).filter((c) => c.estado_logico !== false);
+    const conteo = new Map<string, number>();
+    productos.forEach((p) => conteo.set(p.categoria, (conteo.get(p.categoria) || 0) + 1));
+    return [
+      { id: "all", label: "Todo", icon: LayoutGrid, count: productos.length },
+      ...reales.map((c) => ({
+        id: String(c.id_categoria),
+        label: c.nombre_categoria,
+        icon: iconoPorCategoria(c.nombre_categoria),
+        count: conteo.get(String(c.id_categoria)) || 0,
+      })),
+    ];
+  }, [categoriasData, productos]);
+
+  const clientesRuc: Cliente[] = useMemo(
+    () =>
+      (clientesData || []).map((c) => ({
+        id: c.id_cliente,
+        tipo: c.tipo_documento,
+        documento: c.numero_documento,
+        nombre: c.nombre_razon_social,
+      })),
+    [clientesData]
+  );
+
+  const idMetodoPago = useMemo(() => {
+    const found = (metodosData || []).find((m) => m.nombre_metodo === metodoPago);
+    if (found) return found.id_metodo_pago;
+    return metodoPago === "EFECTIVO" ? 1 : metodoPago === "TARJETA" ? 2 : metodoPago === "YAPE_PLIN" ? 3 : 4;
+  }, [metodosData, metodoPago]);
+
+  const maxEnPresentacion = (producto: Product, codigo?: string): number => {
+    const opt = producto.opciones.find((o) => o.codigo === codigo || o.label === codigo) || producto.opciones[0];
+    const factor = opt?.factorABase || 1;
+    return Math.max(1, Math.floor(producto.stock / factor));
+  };
 
   /* ─── Filtered products ─── */
   const productosFiltrados = useMemo(() => {
@@ -317,7 +273,7 @@ export default function NewSale({ isDark = true }: { isDark?: boolean }) {
         p.laboratorio.toLowerCase().includes(q);
       return matchCat && matchSearch;
     });
-  }, [categoriaActiva, busqueda]);
+  }, [productos, categoriaActiva, busqueda]);
 
   /* ─── Totals ─── */
   const subtotal = carrito.reduce((s, i) => s + i.precioUnitario * i.cantidad, 0);
@@ -331,14 +287,15 @@ export default function NewSale({ isDark = true }: { isDark?: boolean }) {
     const opcionActiva =
       producto.opciones.find((opt) => opt.label === (opcionSeleccionada[producto.id] || producto.opciones[0].label)) ||
       producto.opciones[0];
-    const key = `${producto.id}-${opcionActiva.label}`;
+    const key = `${producto.id}-${opcionActiva.codigo || opcionActiva.label}`;
+    const maxQty = maxEnPresentacion(producto, opcionActiva.codigo || opcionActiva.label);
 
     setCarrito((prev) => {
       const existe = prev.find((i) => i.key === key);
       if (existe) {
         return prev.map((i) =>
           i.key === key
-            ? { ...i, cantidad: Math.min(producto.stock, i.cantidad + 1) }
+            ? { ...i, cantidad: Math.min(maxQty, i.cantidad + 1) }
             : i
         );
       }
@@ -351,6 +308,8 @@ export default function NewSale({ isDark = true }: { isDark?: boolean }) {
           opcionShortLabel: opcionActiva.shortLabel,
           cantidad: 1,
           precioUnitario: opcionActiva.precio,
+          codigoPresentacion: opcionActiva.codigo,
+          factorABase: opcionActiva.factorABase || 1,
         },
       ];
     });
@@ -359,7 +318,11 @@ export default function NewSale({ isDark = true }: { isDark?: boolean }) {
   const actualizarCantidad = (key: string, delta: number) => {
     setCarrito((prev) =>
       prev
-        .map((i) => (i.key === key ? { ...i, cantidad: i.cantidad + delta } : i))
+        .map((i) => {
+          if (i.key !== key) return i;
+          const maxQty = maxEnPresentacion(i.producto, i.codigoPresentacion || i.opcionLabel);
+          return { ...i, cantidad: Math.min(maxQty, i.cantidad + delta) };
+        })
         .filter((i) => i.cantidad > 0)
     );
   };
@@ -376,14 +339,76 @@ export default function NewSale({ isDark = true }: { isDark?: boolean }) {
     setMetodoPago("EFECTIVO");
   };
 
-  const procesarVenta = () => {
+  const procesarVenta = async () => {
+    if (procesando) return;
     if (carrito.length === 0) return;
-    console.log("Venta procesada:", { tipoComprobante, metodoPago, carrito, total });
-    setVentaExitosa(true);
-    setTimeout(() => {
-      setVentaExitosa(false);
+    if (tipoComprobante === "FACTURA" && !clienteSeleccionado) {
+      setErrorVenta("La FACTURA requiere seleccionar un cliente con RUC.");
+      return;
+    }
+    if (carrito.some((i) => i.producto.requiereReceta) && !clienteSeleccionado) {
+      setErrorVenta("Hay productos con receta médica: selecciona un cliente para la venta.");
+      return;
+    }
+    const pagado = montoPagado.trim() === "" ? total : Number(montoPagado);
+    if (!Number.isFinite(pagado) || pagado < total) {
+      setErrorVenta(`El monto recibido debe ser mayor o igual al total (${formatSoles(total)}).`);
+      return;
+    }
+    const itemsFoto = carrito.map((i) => ({
+      nombre: i.producto.nombre,
+      presentacion: i.opcionLabel,
+      cantidad: i.cantidad,
+      precio: i.precioUnitario,
+      conReceta: i.producto.requiereReceta,
+    }));
+    const clienteFoto =
+      clientesRuc.find((c) => c.id === clienteSeleccionado)?.nombre || "Cliente mostrador";
+
+    setProcesando(true);
+    setErrorVenta(null);
+    try {
+      const venta = await ventasService.createVenta({
+        id_cliente: clienteSeleccionado === "" ? null : Number(clienteSeleccionado),
+        id_metodo_pago: idMetodoPago,
+        tipo_comprobante: tipoComprobante,
+        monto_pagado: pagado,
+        items: carrito.map((i) => ({
+          id_producto: i.producto.id,
+          cantidad: i.cantidad,
+          codigo_presentacion: i.codigoPresentacion,
+        })),
+      });
+      setComprobante({
+        idVenta: venta.id_venta,
+        fecha: venta.fecha_venta,
+        tipo: tipoComprobante,
+        clienteNombre: clienteFoto,
+        clienteDoc: null,
+        items: itemsFoto,
+        subtotal,
+        descuento: 0,
+        total,
+        pagado: Number(venta.monto_pagado),
+        vuelto: Number(venta.vuelto || 0),
+        metodoPago,
+        vendedor: nombreVendedor,
+      });
+      setVentaExitosa(true);
       limpiarCarrito();
-    }, 2500);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.products.all });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.pos.catalog });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.ventas.all });
+    } catch (err) {
+      const data = (err as { response?: { data?: { message?: string; error?: string[] | string } } })?.response?.data;
+      setErrorVenta(
+        data?.message ||
+          (Array.isArray(data?.error) ? data.error.join(", ") : undefined) ||
+          "No se pudo registrar la venta. Revisa tu conexión."
+      );
+    } finally {
+      setProcesando(false);
+    }
   };
 
   /* ─── Payment method config ─── */
@@ -988,7 +1013,7 @@ export default function NewSale({ isDark = true }: { isDark?: boolean }) {
       `}</style>
 
       {/* Success overlay */}
-      {ventaExitosa && (
+      {ventaExitosa && comprobante && (
         <div style={S.successOverlay}>
           <div style={S.successCard}>
             <CheckCircle2 size={72} color={t.success} className="check-anim" />
@@ -997,11 +1022,35 @@ export default function NewSale({ isDark = true }: { isDark?: boolean }) {
                 ¡Venta procesada!
               </p>
               <p style={{ fontSize: "14px", color: t.textSub, margin: 0 }}>
-                {formatSoles(total)} — {tipoComprobante}
+                {comprobante.tipo} #{comprobante.idVenta} · {formatSoles(comprobante.total)} · Vuelto {formatSoles(comprobante.vuelto)}
               </p>
+            </div>
+            <div style={{ display: "flex", gap: "10px", marginTop: "18px" }}>
+              <button
+                type="button"
+                onClick={() => setVerTicket(true)}
+                style={{ padding: "11px 22px", borderRadius: "12px", border: "none", background: t.accent, color: "#fff", fontWeight: 700, fontSize: "14px", cursor: "pointer", fontFamily: "inherit" }}
+              >
+                Ver comprobante
+              </button>
+              <button
+                type="button"
+                onClick={() => { setVentaExitosa(false); setComprobante(null); }}
+                style={{ padding: "11px 22px", borderRadius: "12px", border: `1.5px solid ${t.borderStrong}`, background: "transparent", color: t.text, fontWeight: 700, fontSize: "14px", cursor: "pointer", fontFamily: "inherit" }}
+              >
+                Nueva venta
+              </button>
             </div>
           </div>
         </div>
+      )}
+
+      {verTicket && comprobante && (
+        <ComprobanteModal
+          data={comprobante}
+          onClose={() => setVerTicket(false)}
+          onNewSale={() => { setVerTicket(false); setVentaExitosa(false); setComprobante(null); }}
+        />
       )}
 
       <div style={S.root}>
@@ -1070,7 +1119,13 @@ export default function NewSale({ isDark = true }: { isDark?: boolean }) {
 
           {/* Products grid */}
           <div className="ns-grid" style={S.grid}>
-            {productosFiltrados.length === 0 ? (
+            {cargandoProductos ? (
+              <div style={{ gridColumn: "1/-1", textAlign: "center", padding: "60px 20px", color: t.textMuted }}>
+                <Package size={48} style={{ marginBottom: "12px", opacity: 0.4 }} />
+                <p style={{ fontWeight: 600, margin: "0 0 4px" }}>Cargando catálogo...</p>
+                <p style={{ fontSize: "13px" }}>Obteniendo productos del servidor</p>
+              </div>
+            ) : productosFiltrados.length === 0 ? (
               <div style={{ gridColumn: "1/-1", textAlign: "center", padding: "60px 20px", color: t.textMuted }}>
                 <Package size={48} style={{ marginBottom: "12px", opacity: 0.4 }} />
                 <p style={{ fontWeight: 600, margin: "0 0 4px" }}>Sin resultados</p>
@@ -1486,8 +1541,8 @@ export default function NewSale({ isDark = true }: { isDark?: boolean }) {
               ))}
             </div>
 
-            {/* Cliente para factura */}
-            {tipoComprobante === "FACTURA" && (
+            {/* Cliente para factura / receta */}
+            {(tipoComprobante === "FACTURA" || carrito.some((i) => i.producto.requiereReceta)) && (
               <div>
                 <div style={{ position: "relative" }}>
                   <User size={14} style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: t.textMuted, pointerEvents: "none" }} />
@@ -1501,8 +1556,8 @@ export default function NewSale({ isDark = true }: { isDark?: boolean }) {
                       color: clienteSeleccionado ? t.text : t.textMuted,
                     }}
                   >
-                    <option value="">Seleccionar cliente (RUC)...</option>
-                    {mockClientes.filter(c => c.tipo === "RUC").map(c => (
+                    <option value="">Seleccionar cliente {tipoComprobante === "FACTURA" ? "(RUC)..." : "(receta requerida)..."}</option>
+                    {(tipoComprobante === "FACTURA" ? clientesRuc.filter(c => c.tipo === "RUC") : clientesRuc).map(c => (
                       <option key={c.id} value={c.id}>{c.nombre} — {c.documento}</option>
                     ))}
                   </select>
@@ -1570,14 +1625,20 @@ export default function NewSale({ isDark = true }: { isDark?: boolean }) {
             )}
 
             {/* Process button */}
+            {errorVenta && (
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "10px 12px", borderRadius: "12px", background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)" }}>
+                <AlertCircle size={15} color={t.danger} />
+                <p style={{ fontSize: "12px", color: t.danger, margin: 0, fontWeight: 600 }}>{errorVenta}</p>
+              </div>
+            )}
             <button
               className="ns-process-btn"
-              style={S.processBtn(carrito.length === 0)}
-              disabled={carrito.length === 0}
+              style={S.processBtn(carrito.length === 0 || procesando)}
+              disabled={carrito.length === 0 || procesando}
               onClick={procesarVenta}
             >
               <Receipt size={18} />
-              Procesar Venta · {formatSoles(total)}
+              {procesando ? "Procesando..." : `Procesar Venta · ${formatSoles(total)}`}
             </button>
           </div>
         </div>
