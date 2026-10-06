@@ -360,6 +360,7 @@ export default function PuntoVenta() {
       limpiarCliente();
       setMontoPagado("");
       setPaymentMethod("cash");
+      setSelectedProductId(null);
       reload();
     } catch (err: unknown) {
       const data = (err as { response?: { data?: { message?: string; error?: string[] | string } } })?.response?.data;
@@ -2300,7 +2301,7 @@ export default function PuntoVenta() {
           <div className="seller-divider" />
 
           <div className="seller-selected-detail">
-            {selectedProduct ? (
+            {selectedProductId !== null && selectedProduct ? (
               <>
                 {selectedProduct.image ? (
                   <img
@@ -2323,14 +2324,14 @@ export default function PuntoVenta() {
               <>
                 <span className="seller-selected-fallback" aria-hidden="true" />
                 <div>
-                  <h3>Cargando catálogo...</h3>
-                  <p>Conectando con el servidor</p>
+                  <h3>Sin producto seleccionado</h3>
+                  <p>Elige uno del mostrador para ver su detalle</p>
                 </div>
               </>
             )}
           </div>
 
-          {selectedProduct && (
+          {selectedProductId !== null && selectedProduct && (
             <div className="seller-spec-list">
               <div>
                 <span>Forma de venta</span>
