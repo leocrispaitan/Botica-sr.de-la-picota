@@ -406,7 +406,14 @@ export default function PuntoVenta() {
     }
 
     if (activeView === "orders") {
-      return <OrdenActual cartItems={cartItems} onUpdateQuantity={updateCartQuantity} />;
+      return (
+        <OrdenActual
+          cartItems={cartItems}
+          onUpdateQuantity={updateCartQuantity}
+          onRemoveItem={removeCartItem}
+          onCheckout={() => setActiveView("menu")}
+        />
+      );
     }
 
     if (loading) {
@@ -481,6 +488,15 @@ export default function PuntoVenta() {
 
         .seller-pos-shell.is-sidebar-collapsed {
           grid-template-columns: 106px minmax(0, 1fr) 360px;
+        }
+
+        /* Sin panel de cobro (vistas orden/historial/clientes/perfil): el contenido ocupa todo el ancho */
+        .seller-pos-shell.no-bill {
+          grid-template-columns: 268px minmax(0, 1fr);
+        }
+
+        .seller-pos-shell.no-bill.is-sidebar-collapsed {
+          grid-template-columns: 106px minmax(0, 1fr);
         }
 
         .seller-sidebar {
@@ -2099,7 +2115,7 @@ export default function PuntoVenta() {
       `}</style>
 
       <div
-        className={`seller-pos-shell ${mobileMenuOpen ? "is-nav-open" : ""} ${sidebarCollapsed ? "is-sidebar-collapsed" : ""}`}
+        className={`seller-pos-shell ${mobileMenuOpen ? "is-nav-open" : ""} ${sidebarCollapsed ? "is-sidebar-collapsed" : ""} ${activeView !== "menu" ? "no-bill" : ""}`}
       >
         <aside className="seller-sidebar">
           <div>
@@ -2208,6 +2224,7 @@ export default function PuntoVenta() {
           <main className="seller-content">{renderWorkspace()}</main>
         </section>
 
+        {activeView === "menu" && (
         <aside className="seller-bill">
           <div className="seller-bill-header">
             <h2>Detalle de venta</h2>
@@ -2461,6 +2478,7 @@ export default function PuntoVenta() {
             {processing ? "Procesando..." : "Procesar venta"}
           </button>
         </aside>
+        )}
       </div>
 
       {comprobante && (
