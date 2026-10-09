@@ -30,6 +30,7 @@ import Clientes from "./Clientes";
 import PerfilVendedor from "./PerfilVendedor";
 import usePosCatalog from "./usePosCatalog";
 import "./viewTransitions.css";
+import "./inka-theme.css";
 import ComprobanteModal, { type ComprobanteData } from "./ComprobanteModal";
 import ventasService, { type Venta } from "../../services/ventasService";
 import { useMetodosPagoQuery } from "../../hooks/useAdminQueries";

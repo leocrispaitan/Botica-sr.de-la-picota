@@ -1,0 +1,139 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Poppins:wght@600;700;800&display=swap');
+
+/* Inkafarma Ultra theme para POS vendedor — solo visual, sin lógica */
+.seller-pos-page {
+  --inka: #17A15B;
+  --inka-dark: #0E7A44;
+  --inka-light: #E6F6EC;
+  --inka-yellow: #FFD400;
+  --bg-soft: #F4F5F8;
+  --navy: #243455;
+  --red: #E30613;
+  font-family: 'Inter', 'Poppins', system-ui, sans-serif !important;
+  background: #fff !important;
+  color: var(--navy) !important;
+}
+
+/* Workspace claro estilo Inka */
+.seller-pos-page .seller-pos-shell,
+.seller-pos-page .seller-workspace,
+.seller-pos-page .seller-content,
+.seller-pos-page .seller-topbar {
+  background: var(--bg-soft) !important;
+}
+.seller-pos-page .seller-topbar {
+  border-bottom: 1px solid #EEF2F6 !important;
+}
+
+/* Sidebar oscuro -> blanco estilo Inkafarma header */
+.seller-pos-page .seller-sidebar {
+  background: #ffffff !important;
+  border: 1px solid #EEF2F6 !important;
+  box-shadow: 0 2px 16px rgba(0,0,0,.06) !important;
+}
+.seller-pos-page .seller-brand { color: var(--inka) !important; }
+.seller-pos-page .seller-brand-mark {
+  background: var(--inka) !important;
+  box-shadow: 0 8px 20px rgba(23,161,91,.3) !important;
+  border-radius: 50% !important;
+}
+
+/* Nav: gris -> verde Inka activo */
+.seller-pos-page .seller-nav-button,
+.seller-pos-page .seller-sidebar-footer .seller-nav-button {
+  color: #475569 !important;
+}
+.seller-pos-page .seller-nav-button:hover,
+.seller-pos-page .seller-sidebar-footer .seller-nav-button:hover,
+.seller-pos-page .seller-logout-button:hover {
+  color: var(--inka) !important;
+  background: var(--inka-light) !important;
+  transform: translateX(4px);
+}
+.seller-pos-page .seller-nav-button.is-active {
+  color: var(--inka-dark) !important;
+  background: var(--inka-light) !important;
+  box-shadow: inset 0 0 0 1px rgba(23,161,91,.25), 0 2px 8px rgba(23,161,91,.15) !important;
+}
+.seller-pos-page .seller-nav-button.is-active::before {
+  background: linear-gradient(180deg, var(--inka), var(--inka-dark)) !important;
+  box-shadow: 0 2px 8px rgba(23,161,91,.5) !important;
+}
+.seller-pos-page .seller-nav-button:focus-visible,
+.seller-pos-page .seller-logout-button:focus-visible {
+  outline: 2px solid rgba(23,161,91,.4) !important;
+}
+.seller-pos-page .seller-sidebar-footer { border-top: 1px solid #EEF2F6 !important; }
+
+/* Shift card */
+.seller-pos-page .seller-shift-card {
+  border: 1px solid rgba(23,161,91,.25) !important;
+  background: var(--inka-light) !important;
+}
+.seller-pos-page .seller-shift-card:hover {
+  border-color: rgba(23,161,91,.4) !important;
+  box-shadow: 0 4px 12px rgba(23,161,91,.2) !important;
+}
+.seller-pos-page .seller-shift-card span { color: #64748B !important; }
+.seller-pos-page .seller-shift-card strong { color: var(--inka-dark) !important; }
+
+/* Search pill estilo Inka */
+.seller-pos-page .seller-search {
+  background: var(--bg-soft) !important;
+  border: 1px solid transparent !important;
+  border-radius: 999px !important;
+  height: 48px !important;
+}
+.seller-pos-page .seller-search:focus-within { border-color: var(--inka) !important; background: #fff !important; }
+.seller-pos-page .seller-sidebar-toggle:hover,
+.seller-pos-page .seller-bell:hover {
+  background: var(--inka-light) !important;
+  color: var(--inka-dark) !important;
+}
+
+/* Eyebrow + categorías + cards */
+.seller-pos-page .seller-eyebrow { color: var(--inka) !important; }
+.seller-pos-page .seller-category:hover,
+.seller-pos-page .seller-category.is-active {
+  color: var(--inka-dark) !important;
+  border-color: var(--inka) !important;
+  background: linear-gradient(180deg, rgba(23,161,91,.12), #fff 70%) !important;
+}
+.seller-pos-page .seller-category.is-active svg,
+.seller-pos-page .seller-expand-icon:hover,
+.seller-pos-page .seller-expand-icon.is-open,
+.seller-pos-page .seller-select-button:hover,
+.seller-pos-page .seller-option-row button:hover,
+.seller-pos-page .seller-option-row button.is-active {
+  color: var(--inka-dark) !important;
+}
+.seller-pos-page .seller-option-row button:hover,
+.seller-pos-page .seller-option-row button.is-active {
+  background: rgba(23,161,91,.11) !important;
+  box-shadow: inset 0 0 0 1px var(--inka) !important;
+}
+.seller-pos-page .seller-product-top strong { color: var(--inka) !important; }
+.seller-pos-page .seller-amount button:last-child,
+.seller-pos-page .seller-add-button {
+  background: linear-gradient(135deg, var(--inka), var(--inka-dark)) !important;
+  box-shadow: 0 10px 22px rgba(23,161,91,.25) !important;
+}
+.seller-pos-page .seller-add-button:hover { box-shadow: 0 14px 28px rgba(23,161,91,.32) !important; }
+.seller-pos-page .seller-panel-state button { background: var(--inka) !important; }
+.seller-pos-page .seller-panel-state button:hover { background: var(--inka-dark) !important; }
+
+/* Bill / orden */
+.seller-pos-page .seller-bill { background: #fff !important; border-left: 1px solid #EEF2F6 !important; }
+.seller-pos-page .seller-mini-btn { border-color: var(--inka) !important; color: var(--inka-dark) !important; }
+.seller-pos-page .seller-mini-btn:hover:not(:disabled) { background: var(--inka-light) !important; }
+.seller-pos-page .seller-client-chip { border-color: #B9E6C9 !important; background: var(--inka-light) !important; }
+.seller-pos-page .seller-client-chip span { color: var(--inka-dark) !important; }
+
+/* v2-order (OrdenActual) */
+.seller-pos-page .v2-head-eyebrow { color: var(--inka) !important; }
+.seller-pos-page .v2-order-badge { background: var(--inka-light) !important; color: var(--inka-dark) !important; border-color: #B9E6C9 !important; }
+.seller-pos-page .v2-summary-grand strong { color: var(--inka-dark) !important; }
+.seller-pos-page .v2-primary-btn { background: var(--inka) !important; }
+.seller-pos-page .v2-primary-btn:hover { background: var(--inka-dark) !important; }
+.seller-pos-page .v2-secondary-btn { border-color: var(--inka) !important; color: var(--inka-dark) !important; }
+.seller-pos-page .v2-secondary-btn:hover { background: var(--inka-light) !important; }
