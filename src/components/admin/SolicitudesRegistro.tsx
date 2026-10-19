@@ -1,11 +1,13 @@
 import { useState } from "react";
-import { 
-  X, 
-  Check, 
-  Clock, 
-  Mail, 
-  Phone, 
-  MapPin, 
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import toast, { Toaster } from "react-hot-toast";
+import {
+  X,
+  Check,
+  Clock,
+  Mail,
+  Phone,
+  MapPin,
   Calendar,
   User,
   Shield,
@@ -16,95 +18,14 @@ import {
   Filter,
   ChevronDown,
   FileText,
-  Building2
+  Building2,
+  RefreshCw,
+  Copy,
+  AlertTriangle,
 } from "lucide-react";
-
-interface RegistrationRequest {
-  id: string;
-  nombre_completo: string;
-  email: string;
-  telefono: string;
-  dni: string;
-  fecha_nacimiento: string;
-  direccion: string;
-  rol_solicitado: string;
-  fecha_solicitud: string;
-  estado: 'pendiente' | 'aprobado' | 'rechazado';
-  foto_perfil_url?: string;
-  notas?: string;
-}
-
-// Datos mock
-const mockRequests: RegistrationRequest[] = [
-  {
-    id: "req-001",
-    nombre_completo: "Carlos Mendoza García",
-    email: "carlos.mendoza@email.com",
-    telefono: "+51 987 654 321",
-    dni: "72345678",
-    fecha_nacimiento: "1990-05-15",
-    direccion: "Av. Los Rosales 456, Lima",
-    rol_solicitado: "VENDEDOR",
-    fecha_solicitud: "2024-01-15T10:30:00",
-    estado: "pendiente",
-    foto_perfil_url: "https://i.pravatar.cc/150?img=12",
-    notas: "Experiencia previa en ventas farmacéuticas"
-  },
-  {
-    id: "req-002",
-    nombre_completo: "María Elena Soto Vargas",
-    email: "maria.soto@email.com",
-    telefono: "+51 965 432 198",
-    dni: "65432198",
-    fecha_nacimiento: "1988-08-22",
-    direccion: "Jr. Las Palmeras 234, San Isidro",
-    rol_solicitado: "ALMACENERO",
-    fecha_solicitud: "2024-01-14T14:20:00",
-    estado: "pendiente",
-    foto_perfil_url: "https://i.pravatar.cc/150?img=45",
-    notas: "Certificación en gestión de inventarios"
-  },
-  {
-    id: "req-003",
-    nombre_completo: "Jorge Luis Ramírez Pérez",
-    email: "jorge.ramirez@email.com",
-    telefono: "+51 912 345 678",
-    dni: "45678912",
-    fecha_nacimiento: "1992-03-10",
-    direccion: "Calle Los Eucaliptos 789, Miraflores",
-    rol_solicitado: "VENDEDOR",
-    fecha_solicitud: "2024-01-13T09:15:00",
-    estado: "pendiente",
-    foto_perfil_url: "https://i.pravatar.cc/150?img=33",
-  },
-  {
-    id: "req-004",
-    nombre_completo: "Ana Patricia Torres Silva",
-    email: "ana.torres@email.com",
-    telefono: "+51 998 765 432",
-    dni: "87654321",
-    fecha_nacimiento: "1995-11-28",
-    direccion: "Av. Principal 123, Surco",
-    rol_solicitado: "ADMINISTRATIVO",
-    fecha_solicitud: "2024-01-12T16:45:00",
-    estado: "pendiente",
-    foto_perfil_url: "https://i.pravatar.cc/150?img=28",
-    notas: "Estudios en administración de empresas"
-  },
-  {
-    id: "req-005",
-    nombre_completo: "Roberto Castillo Méndez",
-    email: "roberto.castillo@email.com",
-    telefono: "+51 923 456 789",
-    dni: "34567890",
-    fecha_nacimiento: "1987-07-05",
-    direccion: "Jr. Los Girasoles 567, Barranco",
-    rol_solicitado: "ALMACENERO",
-    fecha_solicitud: "2024-01-11T11:30:00",
-    estado: "pendiente",
-    foto_perfil_url: "https://i.pravatar.cc/150?img=51",
-  },
-];
+import { useSolicitudesQuery } from "../../hooks/useAdminQueries";
+import { queryKeys } from "../../lib/queryKeys";
+import { solicitudesService, type SolicitudRegistro, type EstadoSolicitud } from "../../services/solicitudesService";
 
 function getTheme(isDark: boolean) {
   if (isDark) {
@@ -144,45 +65,99 @@ function getTheme(isDark: boolean) {
 }
 
 export default function SolicitudesRegistro({ isDark }: { isDark: boolean }) {
-  const [requests, setRequests] = useState<RegistrationRequest[]>(mockRequests);
-  const [selectedRequest, setSelectedRequest] = useState<RegistrationRequest | null>(null);
-  const [filterStatus, setFilterStatus] = useState<'all' | 'pendiente' | 'aprobado' | 'rechazado'>('all');
+  const t = getTheme(isDark);
+  const queryClient = useQueryClient();
+
+  // ═══ Datos reales (TanStack Query, caché 5 min) ═══
+  const {
+    data: solicitudes = [],
+    isLoading,
+    error: loadError,
+    refetch,
+  } = useSolicitudesQuery();
+
+  const [selectedRequest, setSelectedRequest] = useState<SolicitudRegistro | null>(null);
+  const [filterStatus, setFilterStatus] = useState<'all' | EstadoSolicitud>('all');
   const [searchTerm, setSearchTerm] = useState("");
   const [showFilterMenu, setShowFilterMenu] = useState(false);
-  const [processingId, setProcessingId] = useState<string | null>(null);
 
-  const t = getTheme(isDark);
+  // Credenciales temporales entregadas al aprobar una solicitud
+  const [credenciales, setCredenciales] = useState<{ nombre: string; email: string; password: string } | null>(null);
 
-  // Función para aprobar solicitud
-  const handleApprove = (id: string) => {
-    setProcessingId(id);
-    setTimeout(() => {
-      setRequests(prev => prev.map(req => 
-        req.id === id ? { ...req, estado: 'aprobado' as const } : req
-      ));
-      setProcessingId(null);
-      if (selectedRequest?.id === id) {
-        setSelectedRequest(prev => prev ? { ...prev, estado: 'aprobado' as const } : null);
-      }
-    }, 800);
+  const errMsg =
+    (loadError as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+    "No se pudieron cargar las solicitudes.";
+
+  const invalidate = () => {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.solicitudes.all });
   };
 
-  // Función para rechazar solicitud
-  const handleReject = (id: string) => {
-    setProcessingId(id);
-    setTimeout(() => {
-      setRequests(prev => prev.map(req => 
-        req.id === id ? { ...req, estado: 'rechazado' as const } : req
-      ));
-      setProcessingId(null);
-      if (selectedRequest?.id === id) {
-        setSelectedRequest(prev => prev ? { ...prev, estado: 'rechazado' as const } : null);
-      }
-    }, 800);
+  // ═══ Mutación: aprobar (crea el usuario real) ═══
+  const aprobarMutation = useMutation({
+    mutationFn: (id: number) => solicitudesService.aprobarSolicitud(id),
+    onSuccess: (data) => {
+      toast.success(data.solicitud.estado === 'APROBADA' ? "Solicitud aprobada" : "Aprobada", {
+        icon: "✅",
+        style: { background: t.cardBg, color: t.textPrimary, border: `1px solid ${t.border}` },
+      });
+      setCredenciales({
+        nombre: data.usuario.nombre_completo,
+        email: data.usuario.email,
+        password: data.password_temporal,
+      });
+      invalidate();
+      setSelectedRequest(null);
+    },
+    onError: (err: unknown) => {
+      const msg =
+        (err as { response?: { data?: { message?: string } } }).response?.data?.message ??
+        "No se pudo aprobar la solicitud.";
+      toast.error(msg, {
+        style: { background: t.cardBg, color: t.textPrimary, border: `1px solid ${t.border}` },
+      });
+    },
+  });
+
+  // ═══ Mutación: rechazar ═══
+  const rechazarMutation = useMutation({
+    mutationFn: (id: number) => solicitudesService.rechazarSolicitud(id),
+    onSuccess: () => {
+      toast.success("Solicitud rechazada", {
+        icon: "🚫",
+        style: { background: t.cardBg, color: t.textPrimary, border: `1px solid ${t.border}` },
+      });
+      invalidate();
+      setSelectedRequest(null);
+    },
+    onError: (err: unknown) => {
+      const msg =
+        (err as { response?: { data?: { message?: string } } }).response?.data?.message ??
+        "No se pudo rechazar la solicitud.";
+      toast.error(msg, {
+        style: { background: t.cardBg, color: t.textPrimary, border: `1px solid ${t.border}` },
+      });
+    },
+  });
+
+  const isProcessing = aprobarMutation.isPending || rechazarMutation.isPending;
+
+  // Copiar contraseña al portapapeles
+  const handleCopyPassword = async () => {
+    if (!credenciales) return;
+    try {
+      await navigator.clipboard.writeText(credenciales.password);
+      toast.success("Contraseña copiada al portapapeles", {
+        style: { background: t.cardBg, color: t.textPrimary, border: `1px solid ${t.border}` },
+      });
+    } catch {
+      toast.error("No se pudo copiar la contraseña", {
+        style: { background: t.cardBg, color: t.textPrimary, border: `1px solid ${t.border}` },
+      });
+    }
   };
 
   // Filtrar solicitudes
-  const filteredRequests = requests.filter(req => {
+  const filteredRequests = solicitudes.filter(req => {
     const matchesStatus = filterStatus === 'all' || req.estado === filterStatus;
     const matchesSearch = req.nombre_completo.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          req.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -192,10 +167,10 @@ export default function SolicitudesRegistro({ isDark }: { isDark: boolean }) {
 
   // Contar por estado
   const counts = {
-    all: requests.length,
-    pendiente: requests.filter(r => r.estado === 'pendiente').length,
-    aprobado: requests.filter(r => r.estado === 'aprobado').length,
-    rechazado: requests.filter(r => r.estado === 'rechazado').length,
+    all: solicitudes.length,
+    pendiente: solicitudes.filter(r => r.estado === 'PENDIENTE').length,
+    aprobada: solicitudes.filter(r => r.estado === 'APROBADA').length,
+    rechazada: solicitudes.filter(r => r.estado === 'RECHAZADA').length,
   };
 
   const getRoleColor = (role: string) => {
@@ -227,9 +202,13 @@ export default function SolicitudesRegistro({ isDark }: { isDark: boolean }) {
     }
   };
 
+  const getRoleName = (req: SolicitudRegistro) =>
+    req.rol?.nombre_rol ||
+    ({ 1: 'ADMINISTRATIVO', 2: 'VENDEDOR', 3: 'ALMACENERO' }[req.id_rol] || 'USUARIO');
+
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'pendiente':
+      case 'PENDIENTE':
         return {
           icon: Clock,
           text: 'Pendiente',
@@ -237,7 +216,7 @@ export default function SolicitudesRegistro({ isDark }: { isDark: boolean }) {
           color: '#fbbf24',
           border: isDark ? 'rgba(251, 191, 36, 0.3)' : 'rgba(251, 191, 36, 0.25)',
         };
-      case 'aprobado':
+      case 'APROBADA':
         return {
           icon: CheckCircle,
           text: 'Aprobado',
@@ -245,7 +224,7 @@ export default function SolicitudesRegistro({ isDark }: { isDark: boolean }) {
           color: '#4ade80',
           border: isDark ? 'rgba(34, 197, 94, 0.3)' : 'rgba(34, 197, 94, 0.25)',
         };
-      case 'rechazado':
+      case 'RECHAZADA':
         return {
           icon: XCircle,
           text: 'Rechazado',
@@ -266,9 +245,9 @@ export default function SolicitudesRegistro({ isDark }: { isDark: boolean }) {
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('es-PE', { 
-      day: '2-digit', 
-      month: 'short', 
+    return date.toLocaleDateString('es-PE', {
+      day: '2-digit',
+      month: 'short',
       year: 'numeric',
       hour: '2-digit',
       minute: '2-digit'
@@ -277,6 +256,15 @@ export default function SolicitudesRegistro({ isDark }: { isDark: boolean }) {
 
   return (
     <div className="p-6 space-y-6" style={{ background: t.mainBg, minHeight: '100vh' }}>
+      <Toaster
+        position="top-right"
+        gutter={8}
+        toastOptions={{
+          duration: 4500,
+          style: { borderRadius: 12, fontFamily: "'Cairo', sans-serif" },
+        }}
+      />
+
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
         <div>
@@ -290,10 +278,25 @@ export default function SolicitudesRegistro({ isDark }: { isDark: boolean }) {
 
         {/* Stats Pills */}
         <div className="flex items-center gap-2 flex-wrap">
-          <div 
+          <button
+            onClick={() => void refetch()}
+            disabled={isLoading}
+            title="Actualizar solicitudes"
+            className="px-3 py-2 rounded-xl border transition-all"
+            style={{
+              background: t.cardBg,
+              borderColor: t.borderCard,
+              color: t.textSecondary,
+              cursor: isLoading ? 'not-allowed' : 'pointer',
+              opacity: isLoading ? 0.6 : 1,
+            }}
+          >
+            <RefreshCw size={16} className={isLoading ? "animate-spin" : ""} />
+          </button>
+          <div
             className="px-4 py-2 rounded-xl border"
-            style={{ 
-              background: t.cardBg, 
+            style={{
+              background: t.cardBg,
               borderColor: t.borderCard,
               display: 'flex',
               alignItems: 'center',
@@ -306,10 +309,10 @@ export default function SolicitudesRegistro({ isDark }: { isDark: boolean }) {
             </span>
             <span style={{ color: t.textSecondary, fontSize: '12px' }}>Pendientes</span>
           </div>
-          <div 
+          <div
             className="px-4 py-2 rounded-xl border"
-            style={{ 
-              background: t.cardBg, 
+            style={{
+              background: t.cardBg,
               borderColor: t.borderCard,
               display: 'flex',
               alignItems: 'center',
@@ -318,15 +321,31 @@ export default function SolicitudesRegistro({ isDark }: { isDark: boolean }) {
           >
             <CheckCircle size={16} style={{ color: '#4ade80' }} />
             <span style={{ color: t.textPrimary, fontSize: '14px', fontWeight: 600 }}>
-              {counts.aprobado}
+              {counts.aprobada}
             </span>
             <span style={{ color: t.textSecondary, fontSize: '12px' }}>Aprobados</span>
+          </div>
+          <div
+            className="px-4 py-2 rounded-xl border"
+            style={{
+              background: t.cardBg,
+              borderColor: t.borderCard,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}
+          >
+            <XCircle size={16} style={{ color: '#ef4444' }} />
+            <span style={{ color: t.textPrimary, fontSize: '14px', fontWeight: 600 }}>
+              {counts.rechazada}
+            </span>
+            <span style={{ color: t.textSecondary, fontSize: '12px' }}>Rechazados</span>
           </div>
         </div>
       </div>
 
       {/* Filters Bar */}
-      <div 
+      <div
         className="rounded-[20px] p-4 border flex flex-col md:flex-row gap-3"
         style={{ background: t.cardBg, borderColor: t.borderCard }}
       >
@@ -344,10 +363,10 @@ export default function SolicitudesRegistro({ isDark }: { isDark: boolean }) {
               border: `1px solid ${t.borderInput}`,
             }}
           />
-          <Search 
-            className="absolute left-3 top-1/2 -translate-y-1/2" 
-            size={18} 
-            style={{ color: t.textSecondary }} 
+          <Search
+            className="absolute left-3 top-1/2 -translate-y-1/2"
+            size={18}
+            style={{ color: t.textSecondary }}
           />
         </div>
 
@@ -364,9 +383,9 @@ export default function SolicitudesRegistro({ isDark }: { isDark: boolean }) {
           >
             <Filter size={16} />
             <span>
-              {filterStatus === 'all' ? 'Todos' : 
-               filterStatus === 'pendiente' ? 'Pendientes' :
-               filterStatus === 'aprobado' ? 'Aprobados' : 'Rechazados'}
+              {filterStatus === 'all' ? 'Todos' :
+               filterStatus === 'PENDIENTE' ? 'Pendientes' :
+               filterStatus === 'APROBADA' ? 'Aprobados' : 'Rechazados'}
             </span>
             <ChevronDown size={16} />
           </button>
@@ -376,7 +395,7 @@ export default function SolicitudesRegistro({ isDark }: { isDark: boolean }) {
               className="absolute right-0 mt-2 w-48 rounded-xl border shadow-lg overflow-hidden z-50"
               style={{ background: t.cardBg, borderColor: t.borderCard }}
             >
-              {(['all', 'pendiente', 'aprobado', 'rechazado'] as const).map((status) => (
+              {(['all', 'PENDIENTE', 'APROBADA', 'RECHAZADA'] as const).map((status) => (
                 <button
                   key={status}
                   onClick={() => {
@@ -391,13 +410,13 @@ export default function SolicitudesRegistro({ isDark }: { isDark: boolean }) {
                 >
                   <span>
                     {status === 'all' ? 'Todos' :
-                     status === 'pendiente' ? 'Pendientes' :
-                     status === 'aprobado' ? 'Aprobados' : 'Rechazados'}
+                     status === 'PENDIENTE' ? 'Pendientes' :
+                     status === 'APROBADA' ? 'Aprobados' : 'Rechazados'}
                   </span>
                   <span style={{ color: t.textSecondary }}>
                     {status === 'all' ? counts.all :
-                     status === 'pendiente' ? counts.pendiente :
-                     status === 'aprobado' ? counts.aprobado : counts.rechazado}
+                     status === 'PENDIENTE' ? counts.pendiente :
+                     status === 'APROBADA' ? counts.aprobada : counts.rechazada}
                   </span>
                 </button>
               ))}
@@ -406,178 +425,245 @@ export default function SolicitudesRegistro({ isDark }: { isDark: boolean }) {
         </div>
       </div>
 
-      {/* Requests Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-        {filteredRequests.map((request) => {
-          const statusBadge = getStatusBadge(request.estado);
-          const StatusIcon = statusBadge.icon;
-          const roleColor = getRoleColor(request.rol_solicitado);
-          const isProcessing = processingId === request.id;
-
-          return (
+      {/* ─── Cargando ─── */}
+      {isLoading && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+          {[0, 1, 2, 3, 4, 5].map((i) => (
             <div
-              key={request.id}
-              className="rounded-[20px] border overflow-hidden transition-all duration-300 hover:shadow-lg"
-              style={{ 
-                background: t.cardBg, 
-                borderColor: t.borderCard,
-                cursor: 'pointer',
-              }}
-              onClick={() => setSelectedRequest(request)}
+              key={i}
+              className="rounded-[20px] border p-5"
+              style={{ background: t.cardBg, borderColor: t.borderCard }}
             >
-              {/* Header */}
-              <div 
-                className="p-4 border-b"
-                style={{ 
-                  background: t.innerBg,
-                  borderColor: t.border 
-                }}
-              >
-                <div className="flex items-start gap-3">
-                  <div className="relative">
-                    <img
-                      src={request.foto_perfil_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(request.nombre_completo)}&background=5bcfc5&color=fff`}
-                      alt={request.nombre_completo}
-                      className="w-14 h-14 rounded-xl object-cover"
-                      style={{ border: `2px solid ${t.border}` }}
-                    />
-                    <div
-                      className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-2 flex items-center justify-center"
-                      style={{ 
-                        background: statusBadge.color,
-                        borderColor: t.cardBg 
-                      }}
-                    >
-                      <StatusIcon size={12} color="#fff" />
-                    </div>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 
-                      className="font-semibold text-[15px] truncate"
-                      style={{ color: t.textPrimary }}
-                    >
-                      {request.nombre_completo}
-                    </h3>
-                    <p 
-                      className="text-[12px] truncate"
-                      style={{ color: t.textSecondary }}
-                    >
-                      {request.email}
-                    </p>
-                    <div className="mt-2">
-                      <span
-                        className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-md"
-                        style={{
-                          background: roleColor.bg,
-                          color: roleColor.text,
-                          border: `1px solid ${roleColor.border}`,
-                        }}
-                      >
-                        <Shield size={10} />
-                        {request.rol_solicitado}
-                      </span>
-                    </div>
-                  </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+                <div style={{ width: 56, height: 56, borderRadius: 12, background: t.innerBg, animation: 'solPulse 1.4s ease-in-out infinite' }} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ width: '60%', height: 12, borderRadius: 6, background: t.innerBg, marginBottom: 8, animation: 'solPulse 1.4s ease-in-out 0.15s infinite' }} />
+                  <div style={{ width: '80%', height: 10, borderRadius: 6, background: t.innerBg, animation: 'solPulse 1.4s ease-in-out 0.3s infinite' }} />
                 </div>
               </div>
-
-              {/* Body */}
-              <div className="p-4 space-y-3">
-                <div className="flex items-center gap-2 text-[13px]">
-                  <FileText size={14} style={{ color: t.textSecondary }} />
-                  <span style={{ color: t.textSecondary }}>DNI:</span>
-                  <span style={{ color: t.textPrimary, fontWeight: 600 }}>
-                    {request.dni}
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-2 text-[13px]">
-                  <Phone size={14} style={{ color: t.textSecondary }} />
-                  <span style={{ color: t.textPrimary }}>
-                    {request.telefono}
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-2 text-[13px]">
-                  <Calendar size={14} style={{ color: t.textSecondary }} />
-                  <span style={{ color: t.textSecondary }}>Solicitado:</span>
-                  <span style={{ color: t.textPrimary }}>
-                    {formatDate(request.fecha_solicitud)}
-                  </span>
-                </div>
-
-                {/* Status Badge */}
-                <div className="pt-2">
-                  <span
-                    className="inline-flex items-center gap-1.5 text-[11px] font-bold px-3 py-1.5 rounded-lg"
-                    style={{
-                      background: statusBadge.bg,
-                      color: statusBadge.color,
-                      border: `1px solid ${statusBadge.border}`,
-                    }}
-                  >
-                    <StatusIcon size={12} />
-                    {statusBadge.text}
-                  </span>
-                </div>
-              </div>
-
-              {/* Actions */}
-              {request.estado === 'pendiente' && (
-                <div 
-                  className="p-4 border-t flex gap-2"
-                  style={{ borderColor: t.border }}
-                >
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleReject(request.id);
-                    }}
-                    disabled={isProcessing}
-                    className="flex-1 py-2.5 rounded-xl font-semibold text-[13px] transition-all duration-300 flex items-center justify-center gap-2 border"
-                    style={{
-                      background: isDark ? 'rgba(239, 68, 68, 0.12)' : 'rgba(239, 68, 68, 0.08)',
-                      color: '#ef4444',
-                      borderColor: isDark ? 'rgba(239, 68, 68, 0.3)' : 'rgba(239, 68, 68, 0.25)',
-                      opacity: isProcessing ? 0.5 : 1,
-                      cursor: isProcessing ? 'not-allowed' : 'pointer',
-                    }}
-                  >
-                    <X size={16} />
-                    Rechazar
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleApprove(request.id);
-                    }}
-                    disabled={isProcessing}
-                    className="flex-1 py-2.5 rounded-xl font-semibold text-[13px] transition-all duration-300 flex items-center justify-center gap-2"
-                    style={{
-                      background: 'linear-gradient(135deg, #5bcfc5 0%, #4bc0b6 100%)',
-                      color: '#171622',
-                      boxShadow: '0 4px 12px rgba(91, 207, 197, 0.25)',
-                      opacity: isProcessing ? 0.5 : 1,
-                      cursor: isProcessing ? 'not-allowed' : 'pointer',
-                    }}
-                  >
-                    <Check size={16} />
-                    Aprobar
-                  </button>
-                </div>
-              )}
+              <div style={{ height: 12, borderRadius: 6, background: t.innerBg, marginBottom: 10, animation: 'solPulse 1.4s ease-in-out 0.45s infinite' }} />
+              <div style={{ width: '70%', height: 12, borderRadius: 6, background: t.innerBg, animation: 'solPulse 1.4s ease-in-out 0.6s infinite' }} />
             </div>
-          );
-        })}
-      </div>
+          ))}
+          <style>{`
+            @keyframes solPulse {
+              0%, 100% { opacity: 1; }
+              50% { opacity: 0.45; }
+            }
+          `}</style>
+        </div>
+      )}
 
-      {/* Empty State */}
-      {filteredRequests.length === 0 && (
-        <div 
+      {/* ─── Error ─── */}
+      {!isLoading && loadError && (
+        <div
           className="rounded-[20px] border p-12 text-center"
           style={{ background: t.cardBg, borderColor: t.borderCard }}
         >
-          <div 
+          <div
+            className="w-20 h-20 rounded-full mx-auto mb-4 flex items-center justify-center"
+            style={{ background: 'rgba(239, 68, 68, 0.12)' }}
+          >
+            <AlertTriangle size={32} style={{ color: '#ef4444' }} />
+          </div>
+          <h3 className="text-[18px] font-semibold mb-2" style={{ color: t.textPrimary }}>
+            No se pudieron cargar las solicitudes
+          </h3>
+          <p className="text-[14px] mb-5" style={{ color: t.textSecondary }}>
+            {errMsg}
+          </p>
+          <button
+            onClick={() => void refetch()}
+            className="px-5 py-2.5 rounded-xl font-semibold text-[13px]"
+            style={{
+              background: 'linear-gradient(135deg, #5bcfc5 0%, #4bc0b6 100%)',
+              color: '#171622',
+              cursor: 'pointer',
+            }}
+          >
+            Reintentar
+          </button>
+        </div>
+      )}
+
+      {/* Requests Grid */}
+      {!isLoading && !loadError && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+          {filteredRequests.map((request) => {
+            const statusBadge = getStatusBadge(request.estado);
+            const StatusIcon = statusBadge.icon;
+            const roleName = getRoleName(request);
+            const roleColor = getRoleColor(roleName);
+            const isProcessingThis =
+              (aprobarMutation.isPending || rechazarMutation.isPending) &&
+              (aprobarMutation.variables === request.id_solicitud || rechazarMutation.variables === request.id_solicitud);
+
+            return (
+              <div
+                key={request.id_solicitud}
+                className="rounded-[20px] border overflow-hidden transition-all duration-300 hover:shadow-lg"
+                style={{
+                  background: t.cardBg,
+                  borderColor: t.borderCard,
+                  cursor: 'pointer',
+                }}
+                onClick={() => setSelectedRequest(request)}
+              >
+                {/* Header */}
+                <div
+                  className="p-4 border-b"
+                  style={{
+                    background: t.innerBg,
+                    borderColor: t.border
+                  }}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="relative">
+                      <img
+                        src={`https://ui-avatars.com/api/?name=${encodeURIComponent(request.nombre_completo)}&background=5bcfc5&color=fff`}
+                        alt={request.nombre_completo}
+                        className="w-14 h-14 rounded-xl object-cover"
+                        style={{ border: `2px solid ${t.border}` }}
+                      />
+                      <div
+                        className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-2 flex items-center justify-center"
+                        style={{
+                          background: statusBadge.color,
+                          borderColor: t.cardBg
+                        }}
+                      >
+                        <StatusIcon size={12} color="#fff" />
+                      </div>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3
+                        className="font-semibold text-[15px] truncate"
+                        style={{ color: t.textPrimary }}
+                      >
+                        {request.nombre_completo}
+                      </h3>
+                      <p
+                        className="text-[12px] truncate"
+                        style={{ color: t.textSecondary }}
+                      >
+                        {request.email}
+                      </p>
+                      <div className="mt-2">
+                        <span
+                          className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-md"
+                          style={{
+                            background: roleColor.bg,
+                            color: roleColor.text,
+                            border: `1px solid ${roleColor.border}`,
+                          }}
+                        >
+                          <Shield size={10} />
+                          {roleName}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Body */}
+                <div className="p-4 space-y-3">
+                  <div className="flex items-center gap-2 text-[13px]">
+                    <FileText size={14} style={{ color: t.textSecondary }} />
+                    <span style={{ color: t.textSecondary }}>DNI:</span>
+                    <span style={{ color: t.textPrimary, fontWeight: 600 }}>
+                      {request.dni}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2 text-[13px]">
+                    <Phone size={14} style={{ color: t.textSecondary }} />
+                    <span style={{ color: t.textPrimary }}>
+                      {request.telefono || 'No proporcionado'}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2 text-[13px]">
+                    <Calendar size={14} style={{ color: t.textSecondary }} />
+                    <span style={{ color: t.textSecondary }}>Solicitado:</span>
+                    <span style={{ color: t.textPrimary }}>
+                      {formatDate(request.fecha_solicitud)}
+                    </span>
+                  </div>
+
+                  {/* Status Badge */}
+                  <div className="pt-2">
+                    <span
+                      className="inline-flex items-center gap-1.5 text-[11px] font-bold px-3 py-1.5 rounded-lg"
+                      style={{
+                        background: statusBadge.bg,
+                        color: statusBadge.color,
+                        border: `1px solid ${statusBadge.border}`,
+                      }}
+                    >
+                      <StatusIcon size={12} />
+                      {statusBadge.text}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                {request.estado === 'PENDIENTE' && (
+                  <div
+                    className="p-4 border-t flex gap-2"
+                    style={{ borderColor: t.border }}
+                  >
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (isProcessing) return;
+                        rechazarMutation.mutate(request.id_solicitud);
+                      }}
+                      disabled={isProcessing}
+                      className="flex-1 py-2.5 rounded-xl font-semibold text-[13px] transition-all duration-300 flex items-center justify-center gap-2 border"
+                      style={{
+                        background: isDark ? 'rgba(239, 68, 68, 0.12)' : 'rgba(239, 68, 68, 0.08)',
+                        color: '#ef4444',
+                        borderColor: isDark ? 'rgba(239, 68, 68, 0.3)' : 'rgba(239, 68, 68, 0.25)',
+                        opacity: isProcessing ? 0.5 : 1,
+                        cursor: isProcessing ? 'not-allowed' : 'pointer',
+                      }}
+                    >
+                      <X size={16} />
+                      Rechazar
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        aprobarMutation.mutate(request.id_solicitud);
+                      }}
+                      disabled={isProcessing}
+                      className="flex-1 py-2.5 rounded-xl font-semibold text-[13px] transition-all duration-300 flex items-center justify-center gap-2"
+                      style={{
+                        background: 'linear-gradient(135deg, #5bcfc5 0%, #4bc0b6 100%)',
+                        color: '#171622',
+                        boxShadow: '0 4px 12px rgba(91, 207, 197, 0.25)',
+                        opacity: isProcessing ? 0.5 : 1,
+                        cursor: isProcessing ? 'not-allowed' : 'pointer',
+                      }}
+                    >
+                      <Check size={16} />
+                      {isProcessingThis && aprobarMutation.isPending ? 'Aprobando…' : 'Aprobar'}
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Empty State */}
+      {!isLoading && !loadError && filteredRequests.length === 0 && (
+        <div
+          className="rounded-[20px] border p-12 text-center"
+          style={{ background: t.cardBg, borderColor: t.borderCard }}
+        >
+          <div
             className="w-20 h-20 rounded-full mx-auto mb-4 flex items-center justify-center"
             style={{ background: t.accentBg }}
           >
@@ -587,9 +673,9 @@ export default function SolicitudesRegistro({ isDark }: { isDark: boolean }) {
             No hay solicitudes
           </h3>
           <p className="text-[14px]" style={{ color: t.textSecondary }}>
-            {searchTerm || filterStatus !== 'all' 
+            {searchTerm || filterStatus !== 'all'
               ? 'No se encontraron solicitudes con los filtros aplicados'
-              : 'No hay solicitudes de registro pendientes en este momento'}
+              : 'No hay solicitudes de registro en este momento'}
           </p>
         </div>
       )}
@@ -606,16 +692,16 @@ export default function SolicitudesRegistro({ isDark }: { isDark: boolean }) {
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
-            <div 
+            <div
               className="p-6 border-b flex items-center justify-between"
-              style={{ 
+              style={{
                 background: t.innerBg,
-                borderColor: t.border 
+                borderColor: t.border
               }}
             >
               <div className="flex items-center gap-4">
                 <img
-                  src={selectedRequest.foto_perfil_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedRequest.nombre_completo)}&background=5bcfc5&color=fff`}
+                  src={`https://ui-avatars.com/api/?name=${encodeURIComponent(selectedRequest.nombre_completo)}&background=5bcfc5&color=fff`}
                   alt={selectedRequest.nombre_completo}
                   className="w-16 h-16 rounded-xl object-cover"
                   style={{ border: `2px solid ${t.border}` }}
@@ -632,9 +718,9 @@ export default function SolicitudesRegistro({ isDark }: { isDark: boolean }) {
               <button
                 onClick={() => setSelectedRequest(null)}
                 className="p-2 rounded-xl transition-colors"
-                style={{ 
+                style={{
                   background: t.inputBg,
-                  color: t.textSecondary 
+                  color: t.textSecondary
                 }}
               >
                 <X size={20} />
@@ -645,7 +731,7 @@ export default function SolicitudesRegistro({ isDark }: { isDark: boolean }) {
             <div className="p-6 space-y-6 max-h-[60vh] overflow-y-auto">
               {/* Info Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div 
+                <div
                   className="p-4 rounded-xl border"
                   style={{ background: t.innerBg, borderColor: t.border }}
                 >
@@ -660,7 +746,7 @@ export default function SolicitudesRegistro({ isDark }: { isDark: boolean }) {
                   </p>
                 </div>
 
-                <div 
+                <div
                   className="p-4 rounded-xl border"
                   style={{ background: t.innerBg, borderColor: t.border }}
                 >
@@ -671,11 +757,11 @@ export default function SolicitudesRegistro({ isDark }: { isDark: boolean }) {
                     </span>
                   </div>
                   <p className="text-[16px] font-semibold" style={{ color: t.textPrimary }}>
-                    {selectedRequest.telefono}
+                    {selectedRequest.telefono || '—'}
                   </p>
                 </div>
 
-                <div 
+                <div
                   className="p-4 rounded-xl border"
                   style={{ background: t.innerBg, borderColor: t.border }}
                 >
@@ -686,15 +772,17 @@ export default function SolicitudesRegistro({ isDark }: { isDark: boolean }) {
                     </span>
                   </div>
                   <p className="text-[16px] font-semibold" style={{ color: t.textPrimary }}>
-                    {new Date(selectedRequest.fecha_nacimiento).toLocaleDateString('es-PE', {
-                      day: '2-digit',
-                      month: 'long',
-                      year: 'numeric'
-                    })}
+                    {selectedRequest.fecha_nacimiento
+                      ? new Date(`${selectedRequest.fecha_nacimiento}T00:00:00`).toLocaleDateString('es-PE', {
+                          day: '2-digit',
+                          month: 'long',
+                          year: 'numeric'
+                        })
+                      : '—'}
                   </p>
                 </div>
 
-                <div 
+                <div
                   className="p-4 rounded-xl border"
                   style={{ background: t.innerBg, borderColor: t.border }}
                 >
@@ -707,19 +795,19 @@ export default function SolicitudesRegistro({ isDark }: { isDark: boolean }) {
                   <span
                     className="inline-flex items-center gap-1.5 text-[12px] font-bold px-3 py-1.5 rounded-lg"
                     style={{
-                      background: getRoleColor(selectedRequest.rol_solicitado).bg,
-                      color: getRoleColor(selectedRequest.rol_solicitado).text,
-                      border: `1px solid ${getRoleColor(selectedRequest.rol_solicitado).border}`,
+                      background: getRoleColor(getRoleName(selectedRequest)).bg,
+                      color: getRoleColor(getRoleName(selectedRequest)).text,
+                      border: `1px solid ${getRoleColor(getRoleName(selectedRequest)).border}`,
                     }}
                   >
                     <Building2 size={12} />
-                    {selectedRequest.rol_solicitado}
+                    {getRoleName(selectedRequest)}
                   </span>
                 </div>
               </div>
 
               {/* Address */}
-              <div 
+              <div
                 className="p-4 rounded-xl border"
                 style={{ background: t.innerBg, borderColor: t.border }}
               >
@@ -730,12 +818,12 @@ export default function SolicitudesRegistro({ isDark }: { isDark: boolean }) {
                   </span>
                 </div>
                 <p className="text-[15px]" style={{ color: t.textPrimary }}>
-                  {selectedRequest.direccion}
+                  {selectedRequest.direccion || '—'}
                 </p>
               </div>
 
               {/* Request Date */}
-              <div 
+              <div
                 className="p-4 rounded-xl border"
                 style={{ background: t.innerBg, borderColor: t.border }}
               >
@@ -752,7 +840,7 @@ export default function SolicitudesRegistro({ isDark }: { isDark: boolean }) {
 
               {/* Notes */}
               {selectedRequest.notas && (
-                <div 
+                <div
                   className="p-4 rounded-xl border"
                   style={{ background: t.innerBg, borderColor: t.border }}
                 >
@@ -769,7 +857,7 @@ export default function SolicitudesRegistro({ isDark }: { isDark: boolean }) {
               )}
 
               {/* Status */}
-              <div 
+              <div
                 className="p-4 rounded-xl border"
                 style={{ background: t.innerBg, borderColor: t.border }}
               >
@@ -797,50 +885,141 @@ export default function SolicitudesRegistro({ isDark }: { isDark: boolean }) {
             </div>
 
             {/* Modal Footer */}
-            {selectedRequest.estado === 'pendiente' && (
-              <div 
+            {selectedRequest.estado === 'PENDIENTE' && (
+              <div
                 className="p-6 border-t flex gap-3"
-                style={{ 
+                style={{
                   background: t.innerBg,
-                  borderColor: t.border 
+                  borderColor: t.border
                 }}
               >
                 <button
-                  onClick={() => {
-                    handleReject(selectedRequest.id);
-                  }}
-                  disabled={processingId === selectedRequest.id}
+                  onClick={() => rechazarMutation.mutate(selectedRequest.id_solicitud)}
+                  disabled={isProcessing}
                   className="flex-1 py-3 rounded-xl font-semibold text-[14px] transition-all duration-300 flex items-center justify-center gap-2 border"
                   style={{
                     background: isDark ? 'rgba(239, 68, 68, 0.12)' : 'rgba(239, 68, 68, 0.08)',
                     color: '#ef4444',
                     borderColor: isDark ? 'rgba(239, 68, 68, 0.3)' : 'rgba(239, 68, 68, 0.25)',
-                    opacity: processingId === selectedRequest.id ? 0.5 : 1,
-                    cursor: processingId === selectedRequest.id ? 'not-allowed' : 'pointer',
+                    opacity: isProcessing ? 0.5 : 1,
+                    cursor: isProcessing ? 'not-allowed' : 'pointer',
                   }}
                 >
                   <X size={18} />
                   Rechazar Solicitud
                 </button>
                 <button
-                  onClick={() => {
-                    handleApprove(selectedRequest.id);
-                  }}
-                  disabled={processingId === selectedRequest.id}
+                  onClick={() => aprobarMutation.mutate(selectedRequest.id_solicitud)}
+                  disabled={isProcessing}
                   className="flex-1 py-3 rounded-xl font-semibold text-[14px] transition-all duration-300 flex items-center justify-center gap-2"
                   style={{
                     background: 'linear-gradient(135deg, #5bcfc5 0%, #4bc0b6 100%)',
                     color: '#171622',
                     boxShadow: '0 4px 16px rgba(91, 207, 197, 0.3)',
-                    opacity: processingId === selectedRequest.id ? 0.5 : 1,
-                    cursor: processingId === selectedRequest.id ? 'not-allowed' : 'pointer',
+                    opacity: isProcessing ? 0.5 : 1,
+                    cursor: isProcessing ? 'not-allowed' : 'pointer',
                   }}
                 >
                   <Check size={18} />
-                  Aprobar Solicitud
+                  {aprobarMutation.isPending ? 'Aprobando…' : 'Aprobar Solicitud'}
                 </button>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ═══ Credenciales del usuario creado ═══ */}
+      {credenciales && (
+        <div
+          className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
+          onClick={() => setCredenciales(null)}
+        >
+          <div
+            className="max-w-md w-full rounded-[24px] border overflow-hidden shadow-2xl"
+            style={{ background: t.cardBg, borderColor: t.borderCard }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              className="p-6 border-b flex items-center gap-4"
+              style={{ background: t.innerBg, borderColor: t.border }}
+            >
+              <div
+                className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{ background: 'rgba(34, 197, 94, 0.12)' }}
+              >
+                <CheckCircle size={24} style={{ color: '#4ade80' }} />
+              </div>
+              <div>
+                <h2 className="text-[18px] font-bold" style={{ color: t.textPrimary }}>
+                  ¡Usuario creado exitosamente!
+                </h2>
+                <p className="text-[13px]" style={{ color: t.textSecondary }}>
+                  Entrega estas credenciales a {credenciales.nombre}
+                </p>
+              </div>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div
+                className="p-4 rounded-xl border"
+                style={{ background: t.innerBg, borderColor: t.border }}
+              >
+                <span className="text-[12px] font-semibold" style={{ color: t.textSecondary }}>
+                  Email (usuario de acceso)
+                </span>
+                <p className="text-[15px] font-semibold mt-1" style={{ color: t.textPrimary }}>
+                  {credenciales.email}
+                </p>
+              </div>
+
+              <div
+                className="p-4 rounded-xl border flex items-center justify-between gap-3"
+                style={{ background: t.innerBg, borderColor: t.border }}
+              >
+                <div className="min-w-0">
+                  <span className="text-[12px] font-semibold" style={{ color: t.textSecondary }}>
+                    Contraseña temporal
+                  </span>
+                  <p
+                    className="text-[18px] font-bold mt-1 select-all"
+                    style={{ color: t.accent, letterSpacing: '0.04em' }}
+                  >
+                    {credenciales.password}
+                  </p>
+                </div>
+                <button
+                  onClick={handleCopyPassword}
+                  title="Copiar contraseña"
+                  className="p-3 rounded-xl flex-shrink-0 transition-all"
+                  style={{
+                    background: 'linear-gradient(135deg, #5bcfc5 0%, #4bc0b6 100%)',
+                    color: '#171622',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <Copy size={18} />
+                </button>
+              </div>
+
+              <p className="text-[12px]" style={{ color: t.textMuted }}>
+                ⚠️ Esta contraseña solo se muestra una vez. Comparte de forma segura y
+                recomienda cambiarla al iniciar sesión. También puede gestionarla en
+                <span style={{ color: t.accent }}> Usuarios → editar</span>.
+              </p>
+
+              <button
+                onClick={() => setCredenciales(null)}
+                className="w-full py-3 rounded-xl font-semibold text-[14px]"
+                style={{
+                  background: 'linear-gradient(135deg, #5bcfc5 0%, #4bc0b6 100%)',
+                  color: '#171622',
+                  cursor: 'pointer',
+                }}
+              >
+                Entendido
+              </button>
+            </div>
           </div>
         </div>
       )}

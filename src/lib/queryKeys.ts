@@ -38,6 +38,9 @@ export const queryKeys = {
     inventario: ["reportes", "inventario"] as const,
     movimientos: ["reportes", "movimientos"] as const,
   },
+  solicitudes: {
+    all: ["solicitudes"] as const,
+  },
 } as const;
 
 export type QueryKeyTuple = readonly unknown[];

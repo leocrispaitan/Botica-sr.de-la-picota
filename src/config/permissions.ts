@@ -23,6 +23,7 @@ export const PERMISOS_POR_ROL: Record<RoleName, {
       'Reportes',
       'Usuarios',
       'Configuración',
+      'SolicitudesRegistro', // Gestión de solicitudes de registro (solo admin)
       'MiPerfil' // Acceso a su perfil personal
     ],
     submenuVisible: {

@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { usePermissions } from "../../hooks/usePermissions";
+import { useReporteInventarioQuery, useSolicitudesQuery } from "../../hooks/useAdminQueries";
 import UsersManagement from "./UsersManagement";
 import ProductsManagement from "./ProductsManagement";
 import CategoriesManagement from "./CategoriesManagement";
@@ -465,6 +466,27 @@ export default function Dashboard({ onLogout }: { onLogout?: () => void }) {
 
   const t = getTheme(isDark);
 
+  /* ─── Badges de notificación con datos reales ───
+   * - ✉️  Solicitudes de registro PENDIENTES (solo admin)
+   * - 🔔  Alertas operativas de inventario:
+   *         productos BAJO + CRÍTICO + AGOTADO (alertas_stock)
+   *       + lotes que vencen en 30 días (lotes_vencen_30)
+   *       + lotes vencidos (lotes_vencidos)
+   */
+  const { data: inventarioNotif } = useReporteInventarioQuery();
+  const { data: solicitudesNotif } = useSolicitudesQuery();
+
+  const solicitudesPendientes =
+    solicitudesNotif?.filter((s) => s.estado === "PENDIENTE").length ?? 0;
+
+  const alertasInventario = inventarioNotif
+    ? inventarioNotif.kpis.alertas_stock +
+      inventarioNotif.kpis.lotes_vencen_30 +
+      inventarioNotif.kpis.lotes_vencidos
+    : 0;
+
+  const badgeFmt = (n: number) => (n > 99 ? "99+" : String(n));
+
   const menuItems = [
     { 
       name: "Dashboard", 
@@ -532,8 +554,14 @@ export default function Dashboard({ onLogout }: { onLogout?: () => void }) {
       ]
     },
     // Menú especial - No se muestra en sidebar pero debe pasar validación de permisos
-    { 
-      name: "MiPerfil", 
+    {
+      name: "SolicitudesRegistro",
+      icon: Mail,
+      path: "SolicitudesRegistro",
+      hidden: true // Se accede desde el ícono ✉️ del header (solo admin)
+    },
+    {
+      name: "MiPerfil",
       icon: User,
       path: "MiPerfil",
       hidden: true // Marca para ocultar en el sidebar
@@ -2071,21 +2099,37 @@ export default function Dashboard({ onLogout }: { onLogout?: () => void }) {
               {/* ✨ Premium Theme Toggle — replaces Settings icon */}
               <ThemeToggle isDark={isDark} onToggle={() => setIsDark(!isDark)} />
 
-              <button 
-                onClick={() => setActiveMenu("SolicitudesRegistro")}
+              {isAdmin && (
+                <button
+                  onClick={() => setActiveMenu("SolicitudesRegistro")}
+                  title={
+                    solicitudesPendientes > 0
+                      ? `${solicitudesPendientes} solicitud(es) de registro pendiente(s)`
+                      : "Sin solicitudes de registro pendientes"
+                  }
+                  className="p-2.5 rounded-xl border transition-colors relative"
+                  style={{ color: t.textPrimary, background: t.innerBg, borderColor: t.borderSoft }}
+                >
+                  <Mail size={18} />
+                  {solicitudesPendientes > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-[#5bcfc5] text-[#171622] text-[10px] font-bold rounded-full min-w-4 size-4 px-0.5 flex items-center justify-center">
+                      {badgeFmt(solicitudesPendientes)}
+                    </span>
+                  )}
+                </button>
+              )}
+              <button
+                onClick={() => setActiveMenu("StockCritico")}
+                title={alertasInventario > 0 ? `${alertasInventario} alerta(s) de inventario` : "Sin alertas de inventario"}
                 className="p-2.5 rounded-xl border transition-colors relative" 
                 style={{ color: t.textPrimary, background: t.innerBg, borderColor: t.borderSoft }}
               >
-                <Mail size={18} />
-                <span className="absolute -top-1 -right-1 bg-[#5bcfc5] text-[#171622] text-[10px] font-bold rounded-full size-4 flex items-center justify-center">
-                  2
-                </span>
-              </button>
-              <button className="p-2.5 rounded-xl border transition-colors relative" style={{ color: t.textPrimary, background: t.innerBg, borderColor: t.borderSoft }}>
                 <Bell size={18} />
-                <span className="absolute -top-1 -right-1 bg-[#5bcfc5] text-[#171622] text-[10px] font-bold rounded-full size-4 flex items-center justify-center">
-                  5
-                </span>
+                {alertasInventario > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-[#5bcfc5] text-[#171622] text-[10px] font-bold rounded-full min-w-4 size-4 px-0.5 flex items-center justify-center">
+                    {badgeFmt(alertasInventario)}
+                  </span>
+                )}
               </button>
             </div>
 

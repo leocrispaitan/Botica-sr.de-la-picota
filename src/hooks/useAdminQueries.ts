@@ -10,6 +10,7 @@ import { metodosPagoService } from "../services/metodosPagoService";
 import { laboratoriosService } from "../services/laboratoriosService";
 import { purchasesService } from "../services/purchasesService";
 import { reportesService } from "../services/reportesService";
+import { solicitudesService } from "../services/solicitudesService";
 import { queryKeys } from "../lib/queryKeys";
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -176,5 +177,14 @@ export function useReporteMovimientosQuery(
     queryKey: [...queryKeys.reportes.movimientos, { desde, hasta }] as const,
     queryFn: () => reportesService.getReporteMovimientos(desde, hasta),
     ...options,
+  });
+}
+
+/* ─── Solicitudes de registro ────────────────────────────────────── */
+
+export function useSolicitudesQuery() {
+  return useQuery({
+    queryKey: queryKeys.solicitudes.all,
+    queryFn: () => solicitudesService.getAllSolicitudes(),
   });
 }
