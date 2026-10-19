@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import type { CSSProperties } from "react";
 import { History, ReceiptText, RefreshCw, Search } from "lucide-react";
 import { formatCurrency } from "./posData";
 import { useVentasTimelineQuery } from "../../hooks/useVendedorQueries";
@@ -141,11 +142,10 @@ export default function HistorialVentas() {
           padding: 13px 16px; border: 1px solid #E5E7EB; border-radius: 14px;
           background: #fff; cursor: pointer; text-align: left; font: inherit;
           box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
-          opacity: 0; animation: v2-tl-in 0.35s ease forwards;
+          transition: opacity 0.25s ease-out var(--row-delay, 0ms), transform 0.25s cubic-bezier(0.16, 1, 0.3, 1) var(--row-delay, 0ms), border-color 0.15s ease-out 0ms, box-shadow 0.2s ease-out 0ms;
         }
-        @keyframes v2-tl-in {
-          from { opacity: 0; transform: translateY(10px); }
-          to { opacity: 1; transform: translateY(0); }
+        @starting-style {
+          .v2-sale-row { opacity: 0; transform: translateY(10px); }
         }
         .v2-sale-row:hover { border-color: #0E9F6E; }
         .v2-sale-id { margin: 0; font-size: 15px; font-weight: 800; color: #0F172A; }
@@ -169,7 +169,7 @@ export default function HistorialVentas() {
         }
         @media (max-width: 640px) { .v2-stats { grid-template-columns: 1fr; } }
         @media (prefers-reduced-motion: reduce) {
-          .v2-sale-row { opacity: 1; animation: none; }
+          .v2-sale-row { transition: none; }
         }
       `}</style>
 
@@ -242,7 +242,7 @@ export default function HistorialVentas() {
                   <button
                     type="button"
                     className="v2-sale-row"
-                    style={{ animationDelay: `${Math.min(i, 10) * 45}ms` }}
+                    style={{ "--row-delay": `${Math.min(i, 10) * 45}ms` } as CSSProperties}
                     onClick={() => setDetalleId(sale.id_venta)}
                   >
                     <div>

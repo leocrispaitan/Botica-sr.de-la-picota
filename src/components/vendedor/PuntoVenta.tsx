@@ -32,6 +32,7 @@ import usePosCatalog from "./usePosCatalog";
 import "./viewTransitions.css";
 import "./inka-theme.css";
 import ComprobanteModal, { type ComprobanteData } from "./ComprobanteModal";
+import LogoutConfirmModal from "./LogoutConfirmModal";
 import ventasService, { type Venta } from "../../services/ventasService";
 import { useMetodosPagoQuery } from "../../hooks/useAdminQueries";
 import { useClientesSearchQuery, useInvalidarTrasVenta } from "../../hooks/useVendedorQueries";
@@ -81,6 +82,8 @@ export default function PuntoVenta() {
   const [dniError, setDniError] = useState<string | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [logoutOpen, setLogoutOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   const cartExigeReceta = cartItems.some((item) => item.product.requiresPrescription);
   const dniValidado = dniNombre.trim().length > 0 && /^\d{8}$/.test(dni);
@@ -379,7 +382,14 @@ export default function PuntoVenta() {
   };
 
   const handleLogout = async () => {
-    await logout();
+    if (loggingOut) return;
+    setLoggingOut(true);
+    try {
+      await logout();
+    } finally {
+      setLoggingOut(false);
+      setLogoutOpen(false);
+    }
   };
 
   const navItems: Array<{ id: SellerView; label: string; icon: LucideIcon; badge?: string }> = [
@@ -519,7 +529,7 @@ export default function PuntoVenta() {
             0 0 0 1px rgba(0, 0, 0, 0.2),
             0 8px 16px rgba(0, 0, 0, 0.15),
             0 16px 48px rgba(0, 0, 0, 0.25);
-          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), padding 0.3s ease-out, margin 0.3s ease-out, border-radius 0.3s ease-out, box-shadow 0.3s ease-out, background-color 0.3s ease-out;
           z-index: 100;
           position: relative;
         }
@@ -581,7 +591,7 @@ export default function PuntoVenta() {
           font-size: 15px;
           font-weight: 700;
           cursor: pointer;
-          transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+          transition: color 0.25s ease-out, background-color 0.25s ease-out, transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease-out;
           position: relative;
         }
 
@@ -659,7 +669,7 @@ export default function PuntoVenta() {
           border: 1px solid rgba(15, 191, 112, 0.2);
           border-radius: 16px;
           background: rgba(15, 191, 112, 0.08);
-          transition: all 0.25s ease;
+          transition: border-color 0.25s ease-out, background-color 0.25s ease-out, box-shadow 0.25s ease-out;
         }
 
         .seller-shift-card:hover {
@@ -688,7 +698,7 @@ export default function PuntoVenta() {
 
         .seller-logout-button {
           color: #ef4444;
-          transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+          transition: color 0.25s ease-out, background-color 0.25s ease-out, box-shadow 0.25s ease-out, transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
         .seller-logout-button:hover {
@@ -1001,7 +1011,7 @@ export default function PuntoVenta() {
           cursor: pointer;
           position: relative;
           box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
-          transition: all 0.2s ease;
+          transition: background-color 0.2s ease-out, color 0.2s ease-out, transform 0.2s ease-out;
         }
 
         .seller-bell:hover {
@@ -1083,7 +1093,7 @@ export default function PuntoVenta() {
           font-size: 14px;
           font-weight: 800;
           cursor: pointer;
-          transition: all 0.2s ease;
+          transition: color 0.2s ease-out, border-color 0.2s ease-out, background-color 0.2s ease-out, transform 0.2s ease-out, box-shadow 0.2s ease-out;
           box-shadow: 0 16px 32px rgba(15, 23, 42, 0.04);
         }
 
@@ -1289,7 +1299,7 @@ export default function PuntoVenta() {
           font-size: 13px;
           font-weight: 800;
           cursor: pointer;
-          transition: all 0.2s ease;
+          transition: border-color 0.2s ease-out, color 0.2s ease-out, background-color 0.2s ease-out;
         }
 
         .seller-select-button:hover {
@@ -1355,7 +1365,7 @@ export default function PuntoVenta() {
           font: inherit;
           font-weight: 800;
           cursor: pointer;
-          transition: all 0.18s ease;
+          transition: color 0.18s ease-out, background-color 0.18s ease-out, box-shadow 0.18s ease-out;
         }
 
         .seller-option-row button {
@@ -1970,7 +1980,7 @@ export default function PuntoVenta() {
           font-size: 12px;
           font-weight: 900;
           cursor: pointer;
-          transition: all 0.2s ease;
+          transition: color 0.2s ease-out, border-color 0.2s ease-out, background-color 0.2s ease-out, box-shadow 0.2s ease-out;
         }
 
         .seller-payment-grid button.is-active {
@@ -2116,7 +2126,7 @@ export default function PuntoVenta() {
             border-radius: 12px;
             background: rgba(15, 191, 112, 0.15);
             color: #0fbf70;
-            transition: all 0.2s ease;
+            transition: background-color 0.2s ease-out, transform 0.2s ease-out;
           }
 
           .seller-close-nav:hover {
@@ -2289,7 +2299,7 @@ export default function PuntoVenta() {
               <HelpCircle size={20} />
               <span>Ayuda</span>
             </button>
-            <button className="seller-logout-button" type="button" data-tooltip="Cerrar sesión" onClick={handleLogout}>
+            <button className="seller-logout-button" type="button" data-tooltip="Cerrar sesión" onClick={() => setLogoutOpen(true)}>
               <LogOut size={20} />
               <span>Cerrar sesión</span>
             </button>
@@ -2346,13 +2356,12 @@ export default function PuntoVenta() {
             </div>
           </header>
 
-          <AnimatePresence mode="wait" initial={false}>
+          <AnimatePresence initial={false}>
             <motion.main
               key={activeView}
               className="seller-content"
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8, transition: { duration: 0.12, ease: "easeOut" } }}
               transition={{
                 duration: 0.3,
                 ease: [0.16, 1, 0.3, 1],
@@ -2625,6 +2634,22 @@ export default function PuntoVenta() {
           data={comprobante}
           onClose={() => setComprobante(null)}
           onNewSale={() => setComprobante(null)}
+        />
+      )}
+
+      {logoutOpen && (
+        <LogoutConfirmModal
+          open={logoutOpen}
+          userName={userName}
+          userEmail={userEmail}
+          userAvatar={userAvatar}
+          pendingItems={itemCount}
+          pendingTotal={total}
+          loggingOut={loggingOut}
+          onClose={() => {
+            if (!loggingOut) setLogoutOpen(false);
+          }}
+          onConfirm={handleLogout}
         />
       )}
     </div>

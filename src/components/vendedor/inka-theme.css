@@ -1,14 +1,29 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Poppins:wght@600;700;800&display=swap');
 
-/* Inkafarma Ultra theme para POS vendedor — solo visual, sin lógica */
+/* ═══════════════════════════════════════════════════════════════
+   Inkafarma Ultra theme — rol VENDEDOR completo
+   Capas: primitivos → semánticos → componentes (design-system)
+   Solo visual. No toca lógica ni backend.
+   ═══════════════════════════════════════════════════════════════ */
 .seller-pos-page {
-  --inka: #17A15B;
-  --inka-dark: #0E7A44;
-  --inka-light: #E6F6EC;
-  --inka-yellow: #FFD400;
+  /* Primitivos */
+  --inka-500: #17A15B;
+  --inka-700: #0E7A44;
+  --inka-100: #E6F6EC;
+  --inka-200: #B9E6C9;
+  --yellow-400: #FFD400;
   --bg-soft: #F4F5F8;
+  --red-600: #E30613;
+  /* Semánticos */
+  --inka: var(--inka-500);
+  --inka-dark: var(--inka-700);
+  --inka-light: var(--inka-100);
   --navy: #243455;
-  --red: #E30613;
+  --ink: #0F172A;
+  --muted: #64748B;
+  --line: #E5E7EB;
+  --card-shadow: 0 2px 16px rgba(0,0,0,.06);
+  --pop-shadow: 0 24px 64px rgba(15,23,42,.22);
   font-family: 'Inter', 'Poppins', system-ui, sans-serif !important;
   background: #fff !important;
   color: var(--navy) !important;
@@ -21,34 +36,43 @@
 .seller-pos-page .seller-topbar {
   background: var(--bg-soft) !important;
 }
-.seller-pos-page .seller-topbar {
-  border-bottom: 1px solid #EEF2F6 !important;
-}
+.seller-pos-page .seller-topbar { border-bottom: 1px solid #EEF2F6 !important; }
 
 /* Sidebar oscuro -> blanco estilo Inkafarma header */
 .seller-pos-page .seller-sidebar {
   background: #ffffff !important;
   border: 1px solid #EEF2F6 !important;
-  box-shadow: 0 2px 16px rgba(0,0,0,.06) !important;
+  box-shadow: var(--card-shadow) !important;
 }
-.seller-pos-page .seller-brand { color: var(--inka) !important; }
+.seller-pos-page .seller-brand { color: var(--inka) !important; font-family: 'Poppins','Inter',sans-serif !important; }
 .seller-pos-page .seller-brand-mark {
   background: var(--inka) !important;
   box-shadow: 0 8px 20px rgba(23,161,91,.3) !important;
   border-radius: 50% !important;
 }
-
-/* Nav: gris -> verde Inka activo */
 .seller-pos-page .seller-nav-button,
-.seller-pos-page .seller-sidebar-footer .seller-nav-button {
-  color: #475569 !important;
-}
+.seller-pos-page .seller-sidebar-footer .seller-nav-button { color: #475569 !important; }
 .seller-pos-page .seller-nav-button:hover,
-.seller-pos-page .seller-sidebar-footer .seller-nav-button:hover,
-.seller-pos-page .seller-logout-button:hover {
+.seller-pos-page .seller-sidebar-footer .seller-nav-button:hover {
   color: var(--inka) !important;
   background: var(--inka-light) !important;
   transform: translateX(4px);
+}
+/* Cerrar sesión: siempre rojo profesional, nunca verde */
+.seller-pos-page .seller-logout-button {
+  color: #E30613 !important;
+  background: transparent !important;
+}
+.seller-pos-page .seller-logout-button:hover {
+  color: #ffffff !important;
+  background: linear-gradient(135deg, #E30613, #B91C1C) !important;
+  box-shadow: 0 4px 12px rgba(227, 6, 19, 0.4) !important;
+  transform: translateX(4px);
+}
+.seller-pos-page .seller-logout-button:active {
+  color: #ffffff !important;
+  background: linear-gradient(135deg, #B91C1C, #991B1B) !important;
+  transform: translateX(4px) scale(.98);
 }
 .seller-pos-page .seller-nav-button.is-active {
   color: var(--inka-dark) !important;
@@ -59,13 +83,13 @@
   background: linear-gradient(180deg, var(--inka), var(--inka-dark)) !important;
   box-shadow: 0 2px 8px rgba(23,161,91,.5) !important;
 }
-.seller-pos-page .seller-nav-button:focus-visible,
-.seller-pos-page .seller-logout-button:focus-visible {
+.seller-pos-page .seller-nav-button:focus-visible {
   outline: 2px solid rgba(23,161,91,.4) !important;
 }
+.seller-pos-page .seller-logout-button:focus-visible {
+  outline: 2px solid rgba(227,6,19,.45) !important;
+}
 .seller-pos-page .seller-sidebar-footer { border-top: 1px solid #EEF2F6 !important; }
-
-/* Shift card */
 .seller-pos-page .seller-shift-card {
   border: 1px solid rgba(23,161,91,.25) !important;
   background: var(--inka-light) !important;
@@ -84,15 +108,15 @@
   border-radius: 999px !important;
   height: 48px !important;
 }
-.seller-pos-page .seller-search:focus-within { border-color: var(--inka) !important; background: #fff !important; }
+.seller-pos-page .seller-search:focus-within { border-color: var(--inka) !important; background: #fff !important; box-shadow: 0 0 0 3px rgba(23,161,91,.12) !important; }
 .seller-pos-page .seller-sidebar-toggle:hover,
 .seller-pos-page .seller-bell:hover {
   background: var(--inka-light) !important;
   color: var(--inka-dark) !important;
 }
 
-/* Eyebrow + categorías + cards */
-.seller-pos-page .seller-eyebrow { color: var(--inka) !important; }
+/* Eyebrow + categorías + cards mostrador */
+.seller-pos-page .seller-eyebrow { color: var(--inka) !important; letter-spacing: .08em !important; }
 .seller-pos-page .seller-category:hover,
 .seller-pos-page .seller-category.is-active {
   color: var(--inka-dark) !important;
@@ -104,14 +128,13 @@
 .seller-pos-page .seller-expand-icon.is-open,
 .seller-pos-page .seller-select-button:hover,
 .seller-pos-page .seller-option-row button:hover,
-.seller-pos-page .seller-option-row button.is-active {
-  color: var(--inka-dark) !important;
-}
+.seller-pos-page .seller-option-row button.is-active { color: var(--inka-dark) !important; }
 .seller-pos-page .seller-option-row button:hover,
 .seller-pos-page .seller-option-row button.is-active {
   background: rgba(23,161,91,.11) !important;
   box-shadow: inset 0 0 0 1px var(--inka) !important;
 }
+.seller-pos-page .seller-product-card { border-radius: 20px !important; box-shadow: var(--card-shadow) !important; }
 .seller-pos-page .seller-product-top strong { color: var(--inka) !important; }
 .seller-pos-page .seller-amount button:last-child,
 .seller-pos-page .seller-add-button {
@@ -122,18 +145,111 @@
 .seller-pos-page .seller-panel-state button { background: var(--inka) !important; }
 .seller-pos-page .seller-panel-state button:hover { background: var(--inka-dark) !important; }
 
-/* Bill / orden */
+/* Bill / detalle de venta */
 .seller-pos-page .seller-bill { background: #fff !important; border-left: 1px solid #EEF2F6 !important; }
-.seller-pos-page .seller-mini-btn { border-color: var(--inka) !important; color: var(--inka-dark) !important; }
+.seller-pos-page .seller-form-block input:focus,
+.seller-pos-page .seller-document-select:focus-within {
+  border-color: var(--inka) !important;
+  box-shadow: 0 0 0 3px rgba(23,161,91,.12) !important;
+}
+.seller-pos-page .seller-mini-btn { border-color: var(--inka) !important; color: var(--inka-dark) !important; border-radius: 12px !important; }
 .seller-pos-page .seller-mini-btn:hover:not(:disabled) { background: var(--inka-light) !important; }
-.seller-pos-page .seller-client-chip { border-color: #B9E6C9 !important; background: var(--inka-light) !important; }
+.seller-pos-page .seller-client-chip { border-color: var(--inka-200) !important; background: var(--inka-light) !important; }
 .seller-pos-page .seller-client-chip span { color: var(--inka-dark) !important; }
+.seller-pos-page .seller-suggest { border-radius: 16px !important; box-shadow: var(--pop-shadow) !important; }
+.seller-pos-page .seller-suggest button:hover { background: var(--inka-light) !important; }
+.seller-pos-page .seller-payment-grid button { border-radius: 16px !important; }
+.seller-pos-page .seller-payment-grid button.is-active {
+  color: var(--inka-dark) !important;
+  border-color: var(--inka) !important;
+  background: linear-gradient(180deg, rgba(23,161,91,.12), #fff) !important;
+  box-shadow: inset 0 0 0 1px rgba(23,161,91,.35), 0 4px 14px rgba(23,161,91,.15) !important;
+}
+.seller-pos-page .seller-process-button {
+  background: linear-gradient(135deg, var(--inka), var(--inka-dark)) !important;
+  box-shadow: 0 18px 30px rgba(23,161,91,.26) !important;
+  border-radius: 999px !important;
+}
+.seller-pos-page .seller-total-row.is-grand strong { color: var(--inka-dark) !important; }
+.seller-pos-page .seller-mini-cart-row > strong { color: var(--inka-dark) !important; }
+.seller-pos-page .seller-selected-detail strong { color: var(--inka) !important; }
 
-/* v2-order (OrdenActual) */
+/* ═══════════════ Vistas v2: orden / historial / clientes / perfil ═══════════════ */
 .seller-pos-page .v2-head-eyebrow { color: var(--inka) !important; }
-.seller-pos-page .v2-order-badge { background: var(--inka-light) !important; color: var(--inka-dark) !important; border-color: #B9E6C9 !important; }
+.seller-pos-page .v2-head-title { font-family: 'Poppins','Inter',sans-serif !important; letter-spacing: -.01em !important; }
+.seller-pos-page .v2-card,
+.seller-pos-page .v2-order-list,
+.seller-pos-page .v2-summary { border-radius: 18px !important; box-shadow: var(--card-shadow) !important; }
+.seller-pos-page .v2-order-badge { background: var(--inka-light) !important; color: var(--inka-dark) !important; border-color: var(--inka-200) !important; }
 .seller-pos-page .v2-summary-grand strong { color: var(--inka-dark) !important; }
-.seller-pos-page .v2-primary-btn { background: var(--inka) !important; }
-.seller-pos-page .v2-primary-btn:hover { background: var(--inka-dark) !important; }
+.seller-pos-page .v2-primary-btn { background: linear-gradient(135deg, var(--inka), var(--inka-dark)) !important; border-radius: 14px !important; box-shadow: 0 12px 24px rgba(23,161,91,.25) !important; }
+.seller-pos-page .v2-primary-btn:hover { filter: brightness(.96); }
 .seller-pos-page .v2-secondary-btn { border-color: var(--inka) !important; color: var(--inka-dark) !important; }
 .seller-pos-page .v2-secondary-btn:hover { background: var(--inka-light) !important; }
+.seller-pos-page .v2-search { border-radius: 999px !important; background: var(--bg-soft) !important; border-color: transparent !important; }
+.seller-pos-page .v2-search:focus-within { background: #fff !important; border-color: var(--inka) !important; box-shadow: 0 0 0 3px rgba(23,161,91,.12) !important; }
+
+/* Historial: stats oscuras -> tarjetas claras Inka */
+.seller-pos-page .v2-stat { background: #fff !important; border: 1px solid var(--line) !important; border-radius: 18px !important; box-shadow: var(--card-shadow) !important; color: var(--ink) !important; }
+.seller-pos-page .v2-stat span { color: var(--muted) !important; }
+.seller-pos-page .v2-stat strong { color: var(--ink) !important; }
+.seller-pos-page .v2-stat-accent { border-color: rgba(23,161,91,.4) !important; background: linear-gradient(180deg, var(--inka-light), #fff 75%) !important; }
+.seller-pos-page .v2-stat-accent strong { color: var(--inka-dark) !important; }
+.seller-pos-page .v2-chip { border-radius: 999px !important; }
+.seller-pos-page .v2-chip.is-active { background: var(--inka) !important; border-color: var(--inka) !important; color: #fff !important; box-shadow: 0 8px 18px rgba(23,161,91,.3) !important; }
+.seller-pos-page .v2-refresh:hover { color: var(--inka-dark) !important; border-color: var(--inka) !important; }
+.seller-pos-page .v2-timeline::before { background: var(--inka-200) !important; }
+.seller-pos-page .v2-stop::before { border-color: var(--inka) !important; box-shadow: 0 0 0 4px var(--inka-light) !important; }
+.seller-pos-page .v2-sale-row { border-radius: 16px !important; }
+.seller-pos-page .v2-sale-row:hover { border-color: var(--inka) !important; box-shadow: 0 8px 22px rgba(23,161,91,.14) !important; }
+.seller-pos-page .v2-sale-total, .seller-pos-page .v2-day-total { color: var(--inka-dark) !important; }
+.seller-pos-page .v2-pill { background: var(--inka-light) !important; color: var(--inka-dark) !important; border-color: var(--inka-200) !important; }
+
+/* Clientes */
+.seller-pos-page .v2-client-card { border-radius: 18px !important; box-shadow: var(--card-shadow) !important; }
+.seller-pos-page .v2-client-card:hover { border-color: var(--inka) !important; background: #F6FEFA !important; }
+.seller-pos-page .v2-avatar { background: linear-gradient(135deg, var(--inka), var(--inka-dark)) !important; }
+.seller-pos-page .v2-client-card.is-counter .v2-avatar { background: var(--inka-light) !important; color: var(--inka-dark) !important; }
+
+/* Perfil */
+.seller-pos-page .v2-id { border-radius: 20px !important; box-shadow: var(--card-shadow) !important; }
+.seller-pos-page .v2-avatar { border-color: var(--inka-200) !important; }
+.seller-pos-page .v2-role { background: var(--inka) !important; }
+.seller-pos-page .v2-stat-top svg, .seller-pos-page .v2-note svg { color: var(--inka) !important; }
+.seller-pos-page .v2-activity-amount { color: var(--inka-dark) !important; }
+
+/* ═══════════════ Modales ═══════════════ */
+/* Overlay general con blur profesional */
+.ticket-overlay, .v2-modal-overlay {
+  background: rgba(15,23,42,.55) !important;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+/* Detalle de venta */
+.v2-modal {
+  border-radius: 20px !important;
+  border: 1px solid #EEF2F6 !important;
+  box-shadow: var(--pop-shadow) !important;
+  font-family: 'Inter','Poppins',sans-serif !important;
+}
+.v2-modal-head { border-bottom: 1px solid #EEF2F6 !important; border-radius: 20px 20px 0 0 !important; }
+.v2-modal-eyebrow { color: var(--inka) !important; }
+.v2-modal-title { font-family: 'Poppins','Inter',sans-serif !important; }
+.v2-modal-close:hover { border-color: var(--inka) !important; color: var(--inka-dark) !important; background: var(--inka-light) !important; }
+.v2-pill-paid { background: var(--inka-light) !important; color: var(--inka-dark) !important; border-color: var(--inka-200) !important; }
+.v2-grand strong { color: var(--inka-dark) !important; }
+.v2-items { border-radius: 14px !important; }
+/* Comprobante: NO tocar el ticket imprimible (monospace), solo acciones + overlay */
+.ticket-actions button { font-family: 'Inter',sans-serif !important; border-radius: 12px !important; }
+.ticket-btn-print { background: linear-gradient(135deg, var(--inka), var(--inka-dark)) !important; box-shadow: 0 12px 24px rgba(23,161,91,.3) !important; }
+.ticket-btn-print:hover { filter: brightness(.96); }
+.ticket-btn-new:hover { border-color: var(--inka) !important; color: var(--inka-dark) !important; }
+.print-ticket { border-radius: 14px !important; }
+
+/* Focus accesible global vendedor */
+.seller-pos-page button:focus-visible,
+.seller-pos-page input:focus-visible,
+.seller-pos-page select:focus-visible {
+  outline: 2px solid rgba(23,161,91,.5) !important;
+  outline-offset: 2px;
+}
