@@ -18,6 +18,8 @@ import {
   AlertCircle
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
+import usersService from "../../services/usersService";
+import authService from "../../services/authService";
 
 interface MiPerfilProps {
   isDark: boolean;
@@ -55,9 +57,12 @@ export default function MiPerfil({ isDark }: MiPerfilProps) {
   const userPhoto = user?.foto_perfil_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(formData.nombre_completo)}&background=5bcfc5&color=fff&size=200`;
   const userRole = user?.rol?.nombre_rol || "ADMINISTRATIVO";
   const userRoleDescription = user?.rol?.descripcion || "Acceso total: gestión de usuarios, reportes y configuración";
-  // Valores mock para fechas (TODO: agregar estos campos al tipo User cuando estén en el backend)
-  const fechaRegistro = "15 de enero de 2024";
-  const ultimoAcceso = "Hoy, 10:30 AM";
+  const fechaRegistro = user?.fecha_registro
+    ? new Date(user.fecha_registro).toLocaleDateString("es-PE", { day: "numeric", month: "long", year: "numeric" })
+    : "—";
+  const ultimoAcceso = user?.ultimo_acceso
+    ? new Date(user.ultimo_acceso).toLocaleString("es-PE")
+    : "—";
 
   // Colores del tema
   const t = isDark ? {
@@ -141,11 +146,20 @@ export default function MiPerfil({ isDark }: MiPerfilProps) {
     setPasswordSuccess(false);
   };
 
-  const handleSaveProfile = () => {
-    // Aquí iría la lógica para guardar el perfil
-    console.log("Guardando perfil:", formData);
-    setIsEditing(false);
-    // TODO: Integrar con el backend
+  const handleSaveProfile = async () => {
+    if (!user) return;
+    try {
+      await usersService.updateUser(user.id_usuario, {
+        nombre_completo: formData.nombre_completo,
+        telefono: formData.telefono,
+        email: formData.email,
+        dni: formData.dni,
+      });
+      setIsEditing(false);
+      alert("Perfil actualizado correctamente");
+    } catch (err: any) {
+      alert(err?.response?.data?.message || "No se pudo actualizar el perfil");
+    }
   };
 
   const handleCancelEdit = () => {
@@ -161,40 +175,31 @@ export default function MiPerfil({ isDark }: MiPerfilProps) {
     setIsEditing(false);
   };
 
-  const handleChangePassword = () => {
-    // Validaciones
+  const handleChangePassword = async () => {
     if (!passwordForm.currentPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
       setPasswordError("Todos los campos son obligatorios");
       return;
     }
-
     if (passwordForm.newPassword.length < 6) {
       setPasswordError("La nueva contraseña debe tener al menos 6 caracteres");
       return;
     }
-
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
       setPasswordError("Las contraseñas no coinciden");
       return;
     }
-
-    // Aquí iría la lógica para cambiar la contraseña
-    console.log("Cambiando contraseña");
-    setPasswordSuccess(true);
-    setPasswordError("");
-    
-    // Limpiar formulario y cerrar modal después de 2 segundos
-    setTimeout(() => {
-      setPasswordForm({
-        currentPassword: "",
-        newPassword: "",
-        confirmPassword: "",
-      });
-      setShowPasswordModal(false);
-      setPasswordSuccess(false);
-    }, 2000);
-
-    // TODO: Integrar con el backend
+    try {
+      await authService.changePassword(passwordForm.currentPassword, passwordForm.newPassword);
+      setPasswordSuccess(true);
+      setPasswordError("");
+      setTimeout(() => {
+        setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+        setShowPasswordModal(false);
+        setPasswordSuccess(false);
+      }, 2000);
+    } catch (err: any) {
+      setPasswordError(err?.response?.data?.message || "No se pudo cambiar la contraseña");
+    }
   };
 
   return (

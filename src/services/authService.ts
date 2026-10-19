@@ -13,6 +13,8 @@ export interface User {
   nombre_completo: string;
   foto_perfil_url: string | null;
   telefono: string | null;
+  ultimo_acceso: string;
+  fecha_registro: string;
   rol: {
     id_rol: number;
     nombre_rol: string;
@@ -71,6 +73,11 @@ export const authService = {
   getProfile: async (): Promise<User> => {
     const response = await api.get<{ success: boolean; data: User }>('/auth/profile');
     return response.data.data;
+  },
+
+  changePassword: async (currentPassword: string, newPassword: string): Promise<{ success: boolean; message: string }> => {
+    const response = await api.post<{ success: boolean; message: string }>('/auth/change-password', { currentPassword, newPassword });
+    return response.data;
   },
 
   /**

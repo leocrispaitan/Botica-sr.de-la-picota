@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { X, Send, Sparkles, RotateCcw, Copy, Check, ChevronDown } from "lucide-react";
+import lottie from "lottie-web";
+import iaAnimation from "../../assets/iaagenteanimation.json";
 import { getLiveBusinessContext } from "../../services/aiContextService";
 
 /* ─── Tipos ─────────────────────────────────────────────────────────── */
@@ -167,6 +169,23 @@ function MessageBubble({ message, isDark }: { message: Message; isDark: boolean 
 }
 
 /* ─── Componente Principal ──────────────────────────────────────────── */
+
+function LottieIcon({ size }: { size: number }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!ref.current) return;
+    const anim = (lottie as any).loadAnimation({
+      container: ref.current,
+      renderer: "svg",
+      loop: true,
+      autoplay: true,
+      animationData: iaAnimation,
+    });
+    return () => anim.destroy();
+  }, []);
+  return <div ref={ref} style={{ width: size, height: size }} />;
+}
+
 export default function GeminiAIAssistant({ isDark, activeMenu = "Dashboard" }: GeminiAIAssistantProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -257,7 +276,7 @@ ${userMessage}` },
       setMessages((prev) => prev.map((m) => m.isStreaming ? { ...m, content: reply, isStreaming: false, timestamp: new Date() } : m));
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : "Error al conectar con DeepSeek AI";
-      setMessages((prev) => prev.map((m) => m.isStreaming ? { ...m, content: `⚠️ **Error:** ${errorMsg}\n\nVerifica tu API key de Gemini en las variables de entorno (VITE_DEEPSEEK_API_KEY).`, isStreaming: false, timestamp: new Date() } : m));
+      setMessages((prev) => prev.map((m) => m.isStreaming ? { ...m, content: `⚠️ **Error:** ${errorMsg}\n\nVerifica las variables VITE_DEEPSEEK_API_KEY y VITE_DEEPSEEK_MODEL en Vercel (usa deepseek-flash o deepseek-v4-pro).`, isStreaming: false, timestamp: new Date() } : m));
     } finally {
       setIsLoading(false);
     }
@@ -298,7 +317,7 @@ ${userMessage}` },
       <button
         id="ai-assistant-btn"
         onClick={() => { setIsOpen(true); setIsMinimized(false); setPulseActive(false); }}
-        title="Asistente IA DeepSeek"
+        title="FarmaBot - Asistente IA"
         style={{
           position: "fixed", bottom: "28px", right: "28px",
           width: "62px", height: "62px", borderRadius: "20px",
@@ -315,19 +334,8 @@ ${userMessage}` },
         onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(1.1) translateY(-2px)"; }}
         onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(1) translateY(0)"; }}
       >
-        {/* Icono IA SVG personalizado */}
-        <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="14" cy="14" r="7" stroke="white" strokeWidth="1.5" fill="rgba(255,255,255,0.15)" />
-          <circle cx="14" cy="5" r="2" fill="white" opacity="0.9" />
-          <circle cx="23" cy="14" r="1.5" fill="white" opacity="0.7" />
-          <circle cx="5" cy="14" r="1.5" fill="white" opacity="0.7" />
-          <circle cx="14" cy="23" r="2" fill="white" opacity="0.9" />
-          <path d="M14 10.5L15.2 13.5H18L15.6 15.3L16.4 18L14 16.4L11.6 18L12.4 15.3L10 13.5H12.8L14 10.5Z" fill="white" />
-          <line x1="14" y1="7" x2="14" y2="10.5" stroke="white" strokeWidth="1" opacity="0.5" />
-          <line x1="21" y1="14" x2="17.5" y2="14" stroke="white" strokeWidth="1" opacity="0.5" />
-          <line x1="7" y1="14" x2="10.5" y2="14" stroke="white" strokeWidth="1" opacity="0.5" />
-          <line x1="14" y1="21" x2="14" y2="17.5" stroke="white" strokeWidth="1" opacity="0.5" />
-        </svg>
+        {/* Icono IA animado (Lottie) */}
+        <LottieIcon size={40} />
         {/* Badge IA */}
         <span style={{ position: "absolute", top: "-4px", right: "-4px", background: "linear-gradient(135deg, #f59e0b, #ef4444)", color: "#fff", fontSize: "8px", fontWeight: 800, letterSpacing: "0.05em", padding: "2px 5px", borderRadius: "6px", border: `2px solid ${isDark ? "#171622" : "#f0f2f8"}`, lineHeight: 1 }}>
           IA
@@ -344,11 +352,11 @@ ${userMessage}` },
             style={{ padding: "16px 18px", borderBottom: isMinimized ? "none" : `1px solid ${isDark ? "rgba(46,46,66,0.4)" : "rgba(220,222,235,0.6)"}`, display: "flex", alignItems: "center", gap: "12px", background: isDark ? "linear-gradient(90deg, rgba(91,207,197,0.06) 0%, rgba(59,130,246,0.04) 50%, rgba(139,92,246,0.06) 100%)" : "linear-gradient(90deg, rgba(91,207,197,0.08) 0%, rgba(59,130,246,0.05) 50%, rgba(139,92,246,0.08) 100%)", flexShrink: 0, cursor: isMinimized ? "pointer" : "default" }}
           >
             <div style={{ width: "38px", height: "38px", borderRadius: "12px", background: "linear-gradient(135deg, #5bcfc5 0%, #3b82f6 50%, #8b5cf6 100%)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 4px 14px rgba(91,207,197,0.35)", animation: "sparkleRotate 3s ease-in-out infinite" }}>
-              <Sparkles size={18} color="#fff" />
+              <LottieIcon size={24} />
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: "14px", fontWeight: 700, color: t.textPrimary, display: "flex", alignItems: "center", gap: "6px" }}>
-                DeepSeek AI
+                FarmaBot
                 <span style={{ fontSize: "9px", fontWeight: 800, letterSpacing: "0.06em", color: "#5bcfc5", textTransform: "uppercase" as const, padding: "2px 6px", border: "1px solid rgba(91,207,197,0.3)", borderRadius: "6px" }}>PRO</span>
               </div>
               <div style={{ fontSize: "11px", color: t.textSecondary, marginTop: "1px", display: "flex", alignItems: "center", gap: "6px" }}>
@@ -395,7 +403,7 @@ ${userMessage}` },
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flex: 1, gap: "16px", padding: "16px 0" }}>
                     <div style={{ position: "relative", width: "80px", height: "80px" }}>
                       <div style={{ width: "80px", height: "80px", borderRadius: "24px", background: "linear-gradient(135deg, #5bcfc5 0%, #3b82f6 50%, #8b5cf6 100%)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 8px 32px rgba(91,207,197,0.4)", animation: "sparkleRotate 3s ease-in-out infinite" }}>
-                        <Sparkles size={36} color="#fff" />
+                        <LottieIcon size={48} />
                       </div>
                       {[{ top: "-8px", right: "-8px", size: "16px", delay: "0s" }, { top: "-4px", left: "-12px", size: "10px", delay: "0.5s" }, { bottom: "-6px", right: "-6px", size: "12px", delay: "1s" }].map((p, i) => (
                         <div key={i} style={{ position: "absolute", top: p.top, right: p.right, left: p.left, bottom: p.bottom, width: p.size, height: p.size, borderRadius: "50%", background: "linear-gradient(135deg, #5bcfc5, #3b82f6)", opacity: 0.6, animation: `dotBounce 2s ease-in-out ${p.delay} infinite` }} />

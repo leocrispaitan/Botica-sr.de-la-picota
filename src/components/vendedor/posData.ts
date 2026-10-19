@@ -47,12 +47,6 @@ export interface CartItem {
   factorABase: number;
 }
 
-export const recentSales = [
-  { id: "#V-1048", customer: "Cliente mostrador", time: "09:42", total: 37.5, items: 3 },
-  { id: "#V-1047", customer: "Rosa Velásquez", time: "09:18", total: 82.8, items: 5 },
-  { id: "#V-1046", customer: "Farmacia San Martín", time: "08:55", total: 156.4, items: 9 },
-];
-
 export const formatCurrency = (value: number) =>
   new Intl.NumberFormat("es-PE", {
     style: "currency",
