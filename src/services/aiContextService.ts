@@ -12,7 +12,7 @@ const CACHE_TTL_MS = 60 * 1000; // 1 minuto de caché para evitar peticiones red
 /**
  * Obtiene un resumen estructurado y condensado de los datos reales del negocio
  * (ventas, serie diaria, top productos, stock crítico y lotes por vencer)
- * para inyectarlo en el contexto de Gemini AI.
+ * para inyectarlo en el contexto de DeepSeek AI.
  */
 export async function getLiveBusinessContext(forceRefresh = false): Promise<string> {
   const now = Date.now();

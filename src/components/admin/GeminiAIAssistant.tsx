@@ -16,10 +16,9 @@ interface GeminiAIAssistantProps {
   activeMenu?: string;
 }
 
-/* ─── Configuración Gemini ──────────────────────────────────────────── */
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || "";
-const GEMINI_API_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent";
+/* ─── Configuración DeepSeek ────────────────────────────────────────── */
+const DEEPSEEK_API_KEY = import.meta.env.VITE_DEEPSEEK_API_KEY || "";
+const DEEPSEEK_API_URL = "https://api.deepseek.com/chat/completions";
 
 /* ─── Contexto del sistema para la botica ──────────────────────────── */
 const SYSTEM_CONTEXT = `Eres un asistente inteligente especializado en análisis de datos para "Botica" — un sistema de gestión farmacéutica en Perú.
@@ -175,6 +174,7 @@ export default function GeminiAIAssistant({ isDark, activeMenu = "Dashboard" }: 
   const [isLoading, setIsLoading] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [pulseActive, setPulseActive] = useState(true);
+  const [selectedModel, setSelectedModel] = useState(import.meta.env.VITE_DEEPSEEK_MODEL || "deepseek-flash");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const hasSentFirstMessage = messages.some((m) => m.role === "user");
@@ -203,30 +203,32 @@ export default function GeminiAIAssistant({ isDark, activeMenu = "Dashboard" }: 
 
     const history = messages
       .filter((m) => !m.isStreaming)
-      .map((m) => ({ role: m.role === "user" ? "user" : "model", parts: [{ text: m.content }] }));
+      .map((m) => ({ role: m.role === "user" ? "user" : "assistant", content: m.content }));
 
-    const activeApiKey = import.meta.env.VITE_GEMINI_API_KEY || GEMINI_API_KEY;
+    const activeApiKey = import.meta.env.VITE_DEEPSEEK_API_KEY || DEEPSEEK_API_KEY;
 
     if (!activeApiKey) {
       throw new Error(
-        "Falta configurar la variable VITE_GEMINI_API_KEY en Vercel. Ve a Settings > Environment Variables, agrégala y haz un Redeploy del proyecto."
+        "Falta configurar la variable VITE_DEEPSEEK_API_KEY. Agrégala en .env / Vercel y haz un Redeploy."
       );
     }
 
-    const response = await fetch(`${GEMINI_API_URL}?key=${activeApiKey}`, {
+    const response = await fetch(DEEPSEEK_API_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Authorization: "Bearer " + activeApiKey },
       body: JSON.stringify({
-        contents: [
-          { role: "user", parts: [{ text: `${SYSTEM_CONTEXT}\n\n${businessData}` }] },
+        model: selectedModel,
+        messages: [
+          { role: "system", content: `${SYSTEM_CONTEXT}
+
+${businessData}` },
           ...history,
-          { role: "user", parts: [{ text: `[Sección activa del panel: ${activeMenu}]\n\n${userMessage}` }] },
+          { role: "user", content: `[Sección activa del panel: ${activeMenu}]
+
+${userMessage}` },
         ],
-        generationConfig: { temperature: 0.3, topK: 40, topP: 0.95, maxOutputTokens: 1200 },
-        safetySettings: [
-          { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
-          { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
-        ],
+        temperature: 0.3,
+        max_tokens: 1200,
       }),
     });
 
@@ -236,7 +238,8 @@ export default function GeminiAIAssistant({ isDark, activeMenu = "Dashboard" }: 
     }
 
     const data = await response.json();
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    const msg = data?.choices?.[0]?.message;
+    const text = msg?.content || msg?.reasoning_content;
     if (!text) throw new Error("Respuesta vacía de la IA");
     return text;
   };
@@ -253,8 +256,8 @@ export default function GeminiAIAssistant({ isDark, activeMenu = "Dashboard" }: 
       const reply = await callGemini(messageText);
       setMessages((prev) => prev.map((m) => m.isStreaming ? { ...m, content: reply, isStreaming: false, timestamp: new Date() } : m));
     } catch (err: unknown) {
-      const errorMsg = err instanceof Error ? err.message : "Error al conectar con Gemini AI";
-      setMessages((prev) => prev.map((m) => m.isStreaming ? { ...m, content: `⚠️ **Error:** ${errorMsg}\n\nVerifica tu API key de Gemini en las variables de entorno (VITE_GEMINI_API_KEY).`, isStreaming: false, timestamp: new Date() } : m));
+      const errorMsg = err instanceof Error ? err.message : "Error al conectar con DeepSeek AI";
+      setMessages((prev) => prev.map((m) => m.isStreaming ? { ...m, content: `⚠️ **Error:** ${errorMsg}\n\nVerifica tu API key de Gemini en las variables de entorno (VITE_DEEPSEEK_API_KEY).`, isStreaming: false, timestamp: new Date() } : m));
     } finally {
       setIsLoading(false);
     }
@@ -295,7 +298,7 @@ export default function GeminiAIAssistant({ isDark, activeMenu = "Dashboard" }: 
       <button
         id="ai-assistant-btn"
         onClick={() => { setIsOpen(true); setIsMinimized(false); setPulseActive(false); }}
-        title="Asistente IA Gemini"
+        title="Asistente IA DeepSeek"
         style={{
           position: "fixed", bottom: "28px", right: "28px",
           width: "62px", height: "62px", borderRadius: "20px",
@@ -345,7 +348,7 @@ export default function GeminiAIAssistant({ isDark, activeMenu = "Dashboard" }: 
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: "14px", fontWeight: 700, color: t.textPrimary, display: "flex", alignItems: "center", gap: "6px" }}>
-                Gemini AI
+                DeepSeek AI
                 <span style={{ fontSize: "9px", fontWeight: 800, letterSpacing: "0.06em", color: "#5bcfc5", textTransform: "uppercase" as const, padding: "2px 6px", border: "1px solid rgba(91,207,197,0.3)", borderRadius: "6px" }}>PRO</span>
               </div>
               <div style={{ fontSize: "11px", color: t.textSecondary, marginTop: "1px", display: "flex", alignItems: "center", gap: "6px" }}>
@@ -356,6 +359,7 @@ export default function GeminiAIAssistant({ isDark, activeMenu = "Dashboard" }: 
                 </span>
               </div>
             </div>
+            <select value={selectedModel} onChange={(e) => setSelectedModel(e.target.value)} style={{ padding: "4px 8px", borderRadius: "8px", border: "1px solid rgba(91,207,197,0.3)", background: "transparent", color: "#5bcfc5", fontSize: "11px", fontWeight: 700, cursor: "pointer", marginRight: "6px" }}><option value="deepseek-flash">V4.1 Flash</option><option value="deepseek-v4-pro">V4 Pro</option></select>
             <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
               {!isMinimized && messages.length > 0 && (
                 <button
@@ -454,7 +458,7 @@ export default function GeminiAIAssistant({ isDark, activeMenu = "Dashboard" }: 
                   </button>
                 </div>
                 <p style={{ fontSize: "10px", color: isDark ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.25)", textAlign: "center", marginTop: "8px" }}>
-                  Powered by Google Gemini · Shift+Enter para nueva línea
+                  Powered by DeepSeek · Shift+Enter para nueva línea
                 </p>
               </div>
             </>

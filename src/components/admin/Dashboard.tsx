@@ -2497,7 +2497,7 @@ export default function Dashboard({ onLogout }: { onLogout?: () => void }) {
         </main>
       </div>
 
-      {/* ═══ Asistente IA Gemini - Flotante global ═══ */}
+      {/* ═══ Asistente IA DeepSeek - Flotante global ═══ */}
       <GeminiAIAssistant isDark={isDark} activeMenu={activeMenu} />
 
     </div>
